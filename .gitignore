@@ -41,5 +41,8 @@ htmlcov/
 *.jpg
 *.jpeg
 
+# Overstory
+.overstory/
+
 # uv
 .python-version
