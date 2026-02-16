@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 4 - Scoring Engine
+**Current focus:** Phase 4 Complete - Ready for Phase 5 (Deliberation)
 
 ## Current Position
 
-Phase: 4 of 6 (Scoring System)
-Plan: 2 of 3 in current phase (04-01 and 04-02 complete)
-Status: Executing Phase 04
-Last activity: 2026-02-16 -- Completed 04-01-PLAN.md with scoring models and engine
+Phase: 4 of 6 (Scoring System) -- COMPLETE
+Plan: 3 of 3 in current phase (all plans complete)
+Status: Phase 04 Complete, ready for Phase 05
+Last activity: 2026-02-16 -- Completed 04-03-PLAN.md with scoring pipeline integration
 
-Progress: [████████████░] 63%
+Progress: [██████████████░░] 79%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 3min
-- Total execution time: 0.61 hours
+- Total execution time: 0.66 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [████████████░] 63%
 | 01-capture-layer | 4/4 | 16min | 4min |
 | 02-defense-pipeline | 3/3 | 6min | 2min |
 | 03-commentary-output | 3/3 | 10min | 3.3min |
-| 04-scoring-system | 2/3 | 5min | 2.5min |
+| 04-scoring-system | 3/3 | 8min | 2.7min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (5min), 03-03 (3min), 04-02 (2min), 04-01 (3min)
+- Last 5 plans: 03-03 (3min), 04-01 (3min), 04-02 (2min), 04-03 (3min)
 - Trend: Stable execution at ~3min/plan
 
 *Updated after each plan completion*
@@ -87,6 +87,10 @@ Recent decisions affecting current work:
 - [04-02]: XSS-safe DOM construction using createElement/textContent instead of innerHTML for score card rendering
 - [04-02]: Double requestAnimationFrame for reliable CSS transition triggering on dynamically appended elements
 - [04-02]: Score card as separate section below commentary, not an overlay
+- [04-03]: Detached asyncio.create_task for score reveal -- must NOT block event bus callback
+- [04-03]: Shared DisplayServer instance between commentary and scoring (isolation is LLM path, not display)
+- [04-03]: Default track ROGUE::AGENT when operator does not specify a track
+- [04-03]: Pending scorecards dict bridges timing gap between scoring completion and commentary delivery
 
 ### Pending Todos
 
@@ -100,5 +104,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 04-01-PLAN.md - Scoring models, rubric, and engine with isolated Gemini client. 04-03 remaining.
+Stopped at: Completed 04-03-PLAN.md - Phase 04 (Scoring System) fully complete. Ready for Phase 05 (Deliberation).
 Resume file: None
