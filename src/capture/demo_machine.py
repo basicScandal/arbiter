@@ -12,7 +12,7 @@ import time
 from statemachine import State, StateMachine
 
 from src.capture.event_bus import EventBus, default_bus
-from src.capture.models import DemoSession, DemoStarted, DemoStopped
+from src.capture.models import DemoPaused, DemoResumed, DemoSession, DemoStarted, DemoStopped
 
 
 class DemoMachine(StateMachine):
@@ -21,22 +21,28 @@ class DemoMachine(StateMachine):
     States:
         idle: No demo running. Ready to start a new demo.
         capturing: Demo in progress, capture active.
+        paused: Demo temporarily halted, session preserved.
         stopped: Demo ended, captured data available.
 
     Transitions:
         start_demo: idle -> capturing (requires team_name)
-        stop_demo: capturing -> stopped
+        pause_demo: capturing -> paused
+        resume_demo: paused -> capturing
+        stop_demo: capturing -> stopped | paused -> stopped
         reset: stopped -> idle (clears session data)
     """
 
     # States
     idle = State(initial=True)
     capturing = State()
+    paused = State()
     stopped = State()
 
     # Transitions
     start_demo = idle.to(capturing)
-    stop_demo = capturing.to(stopped)
+    pause_demo = capturing.to(paused)
+    resume_demo = paused.to(capturing)
+    stop_demo = capturing.to(stopped) | paused.to(stopped)
     reset = stopped.to(idle)
 
     def __init__(self, event_bus: EventBus | None = None, **kwargs) -> None:
@@ -53,6 +59,23 @@ class DemoMachine(StateMachine):
         self.event_bus.publish(
             DemoStarted(team_name=team_name)
         )
+
+    def on_enter_paused(self, **kwargs) -> None:
+        """Publish DemoPaused event when operator pauses the demo."""
+        team_name = self.current_session.team_name if self.current_session else "Unknown"
+        self.event_bus.publish(
+            DemoPaused(team_name=team_name)
+        )
+
+    def on_exit_paused(self, **kwargs) -> None:
+        """Publish DemoResumed event when leaving paused state (resuming)."""
+        # Only publish DemoResumed if transitioning back to capturing (not stopping)
+        target = kwargs.get("target", None)
+        if target is not None and target.id == "capturing":
+            team_name = self.current_session.team_name if self.current_session else "Unknown"
+            self.event_bus.publish(
+                DemoResumed(team_name=team_name)
+            )
 
     def on_enter_stopped(self, **kwargs) -> None:
         """Finalize the demo session and publish DemoStopped event."""

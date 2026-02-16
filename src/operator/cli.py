@@ -101,6 +101,10 @@ class OperatorCLI:
                     self._handle_score()
                 elif command == "deliberate":
                     self._handle_deliberate()
+                elif command == "pause":
+                    self._handle_pause()
+                elif command == "resume":
+                    self._handle_resume()
                 elif command == "status":
                     self._handle_status()
                 elif command in ("quit", "exit"):
@@ -156,6 +160,22 @@ class OperatorCLI:
         team = session.team_name if session else "Unknown"
         print(f"Demo stopped for team: {team} (duration: {duration:.1f}s)")
         logger.info("Operator stopped demo for team: %s (%.1fs)", team, duration)
+
+    def _handle_pause(self) -> None:
+        """Handle the 'pause' command to temporarily halt the demo."""
+        session = self.demo_machine.current_session
+        self.demo_machine.send("pause_demo")
+        team = session.team_name if session else "Unknown"
+        print(f"Demo paused for team: {team}")
+        logger.info("Operator paused demo for team: %s", team)
+
+    def _handle_resume(self) -> None:
+        """Handle the 'resume' command to continue a paused demo."""
+        session = self.demo_machine.current_session
+        self.demo_machine.send("resume_demo")
+        team = session.team_name if session else "Unknown"
+        print(f"Demo resumed for team: {team}")
+        logger.info("Operator resumed demo for team: %s", team)
 
     def _handle_reset(self) -> None:
         """Handle the 'reset' command to prepare for the next demo."""
@@ -234,6 +254,8 @@ class OperatorCLI:
         print("Available commands:")
         print("  start <team> [track]  - Start a demo (tracks: SHADOW::VECTOR, SENTINEL::MESH, ZERO::PROOF, ROGUE::AGENT)")
         print("  stop                  - Stop the current demo")
+        print("  pause                 - Pause the current demo")
+        print("  resume                - Resume a paused demo")
         print("  qa                    - Generate Q&A questions for the last demo")
         print("  score                 - Show scoring status")
         print("  deliberate            - Run end-of-event comparative deliberation")
@@ -250,6 +272,12 @@ class OperatorCLI:
             ("start", "stopped"): "Previous demo not cleared. Run 'reset' first.",
             ("stop", "idle"): "No demo in progress. Start one with 'start <team_name>'.",
             ("stop", "stopped"): "Demo already stopped. Run 'reset' to prepare for next.",
+            ("pause", "idle"): "No demo in progress.",
+            ("pause", "stopped"): "Demo already stopped.",
+            ("pause", "paused"): "Demo already paused.",
+            ("resume", "idle"): "No demo to resume.",
+            ("resume", "capturing"): "Demo is already running.",
+            ("resume", "stopped"): "Demo is stopped. Use 'reset' to prepare next demo.",
             ("reset", "idle"): "Already in idle state. Start a demo with 'start <team_name>'.",
             ("reset", "capturing"): "Demo still in progress. Stop it first with 'stop'.",
         }

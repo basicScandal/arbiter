@@ -99,6 +99,20 @@ class KeyFrameDetected(CaptureEvent):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
+class DemoPaused(CaptureEvent):
+    """Emitted when the operator pauses a running demo."""
+
+    event_type: str = "demo_paused"
+    team_name: str
+
+
+class DemoResumed(CaptureEvent):
+    """Emitted when the operator resumes a paused demo."""
+
+    event_type: str = "demo_resumed"
+    team_name: str
+
+
 class TranscriptReceived(CaptureEvent):
     """Emitted when a new transcript segment is available."""
 
