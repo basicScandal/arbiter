@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 1 of 6 (Capture Layer)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-15 -- Roadmap created
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-02-15 -- Completed 01-01-PLAN.md
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 4%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 4min
+- Total execution time: 0.07 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-capture-layer | 1/4 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 01-01 (4min)
+- Trend: Starting
 
 *Updated after each plan completion*
 
@@ -45,6 +45,9 @@ Recent decisions affecting current work:
 - [Roadmap]: Dual-LLM defense layer (Phase 2) must be built before commentary or scoring pipelines
 - [Roadmap]: Phases 3 (Commentary) and 4 (Scoring) can execute in parallel after Phase 2
 - [Roadmap]: TTS emotional variety and failover deferred to Phase 6 hardening
+- [01-01]: Hand-rolled async event bus with asyncio.create_task instead of asyncio-signal-bus library
+- [01-01]: Synchronous state machine callbacks publish to async event bus via create_task dispatch
+- [01-01]: Module-level default_bus singleton for shared bus across components
 
 ### Pending Todos
 
@@ -58,5 +61,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Roadmap created, ready to plan Phase 1
+Stopped at: Completed 01-01-PLAN.md (project scaffolding, models, event bus, state machine)
 Resume file: None
