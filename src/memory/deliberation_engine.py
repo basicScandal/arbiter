@@ -16,6 +16,7 @@ from google import genai
 from google.genai import types
 
 from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
+from src.resilience.retry import GEMINI_RETRY_BACKGROUND
 from src.scoring.models import DemoScorecard
 
 logger = logging.getLogger(__name__)
@@ -83,18 +84,7 @@ class DeliberationEngine:
         prompt = self._build_deliberation_prompt(memories, scorecards)
 
         try:
-            response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=DELIBERATION_SYSTEM_PROMPT,
-                    response_mime_type="application/json",
-                    response_schema=DeliberationResult,
-                    max_output_tokens=4000,
-                    temperature=0.4,
-                ),
-            )
-            result = DeliberationResult.model_validate_json(response.text)
+            result = await self._call_gemini(prompt)
         except Exception:
             logger.exception("Deliberation failed")
             raise
@@ -102,6 +92,26 @@ class DeliberationEngine:
         result = self._apply_authoritative_ranking(result, scorecards, memories)
         result.deliberated_at = time.time()
         return result
+
+    @GEMINI_RETRY_BACKGROUND
+    async def _call_gemini(self, prompt: str) -> DeliberationResult:
+        """Call Gemini for deliberation with retry on transient errors.
+
+        Retries up to 5 times with exponential backoff + jitter on network
+        errors. Non-retryable errors propagate to deliberate() which re-raises.
+        """
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=DELIBERATION_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=DeliberationResult,
+                max_output_tokens=4000,
+                temperature=0.4,
+            ),
+        )
+        return DeliberationResult.model_validate_json(response.text)
 
     @staticmethod
     def _build_deliberation_prompt(

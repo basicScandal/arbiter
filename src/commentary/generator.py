@@ -17,18 +17,27 @@ from google.genai import types
 from src.commentary.models import Commentary
 from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
+from src.resilience.retry import GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
 
-# Words signalling genuine praise -> map to "content" emotion
-_PRAISE_WORDS = frozenset(
-    {"impressive", "impressed", "respect", "actually good", "solid", "clean", "genuinely", "elegant", "brilliant"}
-)
-
-# Words signalling disappointment -> map to "disappointed" emotion
-_DISAPPOINT_WORDS = frozenset(
-    {"unfortunately", "disappointed", "shame", "disaster", "terrible", "awful", "missing", "broken", "failed"}
-)
+# Keyword map for 12 emotion tags used by Cartesia TTS.
+# Each key is a Cartesia emotion, value is a list of trigger phrases.
+# First matching emotion wins (dict insertion order).
+_EMOTION_KEYWORDS: dict[str, list[str]] = {
+    "sarcastic": ["bold strategy", "interesting choice", "somehow", "mysteriously", "apparently", "of course"],
+    "ironic": ["ironic", "irony", "ironically", "paradox"],
+    "contempt": ["pathetic", "embarrassing", "lazy", "half-baked", "amateur"],
+    "surprised": ["actually", "genuinely", "surprisingly", "didn't expect", "impressed", "wow"],
+    "amazed": ["incredible", "remarkable", "exceptional", "brilliant", "stunning"],
+    "disappointed": ["unfortunately", "shame", "disaster", "terrible", "awful", "missing", "broken", "failed", "crashed"],
+    "content": ["solid", "clean", "elegant", "respect", "well-built", "thoughtful"],
+    "excited": ["love", "amazing", "fantastic", "breakthrough"],
+    "confident": ["clearly the best", "no question", "without doubt", "winner"],
+    "skeptical": ["claims", "supposedly", "allegedly", "in theory", "if we believe", "questionable"],
+    "curious": ["interesting", "intriguing", "wonder", "how did"],
+    "proud": ["now that", "that's what", "exactly right", "nailed"],
+}
 
 
 class CommentaryGenerator:
@@ -55,23 +64,12 @@ class CommentaryGenerator:
             per-sentence emotion mapping for TTS.
         """
         user_prompt = self._build_user_prompt(sanitized)
-        full_text = ""
 
         try:
-            async for chunk in await self._client.aio.models.generate_content_stream(
-                model=self._model,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=PERSONA_PROMPT,
-                    max_output_tokens=500,
-                    temperature=0.8,
-                ),
-            ):
-                if chunk.text:
-                    full_text += chunk.text
+            full_text = await self._stream_gemini(user_prompt)
         except Exception:
             logger.exception("Commentary generation failed for team %s", sanitized.team_name)
-            full_text = full_text or "Technical difficulties. Even Arbiter needs a moment."
+            full_text = "Technical difficulties. Even Arbiter needs a moment."
 
         full_text = full_text.strip()
         sentences = self._split_sentences(full_text)
@@ -84,6 +82,27 @@ class CommentaryGenerator:
             emotion_map=emotion_map,
             generated_at=time.time(),
         )
+
+    @GEMINI_RETRY
+    async def _stream_gemini(self, user_prompt: str) -> str:
+        """Stream commentary text from Gemini with retry on transient errors.
+
+        Retries up to 3 times with exponential backoff + jitter on network
+        errors. Non-retryable errors propagate to generate() fallback logic.
+        """
+        full_text = ""
+        async for chunk in await self._client.aio.models.generate_content_stream(
+            model=self._model,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=PERSONA_PROMPT,
+                max_output_tokens=500,
+                temperature=0.8,
+            ),
+        ):
+            if chunk.text:
+                full_text += chunk.text
+        return full_text
 
     def _build_user_prompt(self, sanitized: SanitizedOutput) -> str:
         """Build the user prompt from sanitized demo output.
@@ -134,17 +153,19 @@ class CommentaryGenerator:
     def _build_emotion_map(sentences: list[str]) -> dict[int, str]:
         """Map each sentence index to a Cartesia emotion tag.
 
-        Default is "sarcastic". Sentences containing praise words map
-        to "content"; sentences with disappointment words map to
-        "disappointed".
+        Iterates _EMOTION_KEYWORDS for each sentence -- first keyword
+        match wins (dict insertion order). Defaults to "sarcastic" if
+        no keyword matches (Arbiter's default persona tone).
         """
         emotion_map: dict[int, str] = {}
         for i, sentence in enumerate(sentences):
             lower = sentence.lower()
-            if any(word in lower for word in _PRAISE_WORDS):
-                emotion_map[i] = "content"
-            elif any(word in lower for word in _DISAPPOINT_WORDS):
-                emotion_map[i] = "disappointed"
-            else:
+            matched = False
+            for emotion, keywords in _EMOTION_KEYWORDS.items():
+                if any(kw in lower for kw in keywords):
+                    emotion_map[i] = emotion
+                    matched = True
+                    break
+            if not matched:
                 emotion_map[i] = "sarcastic"
         return emotion_map

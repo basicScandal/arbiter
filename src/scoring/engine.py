@@ -16,6 +16,7 @@ from google import genai
 from google.genai import types
 
 from src.defense.models import SanitizedOutput
+from src.resilience.retry import GEMINI_RETRY_BACKGROUND
 from src.scoring.models import CriterionScore, DemoScorecard, RubricCriterion, TrackCriteria
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
@@ -89,16 +90,7 @@ class ScoringEngine:
         prompt = self._build_prompt(sanitized, track, criteria, track_criteria)
 
         try:
-            response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SCORING_SYSTEM_PROMPT,
-                    max_output_tokens=1000,
-                    temperature=0.3,
-                ),
-            )
-            raw_text = response.text or ""
+            raw_text = await self._call_gemini(prompt)
             return self._parse_and_validate(
                 raw_text, sanitized.team_name, track, criteria, track_criteria
             )
@@ -110,6 +102,24 @@ class ScoringEngine:
             return self._fallback_scorecard(
                 sanitized.team_name, track, criteria
             )
+
+    @GEMINI_RETRY_BACKGROUND
+    async def _call_gemini(self, prompt: str) -> str:
+        """Call Gemini for scoring with retry on transient errors.
+
+        Retries up to 5 times with exponential backoff + jitter on network
+        errors. Non-retryable errors propagate to score() fallback logic.
+        """
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SCORING_SYSTEM_PROMPT,
+                max_output_tokens=1000,
+                temperature=0.3,
+            ),
+        )
+        return response.text or ""
 
     @staticmethod
     def _build_prompt(
