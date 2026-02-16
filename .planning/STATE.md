@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 3 of 6 (Commentary Output)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing Phase 03
-Last activity: 2026-02-15 -- Completed 03-01-PLAN.md with commentary models, persona prompt, and streaming generator
+Last activity: 2026-02-15 -- Completed 03-02-PLAN.md with TTS engine and display server
 
-Progress: [████████░░] 40%
+Progress: [█████████░] 45%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 3min
-- Total execution time: 0.40 hours
+- Total execution time: 0.48 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [████████░░] 40%
 |-------|-------|-------|----------|
 | 01-capture-layer | 4/4 | 16min | 4min |
 | 02-defense-pipeline | 3/3 | 6min | 2min |
-| 03-commentary-output | 1/3 | 2min | 2min |
+| 03-commentary-output | 2/3 | 7min | 3.5min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (2min), 02-02 (2min), 02-03 (2min), 03-01 (2min)
-- Trend: Stable, fast execution on well-specified plans
+- Last 5 plans: 02-02 (2min), 02-03 (2min), 03-01 (2min), 03-02 (5min)
+- Trend: Stable execution, slightly longer on API integration tasks
 
 *Updated after each plan completion*
 
@@ -71,6 +71,10 @@ Recent decisions affecting current work:
 - [03-01]: Fresh generate_content_stream per demo with full persona prompt to prevent drift
 - [03-01]: Regex sentence splitting on .!? for TTS chunking
 - [03-01]: Keyword-based emotion mapping (sarcastic/content/disappointed) for Cartesia TTS
+- [03-02]: Used Cartesia websocket_connect (modern API) over deprecated websocket() for proper continue_ support
+- [03-02]: Context-per-sentence with no_more_inputs for clean audio streaming lifecycle
+- [03-02]: ConnectionManager broadcasts with silent disconnect cleanup for resilient WebSocket delivery
+- [03-02]: Uvicorn runs as asyncio.create_task for non-blocking server lifecycle
 
 ### Pending Todos
 
@@ -84,5 +88,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 03-01-PLAN.md - Commentary foundation (models, prompts, generator) complete. Ready for 03-02 (TTS engine)
+Stopped at: Completed 03-02-PLAN.md - TTS engine and display server complete. Ready for 03-03 (commentary pipeline wiring)
 Resume file: None
