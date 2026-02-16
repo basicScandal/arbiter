@@ -1,4 +1,4 @@
-/* Arbiter TUI — Crush-style dark terminal aesthetic */
+/* Arbiter TUI — btop-style dark terminal aesthetic */
 
 Screen {
     background: #0a0a0f;
@@ -13,9 +13,13 @@ ArbiterHeader {
     height: 3;
     background: #12121a;
     color: #e0e0e8;
-    border-bottom: solid #333344;
-    content-align: center middle;
+    border: round #444466;
+    content-align: left middle;
     padding: 0 2;
+}
+
+ArbiterHeader .border-title {
+    color: #aaaacc;
 }
 
 /* ── Main content area ─────────────────────────── */
@@ -30,6 +34,7 @@ ArbiterHeader {
 EventLog {
     width: 1fr;
     height: 1fr;
+    border: round #333344;
     padding: 0 1;
 }
 
@@ -45,14 +50,33 @@ EventLog RichLog {
 /* ── Status Sidebar ────────────────────────────── */
 
 StatusSidebar {
-    width: 24;
+    width: 30;
     height: 1fr;
     background: #0e0e16;
-    border-left: solid #333344;
-    padding: 1 1;
+    border: round #333344;
+    padding: 1 0;
 }
 
 StatusSidebar Static {
+    width: 1fr;
+}
+
+StatusSidebar Sparkline {
+    height: 2;
+    margin: 0 1;
+    color: #5588ff;
+}
+
+/* ── Defense Panel ─────────────────────────────── */
+
+DefensePanel {
+    height: 4;
+    background: #0e0e16;
+    border: round #333344;
+    padding: 0 1;
+}
+
+DefensePanel Static {
     width: 1fr;
 }
 
@@ -62,8 +86,8 @@ CommandInput {
     dock: bottom;
     height: 3;
     background: #12121a;
-    border-top: solid #333344;
-    padding: 0 1;
+    border: round #333344;
+    padding: 0 0;
 }
 
 CommandInput Input {

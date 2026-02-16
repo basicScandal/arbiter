@@ -35,13 +35,6 @@ from src.operator.widgets import (
 
 logger = logging.getLogger(__name__)
 
-# State → prompt color mapping
-_STATE_PROMPT_COLORS: dict[str, str] = {
-    "IDLE": "dim",
-    "CAPTURING": "green",
-    "STOPPED": "yellow",
-}
-
 
 class ArbiterTUI(App):
     """Textual TUI application for Arbiter operator control.
@@ -152,13 +145,11 @@ class ArbiterTUI(App):
             sidebar.state = "CAPTURING"
             sidebar.team_name = team
             sidebar.start_timer()
-            self._update_prompt_color("CAPTURING")
 
         elif etype == "demo_stopped":
             header.state = "STOPPED"
             sidebar.state = "STOPPED"
             sidebar.stop_timer()
-            self._update_prompt_color("STOPPED")
 
         elif etype == "key_frame_detected":
             sidebar.frame_count += 1
@@ -178,11 +169,6 @@ class ArbiterTUI(App):
             output = getattr(event, "output", None)
             if output:
                 defense.clean_count += len(output.observations)
-
-    def _update_prompt_color(self, state: str) -> None:
-        """Update the command prompt ❯ color to match state."""
-        color = _STATE_PROMPT_COLORS.get(state, "dim")
-        self.query_one(CommandInput).set_prompt_color(color)
 
     # ------------------------------------------------------------------
     # Command handling
@@ -255,7 +241,6 @@ class ArbiterTUI(App):
         defense.last_roast = ""
         defense.injection_count = 0
         defense.clean_count = 0
-        self._update_prompt_color("IDLE")
         event_log = self.query_one(EventLog)
         event_log.append_text("Ready for next demo.", "bold green")
         logger.info("Operator reset demo machine")
