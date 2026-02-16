@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 1 - Capture Layer
+**Current focus:** Phase 1 - Capture Layer (COMPLETE)
 
 ## Current Position
 
-Phase: 1 of 6 (Capture Layer)
-Plan: 4 of 4 in current phase
-Status: Checkpoint pending (01-04 Task 2: human-verify)
-Last activity: 2026-02-15 -- Completed 01-04-PLAN.md Task 1, awaiting checkpoint
+Phase: 1 of 6 (Capture Layer - COMPLETE)
+Plan: 4 of 4 in current phase (COMPLETE)
+Status: Phase 1 complete, ready for Phase 2
+Last activity: 2026-02-15 -- Completed 01-04-PLAN.md with verified end-to-end testing
 
-Progress: [████░░░░░░] 15%
+Progress: [████░░░░░░] 17%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3 (01-04 checkpoint pending)
-- Average duration: 3min
-- Total execution time: 0.17 hours
+- Total plans completed: 4
+- Average duration: 4min
+- Total execution time: 0.27 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-capture-layer | 3/4 | 9min | 3min |
+| 01-capture-layer | 4/4 | 16min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min), 01-02 (2min), 01-03 (3min), 01-04 (1min partial)
-- Trend: Accelerating
+- Last 5 plans: 01-01 (4min), 01-02 (2min), 01-03 (3min), 01-04 (16min - includes verification)
+- Trend: Stable with verification overhead
 
 *Updated after each plan completion*
 
@@ -57,6 +57,7 @@ Recent decisions affecting current work:
 - [01-04]: Pipeline is thin glue with no business logic -- only component wiring and lifecycle management
 - [01-04]: Capture tasks created on demo_started, cancelled on demo_stopped via event bus subscriptions
 - [01-04]: Gemini observations stored in demo session on stop for downstream scoring
+- [01-04]: Use native audio model (gemini-2.0-flash-exp) with output transcription for text-based observations
 
 ### Pending Todos
 
@@ -70,5 +71,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: 01-04-PLAN.md Task 1 complete, Task 2 checkpoint:human-verify pending (end-to-end hardware verification)
+Stopped at: Completed 01-04-PLAN.md - Phase 1 (Capture Layer) complete, ready for Phase 2 (Defense Pipeline)
 Resume file: None
