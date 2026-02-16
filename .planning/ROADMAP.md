@@ -13,7 +13,7 @@ Arbiter is built in six phases following the data flow from capture to output: r
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Capture Layer** - Camera + audio ingestion with operator-controlled demo lifecycle
-- [ ] **Phase 2: Defense Pipeline** - Dual-LLM privilege separation with injection detection and roasting
+- [x] **Phase 2: Defense Pipeline** - Dual-LLM privilege separation with injection detection and roasting
 - [ ] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
 - [ ] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
 - [ ] **Phase 5: Memory + Deliberation** - Per-demo memory storage and end-of-event comparative analysis
@@ -52,9 +52,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Defense data models, OCR scanner, and injection detector
-- [ ] 02-02-PLAN.md -- Roast generator, injection logger, and observation sanitizer
-- [ ] 02-03-PLAN.md -- Defense pipeline orchestrator and capture integration
+- [x] 02-01-PLAN.md -- Defense data models, OCR scanner, and injection detector
+- [x] 02-02-PLAN.md -- Roast generator, injection logger, and observation sanitizer
+- [x] 02-03-PLAN.md -- Defense pipeline orchestrator and capture integration
 
 ### Phase 3: Commentary + Output
 **Goal**: Arbiter speaks and displays entertaining, persona-consistent commentary after each demo
@@ -125,7 +125,7 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Capture Layer | 4/4 | ✓ Complete | 2026-02-15 |
-| 2. Defense Pipeline | 0/3 | Not started | - |
+| 2. Defense Pipeline | 3/3 | ✓ Complete | 2026-02-15 |
 | 3. Commentary + Output | 0/TBD | Not started | - |
 | 4. Scoring System | 0/TBD | Not started | - |
 | 5. Memory + Deliberation | 0/TBD | Not started | - |
