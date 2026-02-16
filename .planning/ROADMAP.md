@@ -31,11 +31,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. System captures presenter audio and produces usable text transcription
   4. Key frames (slides, code, terminal output) are extracted and available for downstream processing
   5. All capture and transcription happens in real-time during the demo, not after it ends
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Project scaffolding, data models, config, event bus, and demo state machine
+- [ ] 01-02-PLAN.md -- Camera frame capture, audio capture, and key frame detection
+- [ ] 01-03-PLAN.md -- Gemini Live API session manager and operator CLI
+- [ ] 01-04-PLAN.md -- Pipeline integration wiring and end-to-end verification
 
 ### Phase 2: Defense Pipeline
 **Goal**: Untrusted demo input is sanitized into structured observations before reaching any generation or scoring system
@@ -121,7 +123,7 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Capture Layer | 0/TBD | Not started | - |
+| 1. Capture Layer | 0/4 | Planned | - |
 | 2. Defense Pipeline | 0/TBD | Not started | - |
 | 3. Commentary + Output | 0/TBD | Not started | - |
 | 4. Scoring System | 0/TBD | Not started | - |
