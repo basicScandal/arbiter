@@ -31,6 +31,7 @@ from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.operator.cli import OperatorCLI
 from src.operator.tui import ArbiterTUI
+from src.scoring.pipeline import ScoringPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,11 @@ class CapturePipeline:
                 demo_machine=self.demo_machine, event_bus=self.event_bus
             )
         else:
-            self.operator = OperatorCLI(demo_machine=self.demo_machine, event_bus=self.event_bus)
+            self.operator = OperatorCLI(
+                demo_machine=self.demo_machine,
+                event_bus=self.event_bus,
+                scoring_pipeline=self.scoring,
+            )
         self._use_tui = use_tui
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
@@ -74,6 +79,12 @@ class CapturePipeline:
             voice_id=config.cartesia_voice_id,
             display_host=config.display_host,
             display_port=config.display_port,
+        )
+        # Scoring pipeline shares the SAME DisplayServer instance from commentary.
+        # Isolation requirement (SCORE-03) is about the LLM path, not the display path.
+        self.scoring = ScoringPipeline(
+            api_key=config.gemini_api_key,
+            display=self.commentary._display,
         )
 
         self._capture_tasks: list[asyncio.Task] = []
@@ -199,6 +210,9 @@ class CapturePipeline:
         # Wire the commentary pipeline into the event bus
         await self.commentary.setup(self.event_bus)
 
+        # Wire the scoring pipeline into the event bus
+        await self.scoring.setup(self.event_bus)
+
         if not self._use_tui:
             print("=" * 40)
             print("  Arbiter Capture Layer v0.1")
@@ -235,5 +249,8 @@ class CapturePipeline:
 
             # Shut down commentary pipeline (TTS + display server)
             await self.commentary.close()
+
+            # Scoring pipeline has no persistent connections to close.
+            # Future phases may add cleanup here if needed.
 
             logger.info("Capture pipeline shut down")

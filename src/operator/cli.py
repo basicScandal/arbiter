@@ -2,7 +2,8 @@
 
 Provides a command-line interface for the human operator to start, stop,
 and reset demo sessions during the live hackathon event. Commands map
-directly to DemoMachine state transitions.
+directly to DemoMachine state transitions. Supports optional track
+assignment when starting a demo (e.g., start TeamName SHADOW::VECTOR).
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from statemachine.exceptions import TransitionNotAllowed
 
@@ -17,7 +19,17 @@ from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.commentary.models import QARequested
 
+if TYPE_CHECKING:
+    from src.scoring.pipeline import ScoringPipeline
+
 logger = logging.getLogger(__name__)
+
+VALID_TRACKS = {
+    "SHADOW::VECTOR",
+    "SENTINEL::MESH",
+    "ZERO::PROOF",
+    "ROGUE::AGENT",
+}
 
 
 class OperatorCLI:
@@ -30,15 +42,18 @@ class OperatorCLI:
     Args:
         demo_machine: The DemoMachine instance controlling demo lifecycle.
         event_bus: Optional event bus for publishing Q&A and other events.
+        scoring_pipeline: Optional scoring pipeline for track assignment.
     """
 
     def __init__(
         self,
         demo_machine: DemoMachine,
         event_bus: EventBus | None = None,
+        scoring_pipeline: ScoringPipeline | None = None,
     ) -> None:
         self.demo_machine = demo_machine
         self.event_bus = event_bus
+        self.scoring_pipeline = scoring_pipeline
 
     async def run(self) -> None:
         """Main CLI loop: read commands from stdin and execute them.
@@ -78,6 +93,8 @@ class OperatorCLI:
                     self._handle_reset()
                 elif command == "qa":
                     self._handle_qa()
+                elif command == "score":
+                    self._handle_score()
                 elif command == "status":
                     self._handle_status()
                 elif command in ("quit", "exit"):
@@ -93,11 +110,30 @@ class OperatorCLI:
                 self._print_state_hint(command, state_id)
 
     def _handle_start(self, args: str) -> None:
-        """Handle the 'start' command to begin a demo session."""
-        team_name = args.strip()
-        if not team_name:
-            print("Usage: start <team_name>")
+        """Handle the 'start' command to begin a demo session.
+
+        Accepts optional track argument: start <team_name> [track]
+        Valid tracks: SHADOW::VECTOR, SENTINEL::MESH, ZERO::PROOF, ROGUE::AGENT
+        """
+        parts = args.strip().split()
+        if not parts:
+            print("Usage: start <team_name> [track]")
             return
+
+        team_name = parts[0]
+        track = parts[1] if len(parts) > 1 else None
+
+        # Handle track assignment
+        if track is not None and self.scoring_pipeline is not None:
+            if track in VALID_TRACKS:
+                self.scoring_pipeline.set_track(team_name, track)
+                logger.info("Track %s assigned to team %s", track, team_name)
+            else:
+                print(f"Warning: Unknown track '{track}'. Valid tracks: {', '.join(sorted(VALID_TRACKS))}")
+                print("  Demo will start but scoring will use default track ROGUE::AGENT.")
+        elif track is None:
+            print("No track specified -- defaulting to ROGUE::AGENT for scoring")
+
         self.demo_machine.send("start_demo", team_name=team_name)
         print(f"Demo started for team: {team_name}")
         logger.info("Operator started demo for team: %s", team_name)
@@ -140,6 +176,19 @@ class OperatorCLI:
         print(f"Q&A mode activated for team: {team_name}")
         logger.info("Operator triggered Q&A for team: %s", team_name)
 
+    def _handle_score(self) -> None:
+        """Handle the 'score' command to show scoring status."""
+        if self.scoring_pipeline is None:
+            print("Scoring pipeline not configured.")
+            return
+
+        pending = self.scoring_pipeline._pending_scorecards
+        if pending:
+            for team, sc in pending.items():
+                print(f"  Pending reveal for {team}: {sc.total_score:.1f} ({sc.track})")
+        else:
+            print("No pending scores. Scores are displayed on screen after commentary.")
+
     def _handle_status(self) -> None:
         """Handle the 'status' command to show current state info."""
         state_id = self.demo_machine.current_state.id
@@ -166,13 +215,14 @@ class OperatorCLI:
     def _print_help(self) -> None:
         """Print available commands."""
         print("Available commands:")
-        print("  start <team_name>  - Start a demo for the given team")
-        print("  stop               - Stop the current demo")
-        print("  qa                 - Generate Q&A questions for the last demo")
-        print("  reset              - Reset for the next demo")
-        print("  status             - Show current state and session info")
-        print("  help               - Show this help message")
-        print("  quit / exit        - Shut down the CLI")
+        print("  start <team> [track]  - Start a demo (tracks: SHADOW::VECTOR, SENTINEL::MESH, ZERO::PROOF, ROGUE::AGENT)")
+        print("  stop                  - Stop the current demo")
+        print("  qa                    - Generate Q&A questions for the last demo")
+        print("  score                 - Show scoring status")
+        print("  reset                 - Reset for the next demo")
+        print("  status                - Show current state and session info")
+        print("  help                  - Show this help message")
+        print("  quit / exit           - Shut down the CLI")
 
     @staticmethod
     def _print_state_hint(command: str, state_id: str) -> None:
