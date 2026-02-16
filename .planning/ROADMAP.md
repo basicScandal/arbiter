@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Capture Layer** - Camera + audio ingestion with operator-controlled demo lifecycle
 - [x] **Phase 2: Defense Pipeline** - Dual-LLM privilege separation with injection detection and roasting
 - [x] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
-- [ ] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
+- [x] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
 - [ ] **Phase 5: Memory + Deliberation** - Per-demo memory storage and end-of-event comparative analysis
 - [ ] **Phase 6: Venue Hardening** - Failover, degraded modes, and reliability under real conditions
 
@@ -85,9 +85,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Scoring data models, configurable rubric definitions, and dedicated scoring engine
-- [ ] 04-02-PLAN.md -- Score display methods on DisplayServer and theatrical score card UI in display.html
-- [ ] 04-03-PLAN.md -- Score persistence, scoring pipeline orchestrator, operator CLI track support, and main pipeline wiring
+- [x] 04-01-PLAN.md -- Scoring data models, configurable rubric definitions, and dedicated scoring engine
+- [x] 04-02-PLAN.md -- Score display methods on DisplayServer and theatrical score card UI in display.html
+- [x] 04-03-PLAN.md -- Score persistence, scoring pipeline orchestrator, operator CLI track support, and main pipeline wiring
 
 ### Phase 5: Memory + Deliberation
 **Goal**: Arbiter remembers every demo and produces comparative rankings with reasoning at the end of the event
@@ -129,6 +129,6 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | 1. Capture Layer | 4/4 | ✓ Complete | 2026-02-15 |
 | 2. Defense Pipeline | 3/3 | ✓ Complete | 2026-02-15 |
 | 3. Commentary + Output | 3/3 | ✓ Complete | 2026-02-15 |
-| 4. Scoring System | 0/TBD | Not started | - |
+| 4. Scoring System | 3/3 | ✓ Complete | 2026-02-16 |
 | 5. Memory + Deliberation | 0/TBD | Not started | - |
 | 6. Venue Hardening | 0/TBD | Not started | - |
