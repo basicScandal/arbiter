@@ -16,6 +16,7 @@ from cartesia import AsyncCartesia
 
 from src.capture.event_bus import EventBus
 from src.commentary.models import TTSFinished, TTSSpeaking
+from src.commentary.tts_fallback import MacOSSayFallback
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class TTSEngine:
         self._stream: pyaudio.Stream | None = None
         self._sample_rate = 22050
         self._connected = False
+        self._fallback = MacOSSayFallback()
 
     async def connect(self) -> None:
         """Open Cartesia WebSocket connection and PyAudio output stream."""
@@ -57,6 +59,21 @@ class TTSEngine:
         self._connected = True
         logger.info("TTS engine connected (sample_rate=%d)", self._sample_rate)
 
+    async def _ensure_connected(self) -> bool:
+        """Check connection and attempt reconnect if needed.
+
+        Returns:
+            True if connected (or reconnection succeeded), False otherwise.
+        """
+        if self._connected:
+            return True
+        try:
+            await self.connect()
+            return True
+        except Exception:
+            logger.warning("TTS reconnection failed", exc_info=True)
+            return False
+
     async def speak(
         self,
         sentence: str,
@@ -68,6 +85,7 @@ class TTSEngine:
 
         Publishes TTSSpeaking before playback and TTSFinished after,
         even on failure (to avoid leaving capture permanently muted).
+        Falls back to macOS say command if Cartesia fails.
 
         Args:
             sentence: Text to synthesize.
@@ -75,14 +93,25 @@ class TTSEngine:
             emotion: Cartesia emotion tag for generation_config.
             is_continuation: Whether this continues a prior context send.
         """
-        if not self._connected:
-            logger.warning("TTS engine not connected, skipping speak")
-            return
+        connected = await self._ensure_connected()
+        if not connected and not self._fallback.available:
+            logger.warning("TTS not connected and fallback unavailable, skipping speak")
+            # Still publish TTSFinished via finally block for mute coordination
+            if self._event_bus:
+                self._event_bus.publish(TTSSpeaking())
+            try:
+                return
+            finally:
+                if self._event_bus:
+                    self._event_bus.publish(TTSFinished())
 
         if self._event_bus:
             self._event_bus.publish(TTSSpeaking())
 
         try:
+            if not connected:
+                raise ConnectionError("Cartesia not connected, skip to fallback")
+
             ctx = self._connection.context(
                 context_id=context_id,
                 model_id="sonic-3",
@@ -113,6 +142,15 @@ class TTSEngine:
                     await asyncio.to_thread(self._stream.write, event.audio)
         except Exception:
             logger.exception("TTS speak failed for sentence: %s", sentence[:80])
+            # Attempt macOS say fallback
+            try:
+                if self._fallback.available:
+                    logger.warning("Cartesia TTS failed, attempting macOS say fallback")
+                    await self._fallback.speak(sentence)
+                else:
+                    logger.warning("macOS say fallback not available")
+            except Exception:
+                logger.exception("macOS say fallback also failed")
         finally:
             if self._event_bus:
                 self._event_bus.publish(TTSFinished())
