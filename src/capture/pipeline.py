@@ -27,6 +27,7 @@ from src.capture.models import (
     KeyFrameDetected,
     TranscriptReceived,
 )
+from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.operator.cli import OperatorCLI
 
@@ -57,9 +58,15 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
-        self.cli = OperatorCLI(demo_machine=self.demo_machine)
+        self.cli = OperatorCLI(demo_machine=self.demo_machine, event_bus=self.event_bus)
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
+        )
+        self.commentary = CommentaryPipeline(
+            api_key=config.gemini_api_key,
+            voice_id=config.cartesia_voice_id,
+            display_host=config.display_host,
+            display_port=config.display_port,
         )
 
         self._capture_tasks: list[asyncio.Task] = []
@@ -138,6 +145,16 @@ class CapturePipeline:
         if session is not None:
             session.transcripts.append(event.segment)
 
+    async def _on_tts_speaking(self, event: CaptureEvent) -> None:
+        """Mute audio capture when TTS starts speaking to prevent feedback."""
+        self.audio.mute()
+        logger.info("Audio capture muted for TTS playback")
+
+    async def _on_tts_finished(self, event: CaptureEvent) -> None:
+        """Unmute audio capture when TTS finishes speaking."""
+        self.audio.unmute()
+        logger.info("Audio capture unmuted after TTS playback")
+
     async def _log_event(self, event: CaptureEvent) -> None:
         """Log all events at DEBUG level for observability."""
         logger.debug(
@@ -164,8 +181,15 @@ class CapturePipeline:
         # Subscribe global logger for all events
         self.event_bus.subscribe_all(self._log_event)
 
+        # Subscribe to TTS events for audio capture mute coordination
+        self.event_bus.subscribe("tts_speaking", self._on_tts_speaking)
+        self.event_bus.subscribe("tts_finished", self._on_tts_finished)
+
         # Wire the defense pipeline into the event bus
         await self.defense.setup(self.event_bus)
+
+        # Wire the commentary pipeline into the event bus
+        await self.commentary.setup(self.event_bus)
 
         print("=" * 40)
         print("  Arbiter Capture Layer v0.1")
@@ -199,5 +223,8 @@ class CapturePipeline:
                         )
 
                 self._capture_tasks.clear()
+
+            # Shut down commentary pipeline (TTS + display server)
+            await self.commentary.close()
 
             logger.info("Capture pipeline shut down")

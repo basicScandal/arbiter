@@ -28,6 +28,10 @@ class CaptureConfig(BaseModel):
     audio_chunk_size: int = 512
     compression_trigger_tokens: int = 25600
     compression_target_tokens: int = 12800
+    cartesia_api_key: str = ""
+    cartesia_voice_id: str = ""
+    display_host: str = "0.0.0.0"
+    display_port: int = 8080
 
 
 def load_config() -> CaptureConfig:
@@ -55,4 +59,8 @@ def load_config() -> CaptureConfig:
         audio_device_index=audio_device_index,
         frame_rate=float(os.getenv("FRAME_RATE", "1.0")),
         key_frame_threshold=float(os.getenv("KEY_FRAME_THRESHOLD", "0.4")),
+        cartesia_api_key=os.getenv("CARTESIA_API_KEY", ""),
+        cartesia_voice_id=os.getenv("CARTESIA_VOICE_ID", ""),
+        display_host=os.getenv("DISPLAY_HOST", "0.0.0.0"),
+        display_port=int(os.getenv("DISPLAY_PORT", "8080")),
     )

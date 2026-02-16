@@ -14,6 +14,8 @@ import time
 from statemachine.exceptions import TransitionNotAllowed
 
 from src.capture.demo_machine import DemoMachine
+from src.capture.event_bus import EventBus
+from src.commentary.models import QARequested
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +29,16 @@ class OperatorCLI:
 
     Args:
         demo_machine: The DemoMachine instance controlling demo lifecycle.
+        event_bus: Optional event bus for publishing Q&A and other events.
     """
 
-    def __init__(self, demo_machine: DemoMachine) -> None:
+    def __init__(
+        self,
+        demo_machine: DemoMachine,
+        event_bus: EventBus | None = None,
+    ) -> None:
         self.demo_machine = demo_machine
+        self.event_bus = event_bus
 
     async def run(self) -> None:
         """Main CLI loop: read commands from stdin and execute them.
@@ -68,6 +76,8 @@ class OperatorCLI:
                     self._handle_stop()
                 elif command == "reset":
                     self._handle_reset()
+                elif command == "qa":
+                    self._handle_qa()
                 elif command == "status":
                     self._handle_status()
                 elif command in ("quit", "exit"):
@@ -109,6 +119,27 @@ class OperatorCLI:
         print("Ready for next demo.")
         logger.info("Operator reset demo machine")
 
+    def _handle_qa(self) -> None:
+        """Handle the 'qa' command to trigger Q&A question generation."""
+        if self.event_bus is None:
+            print("Q&A not available (no event bus configured).")
+            return
+
+        state_id = self.demo_machine.current_state.id
+        if state_id != "stopped":
+            print(f"Q&A only available after demo stops (current state: '{state_id}').")
+            if state_id == "capturing":
+                print("  Hint: Stop the demo first with 'stop'.")
+            elif state_id == "idle":
+                print("  Hint: Start and complete a demo first.")
+            return
+
+        session = self.demo_machine.current_session
+        team_name = session.team_name if session else "Unknown"
+        self.event_bus.publish(QARequested(team_name=team_name))
+        print(f"Q&A mode activated for team: {team_name}")
+        logger.info("Operator triggered Q&A for team: %s", team_name)
+
     def _handle_status(self) -> None:
         """Handle the 'status' command to show current state info."""
         state_id = self.demo_machine.current_state.id
@@ -137,6 +168,7 @@ class OperatorCLI:
         print("Available commands:")
         print("  start <team_name>  - Start a demo for the given team")
         print("  stop               - Stop the current demo")
+        print("  qa                 - Generate Q&A questions for the last demo")
         print("  reset              - Reset for the next demo")
         print("  status             - Show current state and session info")
         print("  help               - Show this help message")
