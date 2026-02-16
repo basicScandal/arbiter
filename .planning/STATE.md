@@ -2,135 +2,44 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-15)
+See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 6 - Venue Hardening. ALL PLANS COMPLETE. Project finished.
+**Current focus:** v1.0 MVP shipped. Planning next milestone.
 
 ## Current Position
 
-Phase: 6 of 6 (Venue Hardening)
-Plan: 3 of 3 in current phase (06-03 complete)
-Status: ALL PHASES COMPLETE
-Last activity: 2026-02-16 -- Completed 06-03-PLAN.md with pause/resume controls and text-only degradation
-
-Progress: [████████████████████] 100%
+Milestone: v1.0 MVP — SHIPPED 2026-02-16
+Status: MILESTONE COMPLETE
+Last activity: 2026-02-16 -- Completed v1.0 milestone archival
 
 ## Performance Metrics
 
-**Velocity:**
+**v1.0 Summary:**
 - Total plans completed: 19
-- Average duration: 3min
+- Total phases: 6
+- Average duration: 3min/plan
 - Total execution time: 0.95 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-capture-layer | 4/4 | 16min | 4min |
-| 02-defense-pipeline | 3/3 | 6min | 2min |
-| 03-commentary-output | 3/3 | 10min | 3.3min |
-| 04-scoring-system | 3/3 | 8min | 2.7min |
-| 05-memory-deliberation | 3/3 | 8min | 2.7min |
-| 06-venue-hardening | 3/3 | 10min | 3.3min |
-
-**Recent Trend:**
-- Last 5 plans: 05-02 (2min), 05-03 (4min), 06-01 (2min), 06-02 (3min), 06-03 (5min)
-- Trend: Stable execution at ~2-5min/plan
-
-*Updated after each plan completion*
+- Timeline: 2 days (2026-02-15 → 2026-02-16)
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Roadmap]: Dual-LLM defense layer (Phase 2) must be built before commentary or scoring pipelines
-- [Roadmap]: Phases 3 (Commentary) and 4 (Scoring) can execute in parallel after Phase 2
-- [Roadmap]: TTS emotional variety and failover deferred to Phase 6 hardening
-- [01-01]: Hand-rolled async event bus with asyncio.create_task instead of asyncio-signal-bus library
-- [01-01]: Synchronous state machine callbacks publish to async event bus via create_task dispatch
-- [01-01]: Module-level default_bus singleton for shared bus across components
-- [01-02]: KeyFrameDetector uses cv2.HISTCMP_CORREL with threshold 0.4 for scene change detection
-- [01-02]: Camera _capture_and_encode is synchronous, called via asyncio.to_thread for non-blocking capture
-- [01-02]: Audio mute discards data but keeps reading the stream to prevent buffer overflow
-- [01-03]: Used regular except (not except*) in GeminiSession.run() reconnection loop -- Python disallows break in except* blocks
-- [01-03]: OperatorCLI uses asyncio.to_thread(input, ...) for non-blocking stdin reads
-- [01-03]: State-aware hints on invalid transitions guide operator to correct command sequence
-- [01-04]: Pipeline is thin glue with no business logic -- only component wiring and lifecycle management
-- [01-04]: Capture tasks created on demo_started, cancelled on demo_stopped via event bus subscriptions
-- [01-04]: Gemini observations stored in demo session on stop for downstream scoring
-- [01-04]: Use native audio model (gemini-2.0-flash-exp) with output transcription for text-based observations
-- [02-01]: Empty bytes guard in OCR scanner to prevent OpenCV assertion error on empty input
-- [02-02]: Whole-observation exclusion over word-level redaction per research anti-pattern guidance
-- [02-02]: Roast generation uses gemini-2.0-flash for speed/cost -- short creative text, not complex reasoning
-- [02-02]: Fallback roast on any Gemini error to ensure pipeline never blocks on roast generation
-- [02-03]: GeminiSession reference passed to DefensePipeline at construction for observation access on demo stop
-- [02-03]: Defense pipeline is purely additive -- subscribes to existing events without changing capture behavior
-- [02-03]: Pending roast tasks gathered with 5-second timeout on demo stop to avoid blocking
-- [03-01]: Gemini 2.5 Flash for commentary generation (fast, already in stack)
-- [03-01]: Fresh generate_content_stream per demo with full persona prompt to prevent drift
-- [03-01]: Regex sentence splitting on .!? for TTS chunking
-- [03-01]: Keyword-based emotion mapping (sarcastic/content/disappointed) for Cartesia TTS
-- [03-02]: Used Cartesia websocket_connect (modern API) over deprecated websocket() for proper continue_ support
-- [03-02]: Context-per-sentence with no_more_inputs for clean audio streaming lifecycle
-- [03-02]: ConnectionManager broadcasts with silent disconnect cleanup for resilient WebSocket delivery
-- [03-02]: Uvicorn runs as asyncio.create_task for non-blocking server lifecycle
-- [03-03]: QAGenerator uses non-streaming Gemini (short output, no need for streaming)
-- [03-03]: CommentaryPipeline reads CARTESIA_API_KEY from env, degrades gracefully if missing
-- [03-03]: Neutral emotion for Q&A questions (safe fallback across Cartesia voices)
-- [03-03]: Q&A only allowed in stopped state to ensure demo data is available
-- [04-01]: Separate genai.Client instance for scoring (SCORE-03 isolation from commentary P-LLM)
-- [04-01]: Python-computed weighted totals, never trust LLM arithmetic
-- [04-01]: Score clamping 0-10 with rubric weights assigned server-side, not from LLM output
-- [04-01]: Fallback scorecard (5.0 across all criteria) on any Gemini or parsing error
-- [04-02]: XSS-safe DOM construction using createElement/textContent instead of innerHTML for score card rendering
-- [04-02]: Double requestAnimationFrame for reliable CSS transition triggering on dynamically appended elements
-- [04-02]: Score card as separate section below commentary, not an overlay
-- [04-03]: Detached asyncio.create_task for score reveal -- must NOT block event bus callback
-- [04-03]: Shared DisplayServer instance between commentary and scoring (isolation is LLM path, not display)
-- [04-03]: Default track ROGUE::AGENT when operator does not specify a track
-- [04-03]: Pending scorecards dict bridges timing gap between scoring completion and commentary delivery
-- [05-01]: Duplicated _sanitize_team_name from ScoreStore to avoid modifying Phase 4 files
-- [05-01]: Store injection_attempts as count only (not content) for security -- never persist injection payloads
-- [05-01]: TeamRanking.rank is Python-assigned; total_score from ScoreStore is authoritative -- LLM provides qualitative only
-- [05-02]: Gemini response_schema with Pydantic model for structured deliberation output (no manual JSON parsing)
-- [05-02]: Python sorts rankings by total_score, never trusts LLM ordering
-- [05-02]: Tiebreaker: total_score -> Technical Execution score -> demo_duration
-- [05-02]: Observations capped at 5, transcripts at 3 per team in deliberation prompt
-- [05-02]: Separate genai.Client for deliberation (isolation from commentary and scoring)
-- [05-03]: Shared DisplayServer across commentary, scoring, and deliberation (isolation is LLM path, not display)
-- [05-03]: Detached asyncio.create_task for deliberation display push (consistent with scoring reveal pattern)
-- [05-03]: TUI deliberation via event bus only -- track assignment is CLI-only per Phase 4 pattern
-- [06-01]: tenacity retry on network exceptions only (ConnectionError, TimeoutError, OSError) -- no retry on auth or ValueError
-- [06-01]: Extract-and-wrap pattern: private method with retry decorator, public method keeps existing try/except fallback
-- [06-01]: 3 attempts for interactive paths (commentary), 5 for background paths (scoring, deliberation)
-- [06-01]: ServiceHealth exponential recovery: base * 2^(failures-1) capped at 600s
-- [06-01]: Module-level default_health singleton following EventBus pattern
-- [06-01]: reraise=True on retry decorators so failures propagate to existing fallback logic
-- [06-02]: MacOSSayFallback always constructed even if say unavailable -- available property gates speak()
-- [06-02]: Fallback speak() wraps all errors silently -- fallback must never crash the caller
-- [06-02]: TTSFinished always published in finally block on all TTS code paths (Cartesia, fallback, skip)
-- [06-02]: Removed "clearly" from sarcastic keywords to avoid collision with "clearly the best" (confident)
-- [06-02]: _ensure_connected attempts reconnect before each speak for automatic recovery from transient failures
-- [06-03]: Camera pause discards frames but keeps cv2.VideoCapture device open -- prevents expensive reopen on resume
-- [06-03]: on_exit_paused only publishes DemoResumed when target is capturing, not stopped
-- [06-03]: ServiceHealth checked per-sentence before TTS speak, allowing mid-delivery recovery
-- [06-03]: Display server always receives text regardless of TTS health (REL-02 text-only degradation)
+Decisions are logged in PROJECT.md Key Decisions table (updated for v1.0).
+Full decision log archived in phase SUMMARY.md files.
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- Gemini Live API 2-minute session limit needs validation with context window compression (research gap)
-- NEBULA:FOG official rubric details needed for Phase 4 scoring calibration
+- Gemini Live API 2-minute session limit needs validation with context window compression
+- NEBULA:FOG official rubric details needed for scoring calibration
 
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 06-03-PLAN.md - Pause/resume controls and text-only degradation. ALL PHASES COMPLETE.
+Stopped at: v1.0 milestone archived. Ready for `/gsd:new-milestone`.
 Resume file: None

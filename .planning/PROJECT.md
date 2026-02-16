@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Arbiter is a live AI judge agent for the NEBULA:FOG 2026 hackathon — a security-focused hackathon where ~24 teams demo AI x Security projects. Arbiter sits on a panel alongside human judges, watches 3-5 minute live demos via camera + audio, delivers real-time commentary with a Simon Cowell-meets-hacker personality, scores projects using the official judging criteria, and participates in deliberation with full memory of all demos. It speaks via TTS and displays text on screen for audience visibility.
+Arbiter is a live AI judge agent for the NEBULA:FOG 2026 hackathon. It watches 3-5 minute demos via camera + audio, defends against prompt injection with dual-LLM privilege separation, delivers Simon Cowell-meets-hacker commentary via TTS, scores against the official rubric with isolated scoring pipeline, and produces comparative rankings with full demo memory for deliberation.
 
 ## Core Value
 
@@ -12,40 +12,45 @@ Arbiter must produce fair, defensible scores that hold up alongside human judge 
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Live multimodal input processing (camera + audio from demos) — v1.0
+- ✓ Post-demo commentary generation with streaming Gemini — v1.0
+- ✓ TTS voice output (Cartesia + macOS say fallback) + text display for audience — v1.0
+- ✓ Scoring against official NEBULA:FOG rubric (40/30/30 weights, 4 track variants) — v1.0
+- ✓ Dual-LLM prompt injection defense (visual OCR + verbal scanning) — v1.0
+- ✓ Injection detection with public roasting and structured logging — v1.0
+- ✓ Simon Cowell-meets-hacker personality with 12-emotion TTS variety — v1.0
+- ✓ Theatrical score card with CSS-animated reveals after each demo — v1.0
+- ✓ Per-demo memory storage with end-of-event comparative deliberation — v1.0
+- ✓ Q&A question generation from structured observations — v1.0
+- ✓ Per-demo scoring notes with per-criterion breakdown and justification — v1.0
 
 ### Active
 
-- [ ] Live multimodal input processing (camera + audio from demos)
-- [ ] Real-time commentary generation during/after demos
-- [ ] TTS voice output + text display for audience
-- [ ] Scoring against official NEBULA:FOG criteria (track awards, cross-track awards)
-- [ ] Prompt injection defense (visual and verbal vectors)
-- [ ] Injection detection with public roasting and logging
-- [ ] Simon Cowell-meets-hacker personality (adversarial, funny, respects talent)
-- [ ] Quick reaction score card after each demo
-- [ ] Full demo memory for final comparative deliberation
-- [ ] Q&A question generation (activated when human judges defer to Arbiter)
-- [ ] Per-demo scoring notes for judge panel review
+(None — v1.0 shipped. Define new requirements with `/gsd:new-milestone`)
 
 ### Out of Scope
 
-- Mobile app — this is a venue deployment
-- Self-hosted LLM — will use cloud APIs for quality within tight timeline
+- Real-time commentary during demos — post-demo sufficient for v1, deferred to v2
+- Mobile app — venue deployment only
+- Self-hosted LLM — cloud APIs provide better quality within timeline
 - Automated prize distribution — Arbiter scores, humans handle logistics
 - Post-event analytics dashboard — focus is live event performance
+- Audience chat integration — massive injection surface, not worth the risk
+- Repository/code scanning — attack surface too large, camera captures code on screen
 
 ## Context
 
-- **Event:** NEBULA:FOG 2026 hackathon, March 2026 (~2 weeks to build)
+Shipped v1.0 with 6,141 LOC Python across 113 files.
+Tech stack: Python 3.12, Gemini 2.0/2.5 Flash, Cartesia TTS, OpenCV, PyAudio, FastAPI, Textual TUI.
+Architecture: Event-driven async pipeline with 4 isolated Gemini clients (defense, commentary, scoring, deliberation).
+Built in 2 days (2026-02-15 → 2026-02-16), 19 plans across 6 phases.
+
+- **Event:** NEBULA:FOG 2026 hackathon, March 2026
 - **Audience:** Security researchers, hackers, builders — technically sophisticated and adversarial
 - **Panel:** Arbiter is one of several judges; human judges can defer Q&A to it
 - **Voting power:** Equal voting member — scores count toward prize decisions
-- **Demo count:** ~24 projects expected (based on 2025 numbers)
+- **Demo count:** ~24 projects expected
 - **Tracks:** SHADOW::VECTOR (attack), SENTINEL::MESH (defense), ZERO::PROOF (privacy), ROGUE::AGENT (novel)
-- **Prize pool:** $5,000+ across track awards, cross-track awards, sponsor challenges, and recognition
-- **Prompt injection is part of the fun:** Audience will try to exploit Arbiter; successful roasts of injection attempts add to the entertainment value
-- **Simon Willison techniques:** Use established prompt injection defense patterns (dual-LLM, input sanitization, system prompt hardening)
 
 ## Constraints
 
@@ -60,11 +65,16 @@ Arbiter must produce fair, defensible scores that hold up alongside human judge 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Multimodal LLM for vision+audio processing | Need to understand slides, code, and speech simultaneously | — Pending |
-| Separate scoring from commentary generation | Injection defense is easier when scoring pipeline is isolated | — Pending |
-| Simon Willison dual-LLM pattern for injection defense | Proven technique: one model processes input, another evaluates safety | — Pending |
-| Camera + audio input (not screen share) | Physical venue setup, more natural judge experience | — Pending |
-| Independent scoring with deliberation memory | Fair per-demo scoring but enables comparative analysis at end | — Pending |
+| Gemini Live API for vision+audio processing | Multimodal streaming with context window compression and session resumption | ✓ Good — handles real-time media well |
+| Separate scoring from commentary generation | Injection defense requires isolated LLM clients on scoring path | ✓ Good — 4 isolated Gemini clients, SCORE-03 verified |
+| Simon Willison dual-LLM pattern for injection defense | Quarantined model processes raw input, privileged model generates output | ✓ Good — SanitizedOutput is only trust boundary crossing |
+| Camera + audio input (not screen share) | Physical venue setup, more natural judge experience | ✓ Good — OpenCV + PyAudio capture working |
+| Independent scoring with deliberation memory | Fair per-demo scoring but enables comparative analysis at end | ✓ Good — Python-authoritative rankings, never trust LLM ordering |
+| Hand-rolled async event bus | Lightweight alternative to external library, asyncio.create_task dispatch | ✓ Good — 8 publishers, 20 subscribers, 16 event types |
+| Cartesia WebSocket TTS with macOS say fallback | Primary quality TTS with offline fallback chain | ✓ Good — graceful degradation verified |
+| Python-computed scores (never trust LLM arithmetic) | LLM provides qualitative assessment, Python computes weighted totals | ✓ Good — eliminates score manipulation risk |
+| Textual TUI over stdin CLI | Rich operator interface with keybindings and visual feedback | ✓ Good — replaced basic input() loop |
+| Detached asyncio tasks for display/reveals | Score reveals and display pushes must not block event bus | ✓ Good — consistent pattern across scoring and deliberation |
 
 ---
-*Last updated: 2026-02-15 after initialization*
+*Last updated: 2026-02-16 after v1.0 milestone*
