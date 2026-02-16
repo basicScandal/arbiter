@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 5 In Progress - Memory and Deliberation
+**Current focus:** Phase 5 Complete - Memory and Deliberation. Ready for Phase 6 Hardening.
 
 ## Current Position
 
-Phase: 5 of 6 (Memory & Deliberation)
-Plan: 2 of 3 in current phase (05-02 complete)
-Status: Executing Phase 05
-Last activity: 2026-02-16 -- Completed 05-02-PLAN.md with deliberation engine
+Phase: 5 of 6 (Memory & Deliberation) -- COMPLETE
+Plan: 3 of 3 in current phase (05-03 complete)
+Status: Phase 05 Complete
+Last activity: 2026-02-16 -- Completed 05-03-PLAN.md with deliberation pipeline integration
 
-Progress: [███████████████░░] 88%
+Progress: [████████████████░] 94%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 3min
-- Total execution time: 0.72 hours
+- Total execution time: 0.79 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [███████████████░░] 88%
 | 02-defense-pipeline | 3/3 | 6min | 2min |
 | 03-commentary-output | 3/3 | 10min | 3.3min |
 | 04-scoring-system | 3/3 | 8min | 2.7min |
-| 05-memory-deliberation | 2/3 | 4min | 2min |
+| 05-memory-deliberation | 3/3 | 8min | 2.7min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3min), 04-02 (2min), 04-03 (3min), 05-01 (2min), 05-02 (2min)
-- Trend: Stable execution at ~2-3min/plan
+- Last 5 plans: 04-02 (2min), 04-03 (3min), 05-01 (2min), 05-02 (2min), 05-03 (4min)
+- Trend: Stable execution at ~2-4min/plan
 
 *Updated after each plan completion*
 
@@ -100,6 +100,9 @@ Recent decisions affecting current work:
 - [05-02]: Tiebreaker: total_score -> Technical Execution score -> demo_duration
 - [05-02]: Observations capped at 5, transcripts at 3 per team in deliberation prompt
 - [05-02]: Separate genai.Client for deliberation (isolation from commentary and scoring)
+- [05-03]: Shared DisplayServer across commentary, scoring, and deliberation (isolation is LLM path, not display)
+- [05-03]: Detached asyncio.create_task for deliberation display push (consistent with scoring reveal pattern)
+- [05-03]: TUI deliberation via event bus only -- track assignment is CLI-only per Phase 4 pattern
 
 ### Pending Todos
 
@@ -113,5 +116,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 05-02-PLAN.md - Deliberation engine with Gemini structured output. Ready for 05-03 (deliberation pipeline).
+Stopped at: Completed 05-03-PLAN.md - Deliberation pipeline integration. Phase 5 complete. Ready for Phase 6 (hardening).
 Resume file: None
