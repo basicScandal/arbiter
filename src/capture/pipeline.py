@@ -20,7 +20,13 @@ from src.capture.config import CaptureConfig
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.gemini_session import GeminiSession
-from src.capture.models import CaptureEvent, DemoStarted, DemoStopped
+from src.capture.models import (
+    CaptureEvent,
+    DemoStarted,
+    DemoStopped,
+    KeyFrameDetected,
+    TranscriptReceived,
+)
 from src.operator.cli import OperatorCLI
 
 logger = logging.getLogger(__name__)
@@ -116,6 +122,18 @@ class CapturePipeline:
             print(f"  Gemini observations: {len(observations)}")
             print(f"-------------------\n")
 
+    async def _on_key_frame(self, event: KeyFrameDetected) -> None:
+        """Accumulate key frames into the current demo session."""
+        session = self.demo_machine.current_session
+        if session is not None:
+            session.key_frames.append(event.frame)
+
+    async def _on_transcript(self, event: TranscriptReceived) -> None:
+        """Accumulate transcript segments into the current demo session."""
+        session = self.demo_machine.current_session
+        if session is not None:
+            session.transcripts.append(event.segment)
+
     async def _log_event(self, event: CaptureEvent) -> None:
         """Log all events at DEBUG level for observability."""
         logger.debug(
@@ -134,6 +152,10 @@ class CapturePipeline:
         # Subscribe to demo lifecycle events
         self.event_bus.subscribe("demo_started", self._on_demo_started)
         self.event_bus.subscribe("demo_stopped", self._on_demo_stopped)
+
+        # Subscribe to capture events for session accumulation
+        self.event_bus.subscribe("key_frame_detected", self._on_key_frame)
+        self.event_bus.subscribe("transcript_received", self._on_transcript)
 
         # Subscribe global logger for all events
         self.event_bus.subscribe_all(self._log_event)
