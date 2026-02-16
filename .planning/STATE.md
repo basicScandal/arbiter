@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 2 of 6 (Defense Pipeline)
-Plan: 1 of 3 in current phase (COMPLETE)
-Status: Plan 02-01 complete, ready for Plan 02-02
-Last activity: 2026-02-15 -- Completed 02-01-PLAN.md with defense models, OCR scanner, injection detector
+Plan: 2 of 3 in current phase (COMPLETE)
+Status: Plan 02-02 complete, ready for Plan 02-03
+Last activity: 2026-02-15 -- Completed 02-02-PLAN.md with roast generator, injection logger, observation sanitizer
 
-Progress: [████░░░░░░] 22%
+Progress: [█████░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 4min
-- Total execution time: 0.30 hours
+- Total plans completed: 6
+- Average duration: 3min
+- Total execution time: 0.33 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-capture-layer | 4/4 | 16min | 4min |
-| 02-defense-pipeline | 1/3 | 2min | 2min |
+| 02-defense-pipeline | 2/3 | 4min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (2min), 01-03 (3min), 01-04 (16min), 02-01 (2min)
+- Last 5 plans: 01-03 (3min), 01-04 (16min), 02-01 (2min), 02-02 (2min)
 - Trend: Stable, fast execution on well-specified plans
 
 *Updated after each plan completion*
@@ -60,6 +60,9 @@ Recent decisions affecting current work:
 - [01-04]: Gemini observations stored in demo session on stop for downstream scoring
 - [01-04]: Use native audio model (gemini-2.0-flash-exp) with output transcription for text-based observations
 - [02-01]: Empty bytes guard in OCR scanner to prevent OpenCV assertion error on empty input
+- [02-02]: Whole-observation exclusion over word-level redaction per research anti-pattern guidance
+- [02-02]: Roast generation uses gemini-2.0-flash for speed/cost -- short creative text, not complex reasoning
+- [02-02]: Fallback roast on any Gemini error to ensure pipeline never blocks on roast generation
 
 ### Pending Todos
 
@@ -73,5 +76,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 02-01-PLAN.md - Defense models, OCR scanner, and injection detector ready for Plan 02-02
+Stopped at: Completed 02-02-PLAN.md - Roast generator, injection logger, and observation sanitizer ready for Plan 02-03
 Resume file: None
