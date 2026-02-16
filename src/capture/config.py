@@ -20,7 +20,7 @@ class CaptureConfig(BaseModel):
     audio_device_index: int | None = None
     frame_rate: float = 1.0
     key_frame_threshold: float = 0.4
-    gemini_model: str = "gemini-live-2.5-flash-preview"
+    gemini_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     max_queue_size: int = 5
     frame_max_dimension: int = 1024
     audio_sample_rate: int = 16000
