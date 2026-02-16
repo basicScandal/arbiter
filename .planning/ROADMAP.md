@@ -49,11 +49,12 @@ Plans:
   3. Verbal injection attempts in presenter speech are detected from transcription
   4. Detected injection attempts trigger a generated roast response suitable for audience entertainment
   5. All injection attempts are logged with timestamp, type (visual/verbal), and content
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Defense data models, OCR scanner, and injection detector
+- [ ] 02-02-PLAN.md -- Roast generator, injection logger, and observation sanitizer
+- [ ] 02-03-PLAN.md -- Defense pipeline orchestrator and capture integration
 
 ### Phase 3: Commentary + Output
 **Goal**: Arbiter speaks and displays entertaining, persona-consistent commentary after each demo
@@ -124,7 +125,7 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Capture Layer | 4/4 | ✓ Complete | 2026-02-15 |
-| 2. Defense Pipeline | 0/TBD | Not started | - |
+| 2. Defense Pipeline | 0/3 | Not started | - |
 | 3. Commentary + Output | 0/TBD | Not started | - |
 | 4. Scoring System | 0/TBD | Not started | - |
 | 5. Memory + Deliberation | 0/TBD | Not started | - |
