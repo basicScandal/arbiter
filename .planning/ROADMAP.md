@@ -12,7 +12,7 @@ Arbiter is built in six phases following the data flow from capture to output: r
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Capture Layer** - Camera + audio ingestion with operator-controlled demo lifecycle
+- [x] **Phase 1: Capture Layer** - Camera + audio ingestion with operator-controlled demo lifecycle
 - [ ] **Phase 2: Defense Pipeline** - Dual-LLM privilege separation with injection detection and roasting
 - [ ] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
 - [ ] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
@@ -34,10 +34,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Project scaffolding, data models, config, event bus, and demo state machine
-- [ ] 01-02-PLAN.md -- Camera frame capture, audio capture, and key frame detection
-- [ ] 01-03-PLAN.md -- Gemini Live API session manager and operator CLI
-- [ ] 01-04-PLAN.md -- Pipeline integration wiring and end-to-end verification
+- [x] 01-01-PLAN.md -- Project scaffolding, data models, config, event bus, and demo state machine
+- [x] 01-02-PLAN.md -- Camera frame capture, audio capture, and key frame detection
+- [x] 01-03-PLAN.md -- Gemini Live API session manager and operator CLI
+- [x] 01-04-PLAN.md -- Pipeline integration wiring and end-to-end verification
 
 ### Phase 2: Defense Pipeline
 **Goal**: Untrusted demo input is sanitized into structured observations before reaching any generation or scoring system
@@ -123,7 +123,7 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Capture Layer | 0/4 | Planned | - |
+| 1. Capture Layer | 4/4 | ✓ Complete | 2026-02-15 |
 | 2. Defense Pipeline | 0/TBD | Not started | - |
 | 3. Commentary + Output | 0/TBD | Not started | - |
 | 4. Scoring System | 0/TBD | Not started | - |
