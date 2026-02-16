@@ -1,0 +1,28 @@
+[project]
+name = "arbiter"
+version = "0.1.0"
+description = "Live AI judge agent for NEBULA:FOG 2026 hackathon"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai~=1.13",
+    "opencv-python~=4.11",
+    "pyaudio~=0.2.14",
+    "python-statemachine~=2.5",
+    "pydantic~=2.11",
+    "pillow",
+    "numpy",
+    "python-dotenv",
+]
+
+[project.scripts]
+arbiter = "src.main:main"
+
+[tool.ruff]
+line-length = 120
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
