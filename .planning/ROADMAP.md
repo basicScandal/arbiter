@@ -82,11 +82,12 @@ Plans:
   2. Track-specific criteria are applied correctly for each track (SHADOW::VECTOR, SENTINEL::MESH, ZERO::PROOF, ROGUE::AGENT)
   3. Scoring pipeline is architecturally isolated from the LLM commentary path -- injection in the commentary path cannot affect scores
   4. A per-demo scorecard is displayed to the audience after each demo with dramatic timing and theatrical flair
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Scoring data models, configurable rubric definitions, and dedicated scoring engine
+- [ ] 04-02-PLAN.md -- Score display methods on DisplayServer and theatrical score card UI in display.html
+- [ ] 04-03-PLAN.md -- Score persistence, scoring pipeline orchestrator, operator CLI track support, and main pipeline wiring
 
 ### Phase 5: Memory + Deliberation
 **Goal**: Arbiter remembers every demo and produces comparative rankings with reasoning at the end of the event
