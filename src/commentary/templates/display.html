@@ -118,6 +118,144 @@
     color: #34495e;
     letter-spacing: 1px;
   }
+
+  /* Score card overlay */
+  #score-card {
+    display: none;
+    background: #0f0f23;
+    border: 2px solid #16213e;
+    border-radius: 16px;
+    padding: 40px 48px;
+    max-width: 700px;
+    width: 100%;
+    margin-top: 32px;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  #score-card.visible { opacity: 1; }
+
+  .score-header {
+    font-size: 36px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-align: center;
+    color: #00d4ff;
+    text-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.2);
+    margin-bottom: 12px;
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+
+  .score-label {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #7f8c8d;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .score-criterion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid #16213e;
+    opacity: 0;
+    transform: translateX(-30px);
+    animation: slideIn 0.5s ease-out forwards;
+  }
+
+  .criterion-name {
+    flex: 1;
+    font-size: 20px;
+    font-weight: 600;
+    color: #e0e0e0;
+    letter-spacing: 1px;
+  }
+
+  .criterion-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .score-bar-track {
+    width: 100%;
+    height: 8px;
+    background: #16213e;
+    border-radius: 4px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .score-bar {
+    height: 100%;
+    border-radius: 4px;
+    width: 0;
+    transition: width 1s ease-out;
+    background: linear-gradient(90deg, #e74c3c 0%, #f39c12 40%, #2ecc71 70%, #00d4ff 100%);
+    background-size: 1000% 100%;
+  }
+
+  .score-justification {
+    width: 100%;
+    font-size: 14px;
+    font-style: italic;
+    color: #7f8c8d;
+    margin-top: 6px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .score-total-section {
+    text-align: center;
+    padding-top: 32px;
+    margin-top: 16px;
+  }
+
+  .score-total-value {
+    font-size: 72px;
+    font-weight: 700;
+    animation: scorePulse 1.5s ease-in-out infinite;
+  }
+
+  .score-total-label {
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #7f8c8d;
+    margin-top: 8px;
+  }
+
+  .score-track {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #00d4ff;
+    margin-top: 12px;
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(-30px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+
+  @keyframes scorePulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.15); }
+  }
+
+  @keyframes glowPulse {
+    0%, 100% { text-shadow: 0 0 20px rgba(0,212,255,0.5), 0 0 40px rgba(0,212,255,0.2); }
+    50%      { text-shadow: 0 0 30px rgba(0,212,255,0.8), 0 0 60px rgba(0,212,255,0.4); }
+  }
 </style>
 </head>
 <body>
@@ -132,6 +270,12 @@
   <div class="team-name" id="teamName"></div>
   <div class="commentary-text" id="commentaryText"></div>
   <div class="idle-message" id="idleMessage">Awaiting next demo...</div>
+  <div id="score-card">
+    <div class="score-header" id="scoreHeader"></div>
+    <div class="score-label">SCORING</div>
+    <div id="scoreCriteria"></div>
+    <div class="score-total-section" id="scoreTotalSection" style="display:none"></div>
+  </div>
 </main>
 
 <footer>AI Judge System // Live Commentary</footer>
@@ -147,6 +291,10 @@
   var teamName = document.getElementById('teamName');
   var commentaryText = document.getElementById('commentaryText');
   var idleMessage = document.getElementById('idleMessage');
+  var scoreCard = document.getElementById('score-card');
+  var scoreHeader = document.getElementById('scoreHeader');
+  var scoreCriteria = document.getElementById('scoreCriteria');
+  var scoreTotalSection = document.getElementById('scoreTotalSection');
 
   function connect() {
     ws = new WebSocket(wsUrl);
@@ -205,11 +353,96 @@
       void commentaryText.offsetWidth;
       commentaryText.classList.add('visible');
 
+    } else if (msg.type === 'score_intro') {
+      idleMessage.style.display = 'none';
+      commentaryText.textContent = '';
+      commentaryText.classList.remove('visible', 'question');
+
+      scoreHeader.textContent = msg.team_name || '';
+      while (scoreCriteria.firstChild) scoreCriteria.removeChild(scoreCriteria.firstChild);
+      scoreTotalSection.style.display = 'none';
+      while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
+      scoreCard.style.display = 'block';
+      void scoreCard.offsetWidth;
+      scoreCard.classList.add('visible');
+
+    } else if (msg.type === 'score_criterion') {
+      var idx = scoreCriteria.children.length;
+      var row = document.createElement('div');
+      row.className = 'score-criterion';
+      row.style.animationDelay = (idx * 0.15) + 's';
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'criterion-name';
+      nameEl.textContent = msg.name || '';
+
+      var valEl = document.createElement('span');
+      valEl.className = 'criterion-value';
+      valEl.textContent = (msg.score != null ? msg.score.toFixed(1) : '0') + '/10';
+
+      var barTrack = document.createElement('div');
+      barTrack.className = 'score-bar-track';
+      var bar = document.createElement('div');
+      bar.className = 'score-bar';
+      var pct = Math.max(0, Math.min(100, ((msg.score || 0) / 10) * 100));
+      bar.style.backgroundPosition = (100 - pct) + '% 0';
+      barTrack.appendChild(bar);
+
+      var justEl = document.createElement('div');
+      justEl.className = 'score-justification';
+      justEl.textContent = msg.justification || '';
+
+      row.appendChild(nameEl);
+      row.appendChild(valEl);
+      row.appendChild(barTrack);
+      row.appendChild(justEl);
+      scoreCriteria.appendChild(row);
+
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          bar.style.width = pct + '%';
+        });
+      });
+
+    } else if (msg.type === 'score_total') {
+      scoreTotalSection.style.display = 'block';
+      var total = msg.total_score != null ? msg.total_score : 0;
+
+      var color;
+      if (total < 4)      color = '#e74c3c';
+      else if (total < 6) color = '#f39c12';
+      else if (total < 8) color = '#2ecc71';
+      else                color = '#ffd700';
+
+      while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
+
+      var totalVal = document.createElement('div');
+      totalVal.className = 'score-total-value';
+      totalVal.style.color = color;
+      totalVal.textContent = total.toFixed(1);
+
+      var totalLabel = document.createElement('div');
+      totalLabel.className = 'score-total-label';
+      totalLabel.textContent = msg.team_name || '';
+
+      var trackLabel = document.createElement('div');
+      trackLabel.className = 'score-track';
+      trackLabel.textContent = msg.track || '';
+
+      scoreTotalSection.appendChild(totalVal);
+      scoreTotalSection.appendChild(totalLabel);
+      scoreTotalSection.appendChild(trackLabel);
+
     } else if (msg.type === 'clear') {
       teamName.textContent = '';
       teamName.classList.remove('visible');
       commentaryText.textContent = '';
       commentaryText.classList.remove('visible', 'question');
+      scoreCard.style.display = 'none';
+      scoreCard.classList.remove('visible');
+      while (scoreCriteria.firstChild) scoreCriteria.removeChild(scoreCriteria.firstChild);
+      scoreTotalSection.style.display = 'none';
+      while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
       idleMessage.style.display = '';
     }
   }
