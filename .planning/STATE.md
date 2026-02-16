@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 5 Complete - Memory and Deliberation. Ready for Phase 6 Hardening.
+**Current focus:** Phase 6 - Venue Hardening. Resilience foundation complete (06-01).
 
 ## Current Position
 
-Phase: 5 of 6 (Memory & Deliberation) -- COMPLETE
-Plan: 3 of 3 in current phase (05-03 complete)
-Status: Phase 05 Complete
-Last activity: 2026-02-16 -- Completed 05-03-PLAN.md with deliberation pipeline integration
+Phase: 6 of 6 (Venue Hardening)
+Plan: 1 of 3 in current phase (06-01 complete)
+Status: Executing Phase 06
+Last activity: 2026-02-16 -- Completed 06-01-PLAN.md with retry and health foundation
 
-Progress: [████████████████░] 94%
+Progress: [█████████████████] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: 3min
-- Total execution time: 0.79 hours
+- Total execution time: 0.82 hours
 
 **By Phase:**
 
@@ -32,9 +32,10 @@ Progress: [████████████████░] 94%
 | 03-commentary-output | 3/3 | 10min | 3.3min |
 | 04-scoring-system | 3/3 | 8min | 2.7min |
 | 05-memory-deliberation | 3/3 | 8min | 2.7min |
+| 06-venue-hardening | 1/3 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (2min), 04-03 (3min), 05-01 (2min), 05-02 (2min), 05-03 (4min)
+- Last 5 plans: 04-03 (3min), 05-01 (2min), 05-02 (2min), 05-03 (4min), 06-01 (2min)
 - Trend: Stable execution at ~2-4min/plan
 
 *Updated after each plan completion*
@@ -103,6 +104,12 @@ Recent decisions affecting current work:
 - [05-03]: Shared DisplayServer across commentary, scoring, and deliberation (isolation is LLM path, not display)
 - [05-03]: Detached asyncio.create_task for deliberation display push (consistent with scoring reveal pattern)
 - [05-03]: TUI deliberation via event bus only -- track assignment is CLI-only per Phase 4 pattern
+- [06-01]: tenacity retry on network exceptions only (ConnectionError, TimeoutError, OSError) -- no retry on auth or ValueError
+- [06-01]: Extract-and-wrap pattern: private method with retry decorator, public method keeps existing try/except fallback
+- [06-01]: 3 attempts for interactive paths (commentary), 5 for background paths (scoring, deliberation)
+- [06-01]: ServiceHealth exponential recovery: base * 2^(failures-1) capped at 600s
+- [06-01]: Module-level default_health singleton following EventBus pattern
+- [06-01]: reraise=True on retry decorators so failures propagate to existing fallback logic
 
 ### Pending Todos
 
@@ -116,5 +123,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 05-03-PLAN.md - Deliberation pipeline integration. Phase 5 complete. Ready for Phase 6 (hardening).
+Stopped at: Completed 06-01-PLAN.md - Retry and health foundation. Resilience module with tenacity retry on all Gemini calls.
 Resume file: None
