@@ -35,6 +35,28 @@ from src.operator.widgets import (
 
 logger = logging.getLogger(__name__)
 
+_LOG_STYLES: dict[int, str] = {
+    logging.WARNING: "yellow",
+    logging.ERROR: "bold red",
+    logging.CRITICAL: "bold white on red",
+}
+
+
+class _TUILogHandler(logging.Handler):
+    """Routes WARNING+ log records into the TUI event log."""
+
+    def __init__(self, app: ArbiterTUI) -> None:  # type: ignore[name-defined]
+        super().__init__()
+        self._app = app
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            event_log = self._app.query_one(EventLog)
+            style = _LOG_STYLES.get(record.levelno, "yellow")
+            event_log.append_text(self.format(record), style)
+        except Exception:
+            pass  # TUI not ready yet
+
 
 class ArbiterTUI(App):
     """Textual TUI application for Arbiter operator control.
@@ -55,6 +77,8 @@ class ArbiterTUI(App):
     BINDINGS = [
         Binding("ctrl+s", "prefill_start", "Start", show=True),
         Binding("ctrl+x", "send_stop", "Stop", show=True),
+        Binding("ctrl+p", "send_pause", "Pause", show=True),
+        Binding("ctrl+o", "send_resume", "Resume", show=True),
         Binding("ctrl+r", "send_reset", "Reset", show=True),
         Binding("ctrl+q", "quit_app", "Quit", show=True),
     ]
@@ -94,10 +118,24 @@ class ArbiterTUI(App):
         # 1-second ticker for elapsed time, sparkline, and pulse
         self._tick_timer = self.set_interval(1.0, self._tick)
 
+        # Route WARNING+ log messages into the event log so capture errors are visible
+        self._install_log_handler()
+
         # Welcome message
         event_log = self.query_one(EventLog)
         event_log.append_text("Arbiter TUI ready. Type 'start <team>' to begin.", "bold white")
         event_log.append_text("Type 'help' for available commands.", "dim")
+
+    # ------------------------------------------------------------------
+    # Logging bridge — surface WARNING+ to event log
+    # ------------------------------------------------------------------
+
+    def _install_log_handler(self) -> None:
+        """Add a logging handler that routes WARNING+ messages to the event log."""
+        handler = _TUILogHandler(self)
+        handler.setLevel(logging.WARNING)
+        handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+        logging.getLogger().addHandler(handler)
 
     # ------------------------------------------------------------------
     # Tick handler (1-second interval)
@@ -146,6 +184,14 @@ class ArbiterTUI(App):
             sidebar.team_name = team
             sidebar.start_timer()
 
+        elif etype == "demo_paused":
+            header.state = "PAUSED"
+            sidebar.state = "PAUSED"
+
+        elif etype == "demo_resumed":
+            header.state = "CAPTURING"
+            sidebar.state = "CAPTURING"
+
         elif etype == "demo_stopped":
             header.state = "STOPPED"
             sidebar.state = "STOPPED"
@@ -187,6 +233,10 @@ class ArbiterTUI(App):
                 self._handle_stop()
             elif command == "reset":
                 self._handle_reset()
+            elif command == "pause":
+                self._handle_pause()
+            elif command == "resume":
+                self._handle_resume()
             elif command == "qa":
                 self._handle_qa()
             elif command == "status":
@@ -219,13 +269,37 @@ class ArbiterTUI(App):
         if not team_name:
             event_log.append_text("Usage: start <team_name>", "yellow")
             return
-        self.demo_machine.send("start_demo", team_name=team_name)
+        try:
+            self.demo_machine.send("start_demo", team_name=team_name)
+            event_log.append_text(
+                f"Capture started for {team_name} — camera, audio, gemini tasks launched.",
+                "green",
+            )
+        except Exception as exc:
+            event_log.append_text(f"Start failed: {exc}", "bold red")
+            return
         logger.info("Operator started demo for team: %s", team_name)
 
     def _handle_stop(self) -> None:
         session = self.demo_machine.current_session
         self.demo_machine.send("stop_demo")
         logger.info("Operator stopped demo for team: %s", session.team_name if session else "Unknown")
+
+    def _handle_pause(self) -> None:
+        session = self.demo_machine.current_session
+        self.demo_machine.send("pause_demo")
+        team = session.team_name if session else "Unknown"
+        event_log = self.query_one(EventLog)
+        event_log.append_text(f"Demo paused for {team}", "yellow")
+        logger.info("Operator paused demo for team: %s", team)
+
+    def _handle_resume(self) -> None:
+        session = self.demo_machine.current_session
+        self.demo_machine.send("resume_demo")
+        team = session.team_name if session else "Unknown"
+        event_log = self.query_one(EventLog)
+        event_log.append_text(f"Demo resumed for {team}", "green")
+        logger.info("Operator resumed demo for team: %s", team)
 
     def _handle_reset(self) -> None:
         self.demo_machine.send("reset")
@@ -290,6 +364,8 @@ class ArbiterTUI(App):
         event_log.append_text("Available commands:", "bold white")
         event_log.append_text("  start <team>  Start a demo", "dim")
         event_log.append_text("  stop          Stop the current demo", "dim")
+        event_log.append_text("  pause         Pause the current demo", "dim")
+        event_log.append_text("  resume        Resume a paused demo", "dim")
         event_log.append_text("  qa            Generate Q&A questions", "dim")
         event_log.append_text("  reset         Reset for next demo", "dim")
         event_log.append_text("  deliberate    Run final deliberation", "dim")
@@ -304,6 +380,12 @@ class ArbiterTUI(App):
             ("start", "stopped"): "Previous demo not cleared. Run 'reset' first.",
             ("stop", "idle"): "No demo in progress. Start one with 'start <team>'.",
             ("stop", "stopped"): "Demo already stopped. Run 'reset' to prepare for next.",
+            ("pause", "idle"): "No demo in progress.",
+            ("pause", "stopped"): "Demo already stopped.",
+            ("pause", "paused"): "Demo already paused.",
+            ("resume", "idle"): "No demo to resume.",
+            ("resume", "capturing"): "Demo is already running.",
+            ("resume", "stopped"): "Demo is stopped. Use 'reset' to prepare next demo.",
             ("reset", "idle"): "Already idle. Start a demo with 'start <team>'.",
             ("reset", "capturing"): "Demo still in progress. Stop it first.",
         }
@@ -320,6 +402,14 @@ class ArbiterTUI(App):
     def action_send_stop(self) -> None:
         """Send the stop command directly."""
         self.post_message(CommandSubmitted(command="stop", args=""))
+
+    def action_send_pause(self) -> None:
+        """Send the pause command directly."""
+        self.post_message(CommandSubmitted(command="pause", args=""))
+
+    def action_send_resume(self) -> None:
+        """Send the resume command directly."""
+        self.post_message(CommandSubmitted(command="resume", args=""))
 
     def action_send_reset(self) -> None:
         """Send the reset command directly."""
