@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 2 - Defense Pipeline (COMPLETE)
+**Current focus:** Phase 3 - Commentary Output
 
 ## Current Position
 
-Phase: 2 of 6 (Defense Pipeline)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase 02 complete, ready for Phase 03
-Last activity: 2026-02-15 -- Completed 02-03-PLAN.md with defense pipeline orchestrator and capture integration
+Phase: 3 of 6 (Commentary Output)
+Plan: 1 of 3 in current phase
+Status: Executing Phase 03
+Last activity: 2026-02-15 -- Completed 03-01-PLAN.md with commentary models, persona prompt, and streaming generator
 
-Progress: [██████░░░░] 35%
+Progress: [████████░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 3min
-- Total execution time: 0.37 hours
+- Total execution time: 0.40 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [██████░░░░] 35%
 |-------|-------|-------|----------|
 | 01-capture-layer | 4/4 | 16min | 4min |
 | 02-defense-pipeline | 3/3 | 6min | 2min |
+| 03-commentary-output | 1/3 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (16min), 02-01 (2min), 02-02 (2min), 02-03 (2min)
+- Last 5 plans: 02-01 (2min), 02-02 (2min), 02-03 (2min), 03-01 (2min)
 - Trend: Stable, fast execution on well-specified plans
 
 *Updated after each plan completion*
@@ -66,6 +67,10 @@ Recent decisions affecting current work:
 - [02-03]: GeminiSession reference passed to DefensePipeline at construction for observation access on demo stop
 - [02-03]: Defense pipeline is purely additive -- subscribes to existing events without changing capture behavior
 - [02-03]: Pending roast tasks gathered with 5-second timeout on demo stop to avoid blocking
+- [03-01]: Gemini 2.5 Flash for commentary generation (fast, already in stack)
+- [03-01]: Fresh generate_content_stream per demo with full persona prompt to prevent drift
+- [03-01]: Regex sentence splitting on .!? for TTS chunking
+- [03-01]: Keyword-based emotion mapping (sarcastic/content/disappointed) for Cartesia TTS
 
 ### Pending Todos
 
@@ -79,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 02-03-PLAN.md - Phase 02 (Defense Pipeline) complete. Ready for Phase 03 (Commentary) or Phase 04 (Scoring)
+Stopped at: Completed 03-01-PLAN.md - Commentary foundation (models, prompts, generator) complete. Ready for 03-02 (TTS engine)
 Resume file: None
