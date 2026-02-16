@@ -1,0 +1,101 @@
+/* Arbiter TUI — Crush-style dark terminal aesthetic */
+
+Screen {
+    background: #0a0a0f;
+    color: #c8c8d0;
+    layout: vertical;
+}
+
+/* ── Header ────────────────────────────────────── */
+
+ArbiterHeader {
+    dock: top;
+    height: 3;
+    background: #12121a;
+    color: #e0e0e8;
+    border-bottom: solid #333344;
+    content-align: center middle;
+    padding: 0 2;
+}
+
+/* ── Main content area ─────────────────────────── */
+
+#main-container {
+    layout: horizontal;
+    height: 1fr;
+}
+
+/* ── Event Log ─────────────────────────────────── */
+
+EventLog {
+    width: 1fr;
+    height: 1fr;
+    padding: 0 1;
+}
+
+EventLog RichLog {
+    background: #0a0a0f;
+    scrollbar-background: #12121a;
+    scrollbar-color: #333344;
+    scrollbar-color-hover: #555566;
+    scrollbar-color-active: #777788;
+    scrollbar-size: 1 1;
+}
+
+/* ── Status Sidebar ────────────────────────────── */
+
+StatusSidebar {
+    width: 24;
+    height: 1fr;
+    background: #0e0e16;
+    border-left: solid #333344;
+    padding: 1 1;
+}
+
+StatusSidebar Static {
+    width: 1fr;
+}
+
+/* ── Command Input ─────────────────────────────── */
+
+CommandInput {
+    dock: bottom;
+    height: 3;
+    background: #12121a;
+    border-top: solid #333344;
+    padding: 0 1;
+}
+
+CommandInput Input {
+    background: #1a1a24;
+    color: #e0e0e8;
+    border: none;
+    width: 1fr;
+    padding: 0 1;
+}
+
+CommandInput Input:focus {
+    border: none;
+}
+
+/* ── Footer ────────────────────────────────────── */
+
+Footer {
+    background: #12121a;
+    color: #666680;
+}
+
+FooterKey {
+    background: #12121a;
+    color: #666680;
+}
+
+Footer > .footer--highlight {
+    background: #333344;
+    color: #c8c8d0;
+}
+
+Footer > .footer--key {
+    background: #222233;
+    color: #8888aa;
+}

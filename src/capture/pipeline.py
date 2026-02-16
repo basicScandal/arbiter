@@ -30,6 +30,7 @@ from src.capture.models import (
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.operator.cli import OperatorCLI
+from src.operator.tui import ArbiterTUI
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class CapturePipeline:
         config: Capture configuration with device indexes, API keys, etc.
     """
 
-    def __init__(self, config: CaptureConfig) -> None:
+    def __init__(self, config: CaptureConfig, use_tui: bool = True) -> None:
         self.event_bus = EventBus()
         self.media_queue: asyncio.Queue = asyncio.Queue(maxsize=config.max_queue_size)
 
@@ -58,7 +59,13 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
-        self.cli = OperatorCLI(demo_machine=self.demo_machine, event_bus=self.event_bus)
+        if use_tui:
+            self.operator: OperatorCLI | ArbiterTUI = ArbiterTUI(
+                demo_machine=self.demo_machine, event_bus=self.event_bus
+            )
+        else:
+            self.operator = OperatorCLI(demo_machine=self.demo_machine, event_bus=self.event_bus)
+        self._use_tui = use_tui
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
         )
@@ -125,13 +132,14 @@ class CapturePipeline:
             key_frame_count = len(session.key_frames)
             transcript_count = len(session.transcripts)
 
-            print(f"\n--- Demo Summary ---")
-            print(f"  Team: {event.team_name}")
-            print(f"  Duration: {event.duration:.1f}s")
-            print(f"  Key frames captured: {key_frame_count}")
-            print(f"  Transcript segments: {transcript_count}")
-            print(f"  Gemini observations: {len(observations)}")
-            print(f"-------------------\n")
+            logger.info(
+                "Demo summary — Team: %s, Duration: %.1fs, Frames: %d, Transcripts: %d, Observations: %d",
+                event.team_name,
+                event.duration,
+                key_frame_count,
+                transcript_count,
+                len(observations),
+            )
 
     async def _on_key_frame(self, event: KeyFrameDetected) -> None:
         """Accumulate key frames into the current demo session."""
@@ -191,14 +199,15 @@ class CapturePipeline:
         # Wire the commentary pipeline into the event bus
         await self.commentary.setup(self.event_bus)
 
-        print("=" * 40)
-        print("  Arbiter Capture Layer v0.1")
-        print("  Type 'help' for commands")
-        print("=" * 40)
-        print()
+        if not self._use_tui:
+            print("=" * 40)
+            print("  Arbiter Capture Layer v0.1")
+            print("  Type 'help' for commands")
+            print("=" * 40)
+            print()
 
         try:
-            await self.cli.run()
+            await self.operator.run()
         finally:
             # Clean up any running capture tasks on exit
             if self._capture_tasks:
