@@ -27,6 +27,7 @@ from src.capture.models import (
     KeyFrameDetected,
     TranscriptReceived,
 )
+from src.defense.pipeline import DefensePipeline
 from src.operator.cli import OperatorCLI
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,9 @@ class CapturePipeline:
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
         self.cli = OperatorCLI(demo_machine=self.demo_machine)
+        self.defense = DefensePipeline(
+            api_key=config.gemini_api_key, gemini_session=self.gemini
+        )
 
         self._capture_tasks: list[asyncio.Task] = []
 
@@ -159,6 +163,9 @@ class CapturePipeline:
 
         # Subscribe global logger for all events
         self.event_bus.subscribe_all(self._log_event)
+
+        # Wire the defense pipeline into the event bus
+        await self.defense.setup(self.event_bus)
 
         print("=" * 40)
         print("  Arbiter Capture Layer v0.1")
