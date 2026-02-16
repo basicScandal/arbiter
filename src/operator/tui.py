@@ -133,10 +133,30 @@ class ArbiterTUI(App):
     # ------------------------------------------------------------------
 
     def _install_log_handler(self) -> None:
-        """Add a logging handler that routes INFO+ messages to the event log."""
+        """Add a logging handler that routes capture messages to the event log.
+
+        INFO+ for camera/audio/pipeline (operator needs to see startup),
+        WARNING+ for everything else (avoids Gemini reconnect spam).
+        """
         handler = _TUILogHandler(self)
         handler.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+
+        # Only allow INFO from capture modules; WARNING+ from everything else
+        class _CaptureFilter(logging.Filter):
+            _INFO_LOGGERS = frozenset({
+                "src.capture.camera",
+                "src.capture.audio",
+                "src.capture.pipeline",
+                "src.operator.tui",
+            })
+
+            def filter(self, record: logging.LogRecord) -> bool:
+                if record.levelno >= logging.WARNING:
+                    return True
+                return record.name in self._INFO_LOGGERS
+
+        handler.addFilter(_CaptureFilter())
         logging.getLogger().addHandler(handler)
 
     # ------------------------------------------------------------------
@@ -158,8 +178,12 @@ class ArbiterTUI(App):
     # ------------------------------------------------------------------
 
     async def _on_bus_event(self, event: CaptureEvent) -> None:
-        """Bridge: EventBus subscriber → Textual message."""
-        self.post_message(BusEvent(event))
+        """Bridge: EventBus subscriber → Textual message.
+
+        Uses call_from_thread to safely post from asyncio tasks created by
+        the event bus, avoiding deadlocks with Textual's message processing.
+        """
+        self.call_from_thread(self.post_message, BusEvent(event))
 
     def on_bus_event(self, message: BusEvent) -> None:
         """Dispatch bus events to widget updates."""
