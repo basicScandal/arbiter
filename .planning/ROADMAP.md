@@ -66,11 +66,12 @@ Plans:
   3. Commentary and scores are simultaneously displayed as text on screen for audience readability
   4. When human judges defer Q&A to Arbiter, the system generates pointed questions based on what it observed during the demo
   5. Persona holds consistent character across multiple consecutive demos without drift
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Install dependencies, commentary models, persona prompt, and streaming generator
+- [ ] 03-02-PLAN.md -- Cartesia TTS engine and FastAPI audience display server
+- [ ] 03-03-PLAN.md -- Q&A generator, commentary pipeline orchestrator, and main application integration
 
 ### Phase 4: Scoring System
 **Goal**: Each demo receives a fair, defensible score computed from structured observations with no LLM influence on the scoring path
@@ -126,7 +127,7 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 |-------|----------------|--------|-----------|
 | 1. Capture Layer | 4/4 | ✓ Complete | 2026-02-15 |
 | 2. Defense Pipeline | 3/3 | ✓ Complete | 2026-02-15 |
-| 3. Commentary + Output | 0/TBD | Not started | - |
+| 3. Commentary + Output | 0/3 | Planned | - |
 | 4. Scoring System | 0/TBD | Not started | - |
 | 5. Memory + Deliberation | 0/TBD | Not started | - |
 | 6. Venue Hardening | 0/TBD | Not started | - |
