@@ -50,6 +50,7 @@ dependencies = [
     { name = "pytesseract" },
     { name = "python-dotenv" },
     { name = "python-statemachine" },
+    { name = "tenacity" },
     { name = "textual" },
     { name = "uvicorn" },
 ]
@@ -68,6 +69,7 @@ requires-dist = [
     { name = "pytesseract", specifier = "~=0.3.13" },
     { name = "python-dotenv" },
     { name = "python-statemachine", specifier = "~=2.5" },
+    { name = "tenacity", specifier = "~=9.0" },
     { name = "textual", specifier = "~=1.0" },
     { name = "uvicorn", specifier = ">=0.40.0" },
 ]
