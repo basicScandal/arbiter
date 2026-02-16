@@ -79,6 +79,8 @@ class AudioCapture:
         call blocks naturally for the chunk duration, so no additional sleep
         is needed between reads.
         """
+        self._stop_event.clear()
+
         logger.info(
             "Starting audio capture: %dHz, %d channels, chunk_size=%d, device=%s",
             self._config.audio_sample_rate,

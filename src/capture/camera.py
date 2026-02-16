@@ -111,6 +111,8 @@ class CameraCapture:
         Raises:
             RuntimeError: If the camera device cannot be opened.
         """
+        self._stop_event.clear()
+
         logger.info(
             "Starting camera capture on device %d at %.1f FPS",
             self._config.camera_device_index,
@@ -120,10 +122,12 @@ class CameraCapture:
         cap = await asyncio.to_thread(cv2.VideoCapture, self._config.camera_device_index)
 
         if not cap.isOpened():
-            raise RuntimeError(
-                f"Cannot open camera device {self._config.camera_device_index}. "
-                "Check that the device is connected and not in use by another application."
+            logger.error(
+                "Cannot open camera device %d. "
+                "Check that the device is connected and not in use by another application.",
+                self._config.camera_device_index,
             )
+            return
 
         try:
             while not self._stop_event.is_set():

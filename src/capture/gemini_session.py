@@ -199,6 +199,8 @@ class GeminiSession:
         Runs the send and receive loops concurrently. On connection errors or
         GoAway messages, reconnects with the stored resumption handle.
         """
+        self._stop_event.clear()
+
         while not self._stop_event.is_set():
             try:
                 logger.info(
