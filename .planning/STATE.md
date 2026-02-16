@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 4 of 6 (Scoring System)
-Plan: 2 of 3 in current phase
+Plan: 2 of 3 in current phase (04-01 and 04-02 complete)
 Status: Executing Phase 04
-Last activity: 2026-02-16 -- Completed 04-02-PLAN.md with theatrical score display UI
+Last activity: 2026-02-16 -- Completed 04-01-PLAN.md with scoring models and engine
 
-Progress: [███████████░] 57%
+Progress: [████████████░] 63%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 3min
-- Total execution time: 0.56 hours
+- Total execution time: 0.61 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [███████████░] 57%
 | 01-capture-layer | 4/4 | 16min | 4min |
 | 02-defense-pipeline | 3/3 | 6min | 2min |
 | 03-commentary-output | 3/3 | 10min | 3.3min |
-| 04-scoring-system | 1/3 | 2min | 2min |
+| 04-scoring-system | 2/3 | 5min | 2.5min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (2min), 03-02 (5min), 03-03 (3min), 04-02 (2min)
+- Last 5 plans: 03-02 (5min), 03-03 (3min), 04-02 (2min), 04-01 (3min)
 - Trend: Stable execution at ~3min/plan
 
 *Updated after each plan completion*
@@ -80,6 +80,10 @@ Recent decisions affecting current work:
 - [03-03]: CommentaryPipeline reads CARTESIA_API_KEY from env, degrades gracefully if missing
 - [03-03]: Neutral emotion for Q&A questions (safe fallback across Cartesia voices)
 - [03-03]: Q&A only allowed in stopped state to ensure demo data is available
+- [04-01]: Separate genai.Client instance for scoring (SCORE-03 isolation from commentary P-LLM)
+- [04-01]: Python-computed weighted totals, never trust LLM arithmetic
+- [04-01]: Score clamping 0-10 with rubric weights assigned server-side, not from LLM output
+- [04-01]: Fallback scorecard (5.0 across all criteria) on any Gemini or parsing error
 - [04-02]: XSS-safe DOM construction using createElement/textContent instead of innerHTML for score card rendering
 - [04-02]: Double requestAnimationFrame for reliable CSS transition triggering on dynamically appended elements
 - [04-02]: Score card as separate section below commentary, not an overlay
@@ -96,5 +100,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 04-02-PLAN.md - Theatrical score display UI with animated criterion bars and pulsing totals. Continue with 04-01 or 04-03.
+Stopped at: Completed 04-01-PLAN.md - Scoring models, rubric, and engine with isolated Gemini client. 04-03 remaining.
 Resume file: None
