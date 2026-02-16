@@ -114,11 +114,12 @@ Plans:
   3. System degrades gracefully -- text-only if TTS fails, cached/fallback responses if LLM is slow
   4. Operator can manually pause, resume, or override Arbiter at any point during the event
   5. TTS voice conveys emotional variety (sarcasm, surprise, genuine approval, disappointment) appropriate to commentary content
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- Resilience foundation: tenacity retry, ServiceHealth tracker, Gemini call hardening
+- [ ] 06-02-PLAN.md -- TTS failover chain (Cartesia -> macOS say) and expanded 12-emotion keyword map
+- [ ] 06-03-PLAN.md -- Operator pause/resume controls and degraded-mode text-only commentary
 
 ## Progress
 
@@ -133,4 +134,4 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | 3. Commentary + Output | 3/3 | ✓ Complete | 2026-02-15 |
 | 4. Scoring System | 3/3 | ✓ Complete | 2026-02-16 |
 | 5. Memory + Deliberation | 3/3 | ✓ Complete | 2026-02-16 |
-| 6. Venue Hardening | 0/TBD | Not started | - |
+| 6. Venue Hardening | 0/3 | Not started | - |
