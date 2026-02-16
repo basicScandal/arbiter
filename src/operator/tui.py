@@ -81,8 +81,7 @@ class ArbiterTUI(App):
         Binding("ctrl+p", "send_pause", "Pause", show=True),
         Binding("ctrl+o", "send_resume", "Resume", show=True),
         Binding("ctrl+r", "send_reset", "Reset", show=True),
-        Binding("ctrl+c", "quit_app", "Quit", show=True),
-        Binding("ctrl+q", "quit_app", "Quit", show=False),
+        Binding("ctrl+q", "quit_app", "Quit", show=True),
     ]
 
     def __init__(

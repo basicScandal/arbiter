@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # waiting for retries. The provider's internal retry budget will be
 # cut short by this timeout, which is intentional: enrichment is a
 # nice-to-have, not worth adding latency to commentary delivery.
-ENRICHMENT_TIMEOUT = 3.0  # seconds -- original used if exceeded
+ENRICHMENT_TIMEOUT = 8.0  # seconds -- original used if exceeded
 
 ENRICHMENT_PROMPT = """\
 You are a comedy writer and technical editor for Arbiter, an AI judge \

@@ -60,7 +60,7 @@ class MoEScoringEngine:
                 prompt=prompt,
                 system_prompt=SCORING_SYSTEM_PROMPT,
                 temperature=0.3,
-                max_tokens=1000,
+                max_tokens=1500,
             )
             for provider in self._providers
         ]

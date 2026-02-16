@@ -115,8 +115,9 @@ class ScoringEngine:
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SCORING_SYSTEM_PROMPT,
-                max_output_tokens=1000,
+                max_output_tokens=1500,
                 temperature=0.3,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
         return response.text or ""

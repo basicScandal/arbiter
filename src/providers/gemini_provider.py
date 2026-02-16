@@ -92,6 +92,9 @@ class GeminiProvider(LLMProvider):
                 system_instruction=system_prompt,
                 max_output_tokens=max_tokens,
                 temperature=temperature,
+                # Disable thinking for structured output -- thinking tokens
+                # consume max_output_tokens budget, truncating JSON responses
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
         return response.text or ""
