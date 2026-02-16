@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 3 - Commentary Output
+**Current focus:** Phase 4 - Scoring Engine
 
 ## Current Position
 
-Phase: 3 of 6 (Commentary Output)
-Plan: 2 of 3 in current phase
-Status: Executing Phase 03
-Last activity: 2026-02-15 -- Completed 03-02-PLAN.md with TTS engine and display server
+Phase: 3 of 6 (Commentary Output) -- COMPLETE
+Plan: 3 of 3 in current phase (all done)
+Status: Phase 03 Complete, Ready for Phase 04
+Last activity: 2026-02-15 -- Completed 03-03-PLAN.md with commentary pipeline integration
 
-Progress: [█████████░] 45%
+Progress: [██████████░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 3min
-- Total execution time: 0.48 hours
+- Total execution time: 0.53 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [█████████░] 45%
 |-------|-------|-------|----------|
 | 01-capture-layer | 4/4 | 16min | 4min |
 | 02-defense-pipeline | 3/3 | 6min | 2min |
-| 03-commentary-output | 2/3 | 7min | 3.5min |
+| 03-commentary-output | 3/3 | 10min | 3.3min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (2min), 02-03 (2min), 03-01 (2min), 03-02 (5min)
-- Trend: Stable execution, slightly longer on API integration tasks
+- Last 5 plans: 02-03 (2min), 03-01 (2min), 03-02 (5min), 03-03 (3min)
+- Trend: Stable execution at ~3min/plan
 
 *Updated after each plan completion*
 
@@ -75,6 +75,10 @@ Recent decisions affecting current work:
 - [03-02]: Context-per-sentence with no_more_inputs for clean audio streaming lifecycle
 - [03-02]: ConnectionManager broadcasts with silent disconnect cleanup for resilient WebSocket delivery
 - [03-02]: Uvicorn runs as asyncio.create_task for non-blocking server lifecycle
+- [03-03]: QAGenerator uses non-streaming Gemini (short output, no need for streaming)
+- [03-03]: CommentaryPipeline reads CARTESIA_API_KEY from env, degrades gracefully if missing
+- [03-03]: Neutral emotion for Q&A questions (safe fallback across Cartesia voices)
+- [03-03]: Q&A only allowed in stopped state to ensure demo data is available
 
 ### Pending Todos
 
@@ -88,5 +92,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 03-02-PLAN.md - TTS engine and display server complete. Ready for 03-03 (commentary pipeline wiring)
+Stopped at: Completed 03-03-PLAN.md - Phase 03 (Commentary Output) complete. Full commentary pipeline wired. Ready for Phase 04 (Scoring Engine)
 Resume file: None
