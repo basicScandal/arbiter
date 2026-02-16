@@ -118,6 +118,36 @@ class DisplayServer:
             "team_name": team_name,
         })
 
+    async def push_score_intro(self, team_name: str) -> None:
+        """Broadcast score intro to signal the start of a score reveal."""
+        await self._manager.broadcast({
+            "type": "score_intro",
+            "team_name": team_name,
+        })
+
+    async def push_criterion_reveal(
+        self, name: str, score: float, weight: float, justification: str,
+    ) -> None:
+        """Broadcast a single criterion score for staggered reveal."""
+        await self._manager.broadcast({
+            "type": "score_criterion",
+            "name": name,
+            "score": score,
+            "weight": weight,
+            "justification": justification,
+        })
+
+    async def push_total_score(
+        self, team_name: str, total_score: float, track: str,
+    ) -> None:
+        """Broadcast the final weighted total score with dramatic reveal."""
+        await self._manager.broadcast({
+            "type": "score_total",
+            "team_name": team_name,
+            "total_score": total_score,
+            "track": track,
+        })
+
     async def clear(self) -> None:
         """Clear the display on all connected clients."""
         await self._manager.broadcast({"type": "clear"})
