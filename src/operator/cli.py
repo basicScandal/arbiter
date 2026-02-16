@@ -18,8 +18,10 @@ from statemachine.exceptions import TransitionNotAllowed
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.commentary.models import QARequested
+from src.memory.models import DeliberationRequested
 
 if TYPE_CHECKING:
+    from src.memory.pipeline import DeliberationPipeline
     from src.scoring.pipeline import ScoringPipeline
 
 logger = logging.getLogger(__name__)
@@ -50,10 +52,12 @@ class OperatorCLI:
         demo_machine: DemoMachine,
         event_bus: EventBus | None = None,
         scoring_pipeline: ScoringPipeline | None = None,
+        deliberation_pipeline: DeliberationPipeline | None = None,
     ) -> None:
         self.demo_machine = demo_machine
         self.event_bus = event_bus
         self.scoring_pipeline = scoring_pipeline
+        self.deliberation_pipeline = deliberation_pipeline
 
     async def run(self) -> None:
         """Main CLI loop: read commands from stdin and execute them.
@@ -95,6 +99,8 @@ class OperatorCLI:
                     self._handle_qa()
                 elif command == "score":
                     self._handle_score()
+                elif command == "deliberate":
+                    self._handle_deliberate()
                 elif command == "status":
                     self._handle_status()
                 elif command in ("quit", "exit"):
@@ -127,6 +133,8 @@ class OperatorCLI:
         if track is not None and self.scoring_pipeline is not None:
             if track in VALID_TRACKS:
                 self.scoring_pipeline.set_track(team_name, track)
+                if self.deliberation_pipeline is not None:
+                    self.deliberation_pipeline.set_track(team_name, track)
                 logger.info("Track %s assigned to team %s", track, team_name)
             else:
                 print(f"Warning: Unknown track '{track}'. Valid tracks: {', '.join(sorted(VALID_TRACKS))}")
@@ -189,6 +197,15 @@ class OperatorCLI:
         else:
             print("No pending scores. Scores are displayed on screen after commentary.")
 
+    def _handle_deliberate(self) -> None:
+        """Handle the 'deliberate' command to trigger end-of-event deliberation."""
+        if self.event_bus is None:
+            print("Deliberation not available (no event bus configured).")
+            return
+        self.event_bus.publish(DeliberationRequested())
+        print("Deliberation triggered. Processing all demos...")
+        logger.info("Operator triggered end-of-event deliberation")
+
     def _handle_status(self) -> None:
         """Handle the 'status' command to show current state info."""
         state_id = self.demo_machine.current_state.id
@@ -219,6 +236,7 @@ class OperatorCLI:
         print("  stop                  - Stop the current demo")
         print("  qa                    - Generate Q&A questions for the last demo")
         print("  score                 - Show scoring status")
+        print("  deliberate            - Run end-of-event comparative deliberation")
         print("  reset                 - Reset for the next demo")
         print("  status                - Show current state and session info")
         print("  help                  - Show this help message")

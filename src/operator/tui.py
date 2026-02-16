@@ -1,8 +1,9 @@
 """Textual-based TUI for operator demo lifecycle control.
 
-Replaces the stdin CLI with a Crush-aesthetic terminal dashboard featuring
-real-time event streaming, color-coded logs, live status counters, and
-keyboard shortcuts. Bridges the async EventBus into Textual's message system.
+Replaces the stdin CLI with a btop-aesthetic terminal dashboard featuring
+real-time event streaming, color-coded logs, live status counters, sparkline
+graphs, defense panel, and keyboard shortcuts. Bridges the async EventBus
+into Textual's message system.
 """
 
 from __future__ import annotations
@@ -21,23 +22,33 @@ from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import CaptureEvent
 from src.commentary.models import QARequested
+from src.memory.models import DeliberationRequested
 from src.operator.widgets import (
     ArbiterHeader,
     BusEvent,
     CommandInput,
     CommandSubmitted,
+    DefensePanel,
     EventLog,
     StatusSidebar,
 )
 
 logger = logging.getLogger(__name__)
 
+# State → prompt color mapping
+_STATE_PROMPT_COLORS: dict[str, str] = {
+    "IDLE": "dim",
+    "CAPTURING": "green",
+    "STOPPED": "yellow",
+}
+
 
 class ArbiterTUI(App):
     """Textual TUI application for Arbiter operator control.
 
-    Composes the four-panel layout (header, event log, sidebar, command input)
-    and bridges the EventBus into Textual's message loop for live updates.
+    Composes the six-panel layout (header, event log, sidebar, defense panel,
+    command input, footer) and bridges the EventBus into Textual's message
+    loop for live updates.
 
     Args:
         demo_machine: The DemoMachine controlling demo lifecycle.
@@ -74,6 +85,7 @@ class ArbiterTUI(App):
         with Horizontal(id="main-container"):
             yield EventLog()
             yield StatusSidebar()
+        yield DefensePanel()
         yield CommandInput()
         yield Footer()
 
@@ -86,13 +98,27 @@ class ArbiterTUI(App):
         if self.event_bus is not None:
             self.event_bus.subscribe_all(self._on_bus_event)
 
-        # 1-second ticker for elapsed time
-        self._tick_timer = self.set_interval(1.0, self._tick_sidebar)
+        # 1-second ticker for elapsed time, sparkline, and pulse
+        self._tick_timer = self.set_interval(1.0, self._tick)
 
         # Welcome message
         event_log = self.query_one(EventLog)
         event_log.append_text("Arbiter TUI ready. Type 'start <team>' to begin.", "bold white")
         event_log.append_text("Type 'help' for available commands.", "dim")
+
+    # ------------------------------------------------------------------
+    # Tick handler (1-second interval)
+    # ------------------------------------------------------------------
+
+    def _tick(self) -> None:
+        """Update sidebar, header elapsed, and pulse every second."""
+        sidebar = self.query_one(StatusSidebar)
+        sidebar.tick()
+
+        header = self.query_one(ArbiterHeader)
+        header.elapsed = sidebar.elapsed
+        # Toggle pulse for CAPTURING animation
+        header._pulse = not header._pulse
 
     # ------------------------------------------------------------------
     # Event bus bridge
@@ -111,9 +137,13 @@ class ArbiterTUI(App):
         event_log = self.query_one(EventLog)
         event_log.append_event(event)
 
-        # Update header
+        # Update header, sidebar, defense panel
         header = self.query_one(ArbiterHeader)
         sidebar = self.query_one(StatusSidebar)
+        defense = self.query_one(DefensePanel)
+
+        # Increment sparkline event counter
+        sidebar.increment_event_count()
 
         if etype == "demo_started":
             team = getattr(event, "team_name", "")
@@ -122,11 +152,13 @@ class ArbiterTUI(App):
             sidebar.state = "CAPTURING"
             sidebar.team_name = team
             sidebar.start_timer()
+            self._update_prompt_color("CAPTURING")
 
         elif etype == "demo_stopped":
             header.state = "STOPPED"
             sidebar.state = "STOPPED"
             sidebar.stop_timer()
+            self._update_prompt_color("STOPPED")
 
         elif etype == "key_frame_detected":
             sidebar.frame_count += 1
@@ -136,15 +168,21 @@ class ArbiterTUI(App):
 
         elif etype == "injection_detected":
             sidebar.attack_count += 1
+            defense.injection_count += 1
 
-    # ------------------------------------------------------------------
-    # Sidebar ticker
-    # ------------------------------------------------------------------
+        elif etype == "roast_generated":
+            roast = getattr(event, "roast", "")
+            defense.last_roast = roast
 
-    def _tick_sidebar(self) -> None:
-        """Update the sidebar elapsed-time every second."""
-        sidebar = self.query_one(StatusSidebar)
-        sidebar.tick()
+        elif etype == "observation_verified":
+            output = getattr(event, "output", None)
+            if output:
+                defense.clean_count += len(output.observations)
+
+    def _update_prompt_color(self, state: str) -> None:
+        """Update the command prompt ❯ color to match state."""
+        color = _STATE_PROMPT_COLORS.get(state, "dim")
+        self.query_one(CommandInput).set_prompt_color(color)
 
     # ------------------------------------------------------------------
     # Command handling
@@ -167,6 +205,8 @@ class ArbiterTUI(App):
                 self._handle_qa()
             elif command == "status":
                 self._handle_status()
+            elif command == "deliberate":
+                self._handle_deliberate()
             elif command in ("quit", "exit"):
                 self.exit()
                 return
@@ -205,11 +245,17 @@ class ArbiterTUI(App):
         self.demo_machine.send("reset")
         header = self.query_one(ArbiterHeader)
         sidebar = self.query_one(StatusSidebar)
+        defense = self.query_one(DefensePanel)
         header.state = "IDLE"
         header.team_name = ""
+        header.elapsed = 0.0
         sidebar.state = "IDLE"
         sidebar.team_name = ""
         sidebar.reset_counters()
+        defense.last_roast = ""
+        defense.injection_count = 0
+        defense.clean_count = 0
+        self._update_prompt_color("IDLE")
         event_log = self.query_one(EventLog)
         event_log.append_text("Ready for next demo.", "bold green")
         logger.info("Operator reset demo machine")
@@ -245,6 +291,15 @@ class ArbiterTUI(App):
         else:
             event_log.append_text("  No active session", "dim")
 
+    def _handle_deliberate(self) -> None:
+        event_log = self.query_one(EventLog)
+        if self.event_bus is None:
+            event_log.append_text("Deliberation not available (no event bus).", "yellow")
+            return
+        self.event_bus.publish(DeliberationRequested())
+        event_log.append_text("Deliberation triggered. Processing all demos...", "bold magenta")
+        logger.info("Operator triggered end-of-event deliberation")
+
     def _print_help(self) -> None:
         event_log = self.query_one(EventLog)
         event_log.append_text("Available commands:", "bold white")
@@ -252,6 +307,7 @@ class ArbiterTUI(App):
         event_log.append_text("  stop          Stop the current demo", "dim")
         event_log.append_text("  qa            Generate Q&A questions", "dim")
         event_log.append_text("  reset         Reset for next demo", "dim")
+        event_log.append_text("  deliberate    Run final deliberation", "dim")
         event_log.append_text("  status        Show current state", "dim")
         event_log.append_text("  help          Show this message", "dim")
         event_log.append_text("  quit          Exit Arbiter", "dim")

@@ -31,6 +31,7 @@ from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.operator.cli import OperatorCLI
 from src.operator.tui import ArbiterTUI
+from src.memory.pipeline import DeliberationPipeline
 from src.scoring.pipeline import ScoringPipeline
 
 logger = logging.getLogger(__name__)
@@ -60,16 +61,6 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
-        if use_tui:
-            self.operator: OperatorCLI | ArbiterTUI = ArbiterTUI(
-                demo_machine=self.demo_machine, event_bus=self.event_bus
-            )
-        else:
-            self.operator = OperatorCLI(
-                demo_machine=self.demo_machine,
-                event_bus=self.event_bus,
-                scoring_pipeline=self.scoring,
-            )
         self._use_tui = use_tui
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
@@ -86,6 +77,24 @@ class CapturePipeline:
             api_key=config.gemini_api_key,
             display=self.commentary._display,
         )
+        # Deliberation pipeline shares the same DisplayServer (display isolation
+        # is about LLM paths, not the broadcast channel).
+        self.deliberation = DeliberationPipeline(
+            api_key=config.gemini_api_key,
+            display=self.commentary._display,
+        )
+
+        if use_tui:
+            self.operator: OperatorCLI | ArbiterTUI = ArbiterTUI(
+                demo_machine=self.demo_machine, event_bus=self.event_bus
+            )
+        else:
+            self.operator = OperatorCLI(
+                demo_machine=self.demo_machine,
+                event_bus=self.event_bus,
+                scoring_pipeline=self.scoring,
+                deliberation_pipeline=self.deliberation,
+            )
 
         self._capture_tasks: list[asyncio.Task] = []
 
@@ -212,6 +221,9 @@ class CapturePipeline:
 
         # Wire the scoring pipeline into the event bus
         await self.scoring.setup(self.event_bus)
+
+        # Wire the deliberation pipeline into the event bus
+        await self.deliberation.setup(self.event_bus)
 
         if not self._use_tui:
             print("=" * 40)
