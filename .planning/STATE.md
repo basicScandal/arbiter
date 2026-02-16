@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 6 - Venue Hardening. Resilience foundation complete (06-01).
+**Current focus:** Phase 6 - Venue Hardening. TTS fallback and emotion expansion complete (06-02).
 
 ## Current Position
 
 Phase: 6 of 6 (Venue Hardening)
-Plan: 1 of 3 in current phase (06-01 complete)
+Plan: 2 of 3 in current phase (06-02 complete)
 Status: Executing Phase 06
-Last activity: 2026-02-16 -- Completed 06-01-PLAN.md with retry and health foundation
+Last activity: 2026-02-16 -- Completed 06-02-PLAN.md with TTS fallback and emotion expansion
 
-Progress: [█████████████████] 95%
+Progress: [██████████████████] 97%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 3min
-- Total execution time: 0.82 hours
+- Total execution time: 0.87 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [█████████████████] 95%
 | 03-commentary-output | 3/3 | 10min | 3.3min |
 | 04-scoring-system | 3/3 | 8min | 2.7min |
 | 05-memory-deliberation | 3/3 | 8min | 2.7min |
-| 06-venue-hardening | 1/3 | 2min | 2min |
+| 06-venue-hardening | 2/3 | 5min | 2.5min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (3min), 05-01 (2min), 05-02 (2min), 05-03 (4min), 06-01 (2min)
+- Last 5 plans: 05-01 (2min), 05-02 (2min), 05-03 (4min), 06-01 (2min), 06-02 (3min)
 - Trend: Stable execution at ~2-4min/plan
 
 *Updated after each plan completion*
@@ -110,6 +110,11 @@ Recent decisions affecting current work:
 - [06-01]: ServiceHealth exponential recovery: base * 2^(failures-1) capped at 600s
 - [06-01]: Module-level default_health singleton following EventBus pattern
 - [06-01]: reraise=True on retry decorators so failures propagate to existing fallback logic
+- [06-02]: MacOSSayFallback always constructed even if say unavailable -- available property gates speak()
+- [06-02]: Fallback speak() wraps all errors silently -- fallback must never crash the caller
+- [06-02]: TTSFinished always published in finally block on all TTS code paths (Cartesia, fallback, skip)
+- [06-02]: Removed "clearly" from sarcastic keywords to avoid collision with "clearly the best" (confident)
+- [06-02]: _ensure_connected attempts reconnect before each speak for automatic recovery from transient failures
 
 ### Pending Todos
 
@@ -123,5 +128,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 06-01-PLAN.md - Retry and health foundation. Resilience module with tenacity retry on all Gemini calls.
+Stopped at: Completed 06-02-PLAN.md - TTS fallback and emotion expansion. macOS say failover with 12-emotion keyword map.
 Resume file: None
