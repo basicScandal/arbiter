@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 4 Complete - Ready for Phase 5 (Deliberation)
+**Current focus:** Phase 5 In Progress - Memory and Deliberation
 
 ## Current Position
 
-Phase: 4 of 6 (Scoring System) -- COMPLETE
-Plan: 3 of 3 in current phase (all plans complete)
-Status: Phase 04 Complete, ready for Phase 05
-Last activity: 2026-02-16 -- Completed 04-03-PLAN.md with scoring pipeline integration
+Phase: 5 of 6 (Memory & Deliberation)
+Plan: 1 of 3 in current phase (05-01 complete)
+Status: Executing Phase 05
+Last activity: 2026-02-16 -- Completed 05-01-PLAN.md with memory models and store
 
-Progress: [██████████████░░] 79%
+Progress: [██████████████░░░] 82%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 3min
-- Total execution time: 0.66 hours
+- Total execution time: 0.69 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [██████████████░░] 79%
 | 02-defense-pipeline | 3/3 | 6min | 2min |
 | 03-commentary-output | 3/3 | 10min | 3.3min |
 | 04-scoring-system | 3/3 | 8min | 2.7min |
+| 05-memory-deliberation | 1/3 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (3min), 04-01 (3min), 04-02 (2min), 04-03 (3min)
-- Trend: Stable execution at ~3min/plan
+- Last 5 plans: 04-01 (3min), 04-02 (2min), 04-03 (3min), 05-01 (2min)
+- Trend: Stable execution at ~2-3min/plan
 
 *Updated after each plan completion*
 
@@ -91,6 +92,9 @@ Recent decisions affecting current work:
 - [04-03]: Shared DisplayServer instance between commentary and scoring (isolation is LLM path, not display)
 - [04-03]: Default track ROGUE::AGENT when operator does not specify a track
 - [04-03]: Pending scorecards dict bridges timing gap between scoring completion and commentary delivery
+- [05-01]: Duplicated _sanitize_team_name from ScoreStore to avoid modifying Phase 4 files
+- [05-01]: Store injection_attempts as count only (not content) for security -- never persist injection payloads
+- [05-01]: TeamRanking.rank is Python-assigned; total_score from ScoreStore is authoritative -- LLM provides qualitative only
 
 ### Pending Todos
 
@@ -104,5 +108,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 04-03-PLAN.md - Phase 04 (Scoring System) fully complete. Ready for Phase 05 (Deliberation).
+Stopped at: Completed 05-01-PLAN.md - Memory models and store. Continuing with 05-02 (deliberation engine).
 Resume file: None
