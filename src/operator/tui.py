@@ -36,6 +36,7 @@ from src.operator.widgets import (
 logger = logging.getLogger(__name__)
 
 _LOG_STYLES: dict[int, str] = {
+    logging.INFO: "dim",
     logging.WARNING: "yellow",
     logging.ERROR: "bold red",
     logging.CRITICAL: "bold white on red",
@@ -80,7 +81,8 @@ class ArbiterTUI(App):
         Binding("ctrl+p", "send_pause", "Pause", show=True),
         Binding("ctrl+o", "send_resume", "Resume", show=True),
         Binding("ctrl+r", "send_reset", "Reset", show=True),
-        Binding("ctrl+q", "quit_app", "Quit", show=True),
+        Binding("ctrl+c", "quit_app", "Quit", show=True),
+        Binding("ctrl+q", "quit_app", "Quit", show=False),
     ]
 
     def __init__(
@@ -131,9 +133,9 @@ class ArbiterTUI(App):
     # ------------------------------------------------------------------
 
     def _install_log_handler(self) -> None:
-        """Add a logging handler that routes WARNING+ messages to the event log."""
+        """Add a logging handler that routes INFO+ messages to the event log."""
         handler = _TUILogHandler(self)
-        handler.setLevel(logging.WARNING)
+        handler.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
         logging.getLogger().addHandler(handler)
 
@@ -278,6 +280,14 @@ class ArbiterTUI(App):
         except Exception as exc:
             event_log.append_text(f"Start failed: {exc}", "bold red")
             return
+        # Diagnostic: show subscriber count so operator sees pipeline is wired
+        if self.event_bus:
+            n_subs = sum(len(v) for v in self.event_bus._subscribers.values())
+            n_global = len(self.event_bus._global_subscribers)
+            event_log.append_text(
+                f"  Bus: {n_subs} typed + {n_global} global subscribers active",
+                "dim",
+            )
         logger.info("Operator started demo for team: %s", team_name)
 
     def _handle_stop(self) -> None:
