@@ -12,6 +12,7 @@ dependencies = [
     "pillow",
     "numpy",
     "python-dotenv",
+    "pytesseract~=0.3.13",
 ]
 
 [project.scripts]
