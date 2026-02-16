@@ -8,7 +8,13 @@ at NEBULA:FOG 2026.
 from __future__ import annotations
 
 import asyncio
+import atexit
 import logging
+import os
+import signal
+import socket
+import subprocess
+import time
 from pathlib import Path
 
 import uvicorn
@@ -91,7 +97,21 @@ class DisplayServer:
                 self._manager.disconnect(ws)
 
     async def start(self) -> None:
-        """Start uvicorn as a non-blocking asyncio task."""
+        """Start uvicorn as a non-blocking asyncio task.
+
+        Kills any stale process holding the port before binding, and registers
+        an atexit handler to ensure the socket is released on unclean exit.
+        """
+        self._free_port(self._port)
+
+        # Pre-validate: if port is still occupied after cleanup, skip uvicorn
+        if not self._port_is_free(self._port):
+            logger.error(
+                "Display server cannot start — port %d still in use after cleanup",
+                self._port,
+            )
+            return
+
         config = uvicorn.Config(
             app=self._app,
             host=self._host,
@@ -100,7 +120,65 @@ class DisplayServer:
         )
         self._server = uvicorn.Server(config)
         self._serve_task = asyncio.create_task(self._server.serve())
+
+        # Wait briefly for uvicorn to actually bind
+        for _ in range(20):
+            await asyncio.sleep(0.05)
+            if self._server.started or self._serve_task.done():
+                break
+
+        if not self._server.started:
+            logger.error("Display server failed to start on port %d", self._port)
+            self._server.should_exit = True
+            if self._serve_task and not self._serve_task.done():
+                self._serve_task.cancel()
+            self._serve_task = None
+            self._server = None
+            return
+
+        # Register atexit so ctrl+c / crashes still release the port
+        atexit.register(self._force_shutdown)
         logger.info("Display server started on http://%s:%d", self._host, self._port)
+
+    @staticmethod
+    def _port_is_free(port: int) -> bool:
+        """Return True if the given port can be bound."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return True
+            except OSError:
+                return False
+
+    @staticmethod
+    def _free_port(port: int) -> None:
+        """Kill any stale process holding the given port."""
+        if DisplayServer._port_is_free(port):
+            return
+
+        # Port is occupied — find and kill the holder
+        try:
+            result = subprocess.run(
+                ["lsof", "-i", f":{port}", "-t"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            my_pid = os.getpid()
+            for pid_str in result.stdout.strip().splitlines():
+                pid = int(pid_str)
+                if pid != my_pid:
+                    os.kill(pid, signal.SIGTERM)
+                    logger.warning("Killed stale process %d on port %d", pid, port)
+            # Give the OS a moment to release the socket
+            time.sleep(0.3)
+        except Exception:
+            logger.warning("Could not free port %d", port)
+
+    def _force_shutdown(self) -> None:
+        """Atexit handler: forcefully signal uvicorn to stop."""
+        if self._server is not None:
+            self._server.should_exit = True
 
     async def push_commentary(self, text: str, team_name: str) -> None:
         """Broadcast commentary text to all connected display clients."""
