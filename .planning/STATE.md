@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 1 - Capture Layer (COMPLETE)
+**Current focus:** Phase 2 - Defense Pipeline (IN PROGRESS)
 
 ## Current Position
 
-Phase: 1 of 6 (Capture Layer - COMPLETE)
-Plan: 4 of 4 in current phase (COMPLETE)
-Status: Phase 1 complete, ready for Phase 2
-Last activity: 2026-02-15 -- Completed 01-04-PLAN.md with verified end-to-end testing
+Phase: 2 of 6 (Defense Pipeline)
+Plan: 1 of 3 in current phase (COMPLETE)
+Status: Plan 02-01 complete, ready for Plan 02-02
+Last activity: 2026-02-15 -- Completed 02-01-PLAN.md with defense models, OCR scanner, injection detector
 
-Progress: [████░░░░░░] 17%
+Progress: [████░░░░░░] 22%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 4min
-- Total execution time: 0.27 hours
+- Total execution time: 0.30 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-capture-layer | 4/4 | 16min | 4min |
+| 02-defense-pipeline | 1/3 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min), 01-02 (2min), 01-03 (3min), 01-04 (16min - includes verification)
-- Trend: Stable with verification overhead
+- Last 5 plans: 01-02 (2min), 01-03 (3min), 01-04 (16min), 02-01 (2min)
+- Trend: Stable, fast execution on well-specified plans
 
 *Updated after each plan completion*
 
@@ -58,6 +59,7 @@ Recent decisions affecting current work:
 - [01-04]: Capture tasks created on demo_started, cancelled on demo_stopped via event bus subscriptions
 - [01-04]: Gemini observations stored in demo session on stop for downstream scoring
 - [01-04]: Use native audio model (gemini-2.0-flash-exp) with output transcription for text-based observations
+- [02-01]: Empty bytes guard in OCR scanner to prevent OpenCV assertion error on empty input
 
 ### Pending Todos
 
@@ -71,5 +73,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 01-04-PLAN.md - Phase 1 (Capture Layer) complete, ready for Phase 2 (Defense Pipeline)
+Stopped at: Completed 02-01-PLAN.md - Defense models, OCR scanner, and injection detector ready for Plan 02-02
 Resume file: None
