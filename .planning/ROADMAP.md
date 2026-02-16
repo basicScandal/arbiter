@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
 - [x] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
 - [x] **Phase 5: Memory + Deliberation** - Per-demo memory storage and end-of-event comparative analysis
-- [ ] **Phase 6: Venue Hardening** - Failover, degraded modes, and reliability under real conditions
+- [x] **Phase 6: Venue Hardening** - Failover, degraded modes, and reliability under real conditions
 
 ## Phase Details
 
@@ -117,9 +117,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Resilience foundation: tenacity retry, ServiceHealth tracker, Gemini call hardening
-- [ ] 06-02-PLAN.md -- TTS failover chain (Cartesia -> macOS say) and expanded 12-emotion keyword map
-- [ ] 06-03-PLAN.md -- Operator pause/resume controls and degraded-mode text-only commentary
+- [x] 06-01-PLAN.md -- Resilience foundation: tenacity retry, ServiceHealth tracker, Gemini call hardening
+- [x] 06-02-PLAN.md -- TTS failover chain (Cartesia -> macOS say) and expanded 12-emotion keyword map
+- [x] 06-03-PLAN.md -- Operator pause/resume controls and degraded-mode text-only commentary
 
 ## Progress
 
@@ -134,4 +134,4 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | 3. Commentary + Output | 3/3 | ✓ Complete | 2026-02-15 |
 | 4. Scoring System | 3/3 | ✓ Complete | 2026-02-16 |
 | 5. Memory + Deliberation | 3/3 | ✓ Complete | 2026-02-16 |
-| 6. Venue Hardening | 0/3 | Not started | - |
+| 6. Venue Hardening | 3/3 | ✓ Complete | 2026-02-16 |
