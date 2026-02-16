@@ -31,9 +31,12 @@ from src.capture.models import (
 )
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
+from src.memory.pipeline import DeliberationPipeline
 from src.operator.cli import OperatorCLI
 from src.operator.tui import ArbiterTUI
-from src.memory.pipeline import DeliberationPipeline
+from src.providers import create_provider
+from src.providers.base import LLMProvider
+from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.pipeline import ScoringPipeline
 
 logger = logging.getLogger(__name__)
@@ -67,17 +70,47 @@ class CapturePipeline:
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
         )
+
+        # Build enrichment provider if configured
+        enrichment_provider: LLMProvider | None = None
+        if config.commentary_enrichment_enabled and config.anthropic_api_key:
+            enrichment_provider = create_provider("claude", config.anthropic_api_key)
+            logger.info("Commentary enrichment enabled via Claude")
+        elif config.commentary_enrichment_enabled and config.openai_api_key:
+            enrichment_provider = create_provider("openai", config.openai_api_key)
+            logger.info("Commentary enrichment enabled via OpenAI")
+
         self.commentary = CommentaryPipeline(
             api_key=config.gemini_api_key,
             voice_id=config.cartesia_voice_id,
             display_host=config.display_host,
             display_port=config.display_port,
+            enrichment_provider=enrichment_provider,
         )
+
+        # Build MoE scoring providers if configured
+        moe_engine: MoEScoringEngine | None = None
+        if config.moe_scoring_enabled:
+            providers: list[LLMProvider] = [
+                create_provider("gemini", config.gemini_api_key)
+            ]
+            if config.anthropic_api_key:
+                providers.append(create_provider("claude", config.anthropic_api_key))
+            if config.openai_api_key:
+                providers.append(create_provider("openai", config.openai_api_key))
+            if len(providers) >= 2:
+                moe_engine = MoEScoringEngine(providers)
+                logger.info("MoE scoring enabled with %d providers: %s",
+                    len(providers), [p.name for p in providers])
+            else:
+                logger.warning("MoE scoring requires 2+ providers, falling back to single-model")
+
         # Scoring pipeline shares the SAME DisplayServer instance from commentary.
         # Isolation requirement (SCORE-03) is about the LLM path, not the display path.
         self.scoring = ScoringPipeline(
             api_key=config.gemini_api_key,
             display=self.commentary._display,
+            moe_engine=moe_engine,
         )
         # Deliberation pipeline shares the same DisplayServer (display isolation
         # is about LLM paths, not the broadcast channel).

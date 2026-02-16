@@ -32,6 +32,11 @@ class CaptureConfig(BaseModel):
     cartesia_voice_id: str = ""
     display_host: str = "0.0.0.0"
     display_port: int = 8080
+    # MoE multi-model scoring and commentary enrichment
+    anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    moe_scoring_enabled: bool = False
+    commentary_enrichment_enabled: bool = False
 
 
 def load_config() -> CaptureConfig:
@@ -63,4 +68,8 @@ def load_config() -> CaptureConfig:
         cartesia_voice_id=os.getenv("CARTESIA_VOICE_ID", ""),
         display_host=os.getenv("DISPLAY_HOST", "0.0.0.0"),
         display_port=int(os.getenv("DISPLAY_PORT", "8080")),
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
+        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        moe_scoring_enabled=os.getenv("MOE_SCORING_ENABLED", "").lower() in ("true", "1", "yes"),
+        commentary_enrichment_enabled=os.getenv("COMMENTARY_ENRICHMENT_ENABLED", "").lower() in ("true", "1", "yes"),
     )

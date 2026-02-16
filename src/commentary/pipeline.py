@@ -16,11 +16,13 @@ import uuid
 
 from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
+from src.commentary.enricher import CommentaryEnricher
 from src.commentary.generator import CommentaryGenerator
 from src.commentary.models import CommentaryDelivered, QARequested
 from src.commentary.qa_generator import QAGenerator
 from src.commentary.tts_engine import TTSEngine
 from src.defense.models import ObservationVerified, SanitizedOutput
+from src.providers.base import LLMProvider
 from src.resilience.health import ServiceHealth, default_health
 
 logger = logging.getLogger(__name__)
@@ -47,9 +49,13 @@ class CommentaryPipeline:
         voice_id: str,
         display_host: str = "0.0.0.0",
         display_port: int = 8080,
+        enrichment_provider: LLMProvider | None = None,
     ) -> None:
         self._generator = CommentaryGenerator(api_key=api_key)
         self._qa_generator = QAGenerator(api_key=api_key)
+        self._enricher: CommentaryEnricher | None = (
+            CommentaryEnricher(enrichment_provider) if enrichment_provider else None
+        )
 
         cartesia_api_key = os.environ.get("CARTESIA_API_KEY", "")
         if not cartesia_api_key:
@@ -103,6 +109,12 @@ class CommentaryPipeline:
 
             # Generate commentary from sanitized observations
             commentary = await self._generator.generate(event.output)
+
+            # Enrich commentary via secondary model (if configured)
+            if self._enricher is not None:
+                commentary = await self._enricher.enrich(
+                    commentary, event.output.observations
+                )
 
             # Clear display before new commentary
             await self._display.clear()

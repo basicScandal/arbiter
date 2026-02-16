@@ -16,6 +16,7 @@ from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
 from src.defense.models import ObservationVerified
 from src.scoring.engine import ScoringEngine
+from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete
 from src.scoring.store import ScoreStore
 
@@ -36,8 +37,10 @@ class ScoringPipeline:
         api_key: str,
         display: DisplayServer,
         scores_dir: str = "data/scores",
+        moe_engine: MoEScoringEngine | None = None,
     ) -> None:
         self._engine = ScoringEngine(api_key=api_key)
+        self._moe_engine = moe_engine
         self._store = ScoreStore(scores_dir=scores_dir)
         self._display = display
         self._pending_scorecards: dict[str, DemoScorecard] = {}
@@ -73,7 +76,9 @@ class ScoringPipeline:
         track = self._pending_tracks.get(team_name, "ROGUE::AGENT")
 
         try:
-            scorecard = await self._engine.score(event.output, track)
+            # Use MoE engine if available, otherwise single-model engine
+            engine = self._moe_engine if self._moe_engine is not None else self._engine
+            scorecard = await engine.score(event.output, track)
             self._pending_scorecards[team_name] = scorecard
             await self._store.save(scorecard)
             logger.info(
