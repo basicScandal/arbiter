@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-15)
 ## Current Position
 
 Phase: 5 of 6 (Memory & Deliberation)
-Plan: 1 of 3 in current phase (05-01 complete)
+Plan: 2 of 3 in current phase (05-02 complete)
 Status: Executing Phase 05
-Last activity: 2026-02-16 -- Completed 05-01-PLAN.md with memory models and store
+Last activity: 2026-02-16 -- Completed 05-02-PLAN.md with deliberation engine
 
-Progress: [██████████████░░░] 82%
+Progress: [███████████████░░] 88%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Average duration: 3min
-- Total execution time: 0.69 hours
+- Total execution time: 0.72 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [██████████████░░░] 82%
 | 02-defense-pipeline | 3/3 | 6min | 2min |
 | 03-commentary-output | 3/3 | 10min | 3.3min |
 | 04-scoring-system | 3/3 | 8min | 2.7min |
-| 05-memory-deliberation | 1/3 | 2min | 2min |
+| 05-memory-deliberation | 2/3 | 4min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3min), 04-02 (2min), 04-03 (3min), 05-01 (2min)
+- Last 5 plans: 04-01 (3min), 04-02 (2min), 04-03 (3min), 05-01 (2min), 05-02 (2min)
 - Trend: Stable execution at ~2-3min/plan
 
 *Updated after each plan completion*
@@ -95,6 +95,11 @@ Recent decisions affecting current work:
 - [05-01]: Duplicated _sanitize_team_name from ScoreStore to avoid modifying Phase 4 files
 - [05-01]: Store injection_attempts as count only (not content) for security -- never persist injection payloads
 - [05-01]: TeamRanking.rank is Python-assigned; total_score from ScoreStore is authoritative -- LLM provides qualitative only
+- [05-02]: Gemini response_schema with Pydantic model for structured deliberation output (no manual JSON parsing)
+- [05-02]: Python sorts rankings by total_score, never trusts LLM ordering
+- [05-02]: Tiebreaker: total_score -> Technical Execution score -> demo_duration
+- [05-02]: Observations capped at 5, transcripts at 3 per team in deliberation prompt
+- [05-02]: Separate genai.Client for deliberation (isolation from commentary and scoring)
 
 ### Pending Todos
 
@@ -108,5 +113,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 05-01-PLAN.md - Memory models and store. Continuing with 05-02 (deliberation engine).
+Stopped at: Completed 05-02-PLAN.md - Deliberation engine with Gemini structured output. Ready for 05-03 (deliberation pipeline).
 Resume file: None
