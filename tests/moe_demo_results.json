@@ -1,0 +1,155 @@
+{
+  "scored_at": 1771283550.565666,
+  "providers": [
+    "gemini:gemini-2.5-flash",
+    "claude:claude-sonnet-4-5-20250929",
+    "openai:gpt-4o"
+  ],
+  "results": [
+    {
+      "rank": 1,
+      "team_name": "Plan AI",
+      "track": "ROGUE::AGENT",
+      "total_score": 6.8,
+      "criteria": [
+        {
+          "name": "Technical Execution",
+          "score": 6.2,
+          "weight": 0.4
+        },
+        {
+          "name": "Innovation",
+          "score": 5.8,
+          "weight": 0.3
+        },
+        {
+          "name": "Demo Quality",
+          "score": 6.6,
+          "weight": 0.3
+        }
+      ],
+      "track_bonus": {
+        "name": "Originality Factor",
+        "score": 6.3
+      },
+      "views": 45,
+      "duration": 377.0
+    },
+    {
+      "rank": 2,
+      "team_name": "Nebula Investigations",
+      "track": "ROGUE::AGENT",
+      "total_score": 6.6,
+      "criteria": [
+        {
+          "name": "Technical Execution",
+          "score": 6.2,
+          "weight": 0.4
+        },
+        {
+          "name": "Innovation",
+          "score": 5.8,
+          "weight": 0.3
+        },
+        {
+          "name": "Demo Quality",
+          "score": 6.2,
+          "weight": 0.3
+        }
+      ],
+      "track_bonus": {
+        "name": "Originality Factor",
+        "score": 5.4
+      },
+      "views": 84,
+      "duration": 510.0
+    },
+    {
+      "rank": 3,
+      "team_name": "NextGen-SAST",
+      "track": "SENTINEL::MESH",
+      "total_score": 6.5,
+      "criteria": [
+        {
+          "name": "Technical Execution",
+          "score": 5.8,
+          "weight": 0.4
+        },
+        {
+          "name": "Innovation",
+          "score": 6.2,
+          "weight": 0.3
+        },
+        {
+          "name": "Demo Quality",
+          "score": 5.8,
+          "weight": 0.3
+        }
+      ],
+      "track_bonus": {
+        "name": "Defense Robustness",
+        "score": 5.4
+      },
+      "views": 47,
+      "duration": 779.0
+    },
+    {
+      "rank": 4,
+      "team_name": "Revenge AI",
+      "track": "SHADOW::VECTOR",
+      "total_score": 5.7,
+      "criteria": [
+        {
+          "name": "Technical Execution",
+          "score": 5.8,
+          "weight": 0.4
+        },
+        {
+          "name": "Innovation",
+          "score": 5.4,
+          "weight": 0.3
+        },
+        {
+          "name": "Demo Quality",
+          "score": 4.9,
+          "weight": 0.3
+        }
+      ],
+      "track_bonus": {
+        "name": "Attack Effectiveness",
+        "score": 2.7
+      },
+      "views": 75,
+      "duration": 255.0
+    },
+    {
+      "rank": 5,
+      "team_name": "Privacy Impact Analyzer",
+      "track": "ZERO::PROOF",
+      "total_score": 5.4,
+      "criteria": [
+        {
+          "name": "Technical Execution",
+          "score": 4.9,
+          "weight": 0.4
+        },
+        {
+          "name": "Innovation",
+          "score": 4.9,
+          "weight": 0.3
+        },
+        {
+          "name": "Demo Quality",
+          "score": 5.8,
+          "weight": 0.3
+        }
+      ],
+      "track_bonus": {
+        "name": "Privacy Guarantees",
+        "score": 2.7
+      },
+      "views": 48,
+      "duration": 315.0
+    }
+  ]
+}
