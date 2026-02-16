@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-15)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 6 - Venue Hardening. TTS fallback and emotion expansion complete (06-02).
+**Current focus:** Phase 6 - Venue Hardening. ALL PLANS COMPLETE. Project finished.
 
 ## Current Position
 
 Phase: 6 of 6 (Venue Hardening)
-Plan: 2 of 3 in current phase (06-02 complete)
-Status: Executing Phase 06
-Last activity: 2026-02-16 -- Completed 06-02-PLAN.md with TTS fallback and emotion expansion
+Plan: 3 of 3 in current phase (06-03 complete)
+Status: ALL PHASES COMPLETE
+Last activity: 2026-02-16 -- Completed 06-03-PLAN.md with pause/resume controls and text-only degradation
 
-Progress: [██████████████████] 97%
+Progress: [████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 3min
-- Total execution time: 0.87 hours
+- Total execution time: 0.95 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [██████████████████] 97%
 | 03-commentary-output | 3/3 | 10min | 3.3min |
 | 04-scoring-system | 3/3 | 8min | 2.7min |
 | 05-memory-deliberation | 3/3 | 8min | 2.7min |
-| 06-venue-hardening | 2/3 | 5min | 2.5min |
+| 06-venue-hardening | 3/3 | 10min | 3.3min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (2min), 05-02 (2min), 05-03 (4min), 06-01 (2min), 06-02 (3min)
-- Trend: Stable execution at ~2-4min/plan
+- Last 5 plans: 05-02 (2min), 05-03 (4min), 06-01 (2min), 06-02 (3min), 06-03 (5min)
+- Trend: Stable execution at ~2-5min/plan
 
 *Updated after each plan completion*
 
@@ -115,6 +115,10 @@ Recent decisions affecting current work:
 - [06-02]: TTSFinished always published in finally block on all TTS code paths (Cartesia, fallback, skip)
 - [06-02]: Removed "clearly" from sarcastic keywords to avoid collision with "clearly the best" (confident)
 - [06-02]: _ensure_connected attempts reconnect before each speak for automatic recovery from transient failures
+- [06-03]: Camera pause discards frames but keeps cv2.VideoCapture device open -- prevents expensive reopen on resume
+- [06-03]: on_exit_paused only publishes DemoResumed when target is capturing, not stopped
+- [06-03]: ServiceHealth checked per-sentence before TTS speak, allowing mid-delivery recovery
+- [06-03]: Display server always receives text regardless of TTS health (REL-02 text-only degradation)
 
 ### Pending Todos
 
@@ -128,5 +132,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 06-02-PLAN.md - TTS fallback and emotion expansion. macOS say failover with 12-emotion keyword map.
+Stopped at: Completed 06-03-PLAN.md - Pause/resume controls and text-only degradation. ALL PHASES COMPLETE.
 Resume file: None
