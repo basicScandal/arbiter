@@ -97,10 +97,12 @@ Plans:
   1. Structured observations (not raw input) are stored per-demo and retrievable for any previously judged team
   2. At end of event, system performs comparative deliberation across all demos with specific cross-demo references
   3. Final rankings with per-team reasoning are produced in a format human judges can review and discuss during deliberation
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- Memory data models, DemoMemory persistence store
+- [ ] 05-02-PLAN.md -- Deliberation engine with Gemini structured output and Python-authoritative ranking
+- [ ] 05-03-PLAN.md -- Deliberation pipeline orchestrator, operator commands, display integration, main wiring
 
 ### Phase 6: Venue Hardening
 **Goal**: Arbiter runs reliably through a full 24-demo event under real venue conditions including network failures, TTS outages, and operator intervention
@@ -130,5 +132,5 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | 2. Defense Pipeline | 3/3 | ✓ Complete | 2026-02-15 |
 | 3. Commentary + Output | 3/3 | ✓ Complete | 2026-02-15 |
 | 4. Scoring System | 3/3 | ✓ Complete | 2026-02-16 |
-| 5. Memory + Deliberation | 0/TBD | Not started | - |
+| 5. Memory + Deliberation | 0/3 | Planning complete | - |
 | 6. Venue Hardening | 0/TBD | Not started | - |
