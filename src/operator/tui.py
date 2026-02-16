@@ -30,6 +30,7 @@ from src.operator.widgets import (
     CommandSubmitted,
     DefensePanel,
     EventLog,
+    LogRecord,
     StatusSidebar,
 )
 
@@ -44,7 +45,12 @@ _LOG_STYLES: dict[int, str] = {
 
 
 class _TUILogHandler(logging.Handler):
-    """Routes WARNING+ log records into the TUI event log."""
+    """Routes log records into the TUI via Textual's message loop.
+
+    Uses post_message (thread-safe) to enqueue a LogRecord message rather
+    than touching widgets directly, which would bypass Textual's rendering
+    pipeline and corrupt terminal state in non-headless mode.
+    """
 
     def __init__(self, app: ArbiterTUI) -> None:  # type: ignore[name-defined]
         super().__init__()
@@ -52,11 +58,10 @@ class _TUILogHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            event_log = self._app.query_one(EventLog)
             style = _LOG_STYLES.get(record.levelno, "yellow")
-            event_log.append_text(self.format(record), style)
+            self._app.post_message(LogRecord(self.format(record), style))
         except Exception:
-            pass  # TUI not ready yet
+            pass  # TUI not ready or shutting down
 
 
 class ArbiterTUI(App):
@@ -114,12 +119,13 @@ class ArbiterTUI(App):
     def on_mount(self) -> None:
         """Subscribe to the event bus and start the sidebar ticker."""
         if self.event_bus is not None:
-            self.event_bus.subscribe_all(self._on_bus_event)
+            self.event_bus.subscribe_all(self._bridge_capture_event)
 
         # 1-second ticker for elapsed time, sparkline, and pulse
         self._tick_timer = self.set_interval(1.0, self._tick)
 
-        # Route WARNING+ log messages into the event log so capture errors are visible
+        # Route log messages into the TUI and remove stderr handler to prevent
+        # writes to the terminal while Textual controls the screen.
         self._install_log_handler()
 
         # Welcome message
@@ -132,11 +138,23 @@ class ArbiterTUI(App):
     # ------------------------------------------------------------------
 
     def _install_log_handler(self) -> None:
-        """Add a logging handler that routes capture messages to the event log.
+        """Replace stderr logging with TUI-routed logging.
+
+        Removes the root logger's StreamHandler (from basicConfig) so nothing
+        writes to stderr while Textual controls the terminal. Installs a
+        TUI handler that posts LogRecord messages into the Textual event loop.
 
         INFO+ for camera/audio/pipeline (operator needs to see startup),
         WARNING+ for everything else (avoids Gemini reconnect spam).
         """
+        root = logging.getLogger()
+
+        # Remove StreamHandlers that write to stderr — they interfere with
+        # Textual's alternate screen mode and can corrupt terminal state.
+        for h in root.handlers[:]:
+            if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
+                root.removeHandler(h)
+
         handler = _TUILogHandler(self)
         handler.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
@@ -156,7 +174,7 @@ class ArbiterTUI(App):
                 return record.name in self._INFO_LOGGERS
 
         handler.addFilter(_CaptureFilter())
-        logging.getLogger().addHandler(handler)
+        root.addHandler(handler)
 
     # ------------------------------------------------------------------
     # Tick handler (1-second interval)
@@ -176,13 +194,28 @@ class ArbiterTUI(App):
     # Event bus bridge
     # ------------------------------------------------------------------
 
-    async def _on_bus_event(self, event: CaptureEvent) -> None:
+    async def _bridge_capture_event(self, event: CaptureEvent) -> None:
         """Bridge: EventBus subscriber → Textual message.
 
-        Uses call_from_thread to safely post from asyncio tasks created by
-        the event bus, avoiding deadlocks with Textual's message processing.
+        IMPORTANT: This method must NOT be named ``_on_bus_event`` because
+        Textual's message dispatcher matches ``_on_<message>`` as a handler
+        for ``BusEvent`` messages, causing it to receive ``BusEvent`` objects
+        instead of ``CaptureEvent`` objects and crash the app.
+
+        The EventBus dispatches callbacks via asyncio.create_task(), so they
+        run on the SAME thread as Textual's event loop. post_message is
+        thread-safe and just enqueues — it does not block or re-enter the
+        message loop.
         """
-        self.call_from_thread(self.post_message, BusEvent(event))
+        self.post_message(BusEvent(event))
+
+    def on_log_record(self, message: LogRecord) -> None:
+        """Handle log records posted by the _TUILogHandler."""
+        try:
+            event_log = self.query_one(EventLog)
+            event_log.append_text(message.text, message.style)
+        except Exception:
+            pass
 
     def on_bus_event(self, message: BusEvent) -> None:
         """Dispatch bus events to widget updates."""

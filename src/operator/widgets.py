@@ -38,11 +38,26 @@ class CommandSubmitted(Message):
         super().__init__()
 
 
-class BusEvent(Message):
-    """Wraps a CaptureEvent from the event bus for Textual dispatch."""
+class BusEvent(Message, bubble=False):
+    """Wraps a CaptureEvent from the event bus for Textual dispatch.
+
+    bubble=False prevents infinite re-dispatch through the App→Screen cycle.
+    """
 
     def __init__(self, event: CaptureEvent) -> None:
         self.event = event
+        super().__init__()
+
+
+class LogRecord(Message, bubble=False):
+    """Routes a logging record into the TUI event log via the message loop.
+
+    bubble=False because this is posted directly to the App, not a child widget.
+    """
+
+    def __init__(self, text: str, style: str) -> None:
+        self.text = text
+        self.style = style
         super().__init__()
 
 
