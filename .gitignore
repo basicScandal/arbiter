@@ -6,6 +6,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+*.egg
 
 # Virtual environment
 .venv/
@@ -18,7 +19,27 @@ build/
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# Captures / runtime artifacts
+*.mp4
+*.wav
+*.png
+*.jpg
+*.jpeg
+
+# uv
+.python-version
