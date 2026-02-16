@@ -22,6 +22,8 @@ from src.capture.event_bus import EventBus
 from src.capture.gemini_session import GeminiSession
 from src.capture.models import (
     CaptureEvent,
+    DemoPaused,
+    DemoResumed,
     DemoStarted,
     DemoStopped,
     KeyFrameDetected,
@@ -161,6 +163,22 @@ class CapturePipeline:
                 len(observations),
             )
 
+    async def _on_demo_paused(self, event: DemoPaused) -> None:
+        """React to demo pause: mute audio and pause camera frame publishing.
+
+        Camera device stays open (do NOT release cv2.VideoCapture) -- only
+        frame publishing is suppressed via the _paused flag.
+        """
+        self.audio.mute()
+        self.camera.pause()
+        logger.info("Capture paused for team: %s", event.team_name)
+
+    async def _on_demo_resumed(self, event: DemoResumed) -> None:
+        """React to demo resume: unmute audio and resume camera frame publishing."""
+        self.audio.unmute()
+        self.camera.resume()
+        logger.info("Capture resumed for team: %s", event.team_name)
+
     async def _on_key_frame(self, event: KeyFrameDetected) -> None:
         """Accumulate key frames into the current demo session."""
         session = self.demo_machine.current_session
@@ -201,6 +219,10 @@ class CapturePipeline:
         # Subscribe to demo lifecycle events
         self.event_bus.subscribe("demo_started", self._on_demo_started)
         self.event_bus.subscribe("demo_stopped", self._on_demo_stopped)
+
+        # Subscribe to pause/resume events for capture suspension
+        self.event_bus.subscribe("demo_paused", self._on_demo_paused)
+        self.event_bus.subscribe("demo_resumed", self._on_demo_resumed)
 
         # Subscribe to capture events for session accumulation
         self.event_bus.subscribe("key_frame_detected", self._on_key_frame)

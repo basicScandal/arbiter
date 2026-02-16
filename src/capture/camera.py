@@ -58,6 +58,7 @@ class CameraCapture:
         self._event_bus = event_bus
         self._out_queue = out_queue
         self._stop_event = asyncio.Event()
+        self._paused: bool = False
         self.key_frame_detector = KeyFrameDetector(threshold=config.key_frame_threshold)
 
     def _capture_and_encode(self, cap: cv2.VideoCapture) -> tuple[FrameData, np.ndarray] | None:
@@ -131,6 +132,12 @@ class CameraCapture:
 
         try:
             while not self._stop_event.is_set():
+                # When paused, keep reading frames (device stays open) but discard them
+                if self._paused:
+                    await asyncio.to_thread(cap.read)
+                    await asyncio.sleep(1.0 / self._config.frame_rate)
+                    continue
+
                 result = await asyncio.to_thread(self._capture_and_encode, cap)
                 if result is None:
                     logger.warning("Camera read failed, ending capture loop")
@@ -165,6 +172,16 @@ class CameraCapture:
         finally:
             await asyncio.to_thread(cap.release)
             logger.info("Camera capture stopped, device released")
+
+    def pause(self) -> None:
+        """Pause frame publishing. Device stays open, frames are discarded."""
+        self._paused = True
+        logger.info("Camera paused")
+
+    def resume(self) -> None:
+        """Resume frame publishing after a pause."""
+        self._paused = False
+        logger.info("Camera resumed")
 
     async def stop(self) -> None:
         """Signal the capture loop to stop and reset the key frame detector."""

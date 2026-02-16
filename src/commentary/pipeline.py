@@ -21,6 +21,7 @@ from src.commentary.models import CommentaryDelivered, QARequested
 from src.commentary.qa_generator import QAGenerator
 from src.commentary.tts_engine import TTSEngine
 from src.defense.models import ObservationVerified, SanitizedOutput
+from src.resilience.health import ServiceHealth, default_health
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +80,10 @@ class CommentaryPipeline:
         # Connect TTS -- degrade gracefully on failure
         try:
             await self._tts.connect()
+            default_health.mark_healthy("cartesia_tts")
         except Exception:
             logger.warning("TTS engine connection failed -- TTS will be unavailable", exc_info=True)
+            default_health.mark_unhealthy("cartesia_tts")
 
         # Start display server
         await self._display.start()
@@ -108,15 +111,31 @@ class CommentaryPipeline:
             context_id = str(uuid.uuid4())[:8]
             for i, sentence in enumerate(commentary.sentences):
                 emotion = commentary.emotion_map.get(i, "sarcastic")
-                await asyncio.gather(
-                    self._tts.speak(
-                        sentence,
-                        context_id,
-                        emotion,
-                        is_continuation=(i > 0),
-                    ),
-                    self._display.push_commentary(sentence, team_name),
-                )
+                if default_health.is_healthy("cartesia_tts"):
+                    try:
+                        await asyncio.gather(
+                            self._tts.speak(
+                                sentence,
+                                context_id,
+                                emotion,
+                                is_continuation=(i > 0),
+                            ),
+                            self._display.push_commentary(sentence, team_name),
+                        )
+                        # TTS succeeded -- mark healthy for future checks
+                        if self._tts._connected:
+                            default_health.mark_healthy("cartesia_tts")
+                        else:
+                            default_health.mark_unhealthy("cartesia_tts")
+                    except Exception:
+                        logger.exception("TTS speak failed, marking unhealthy")
+                        default_health.mark_unhealthy("cartesia_tts")
+                        # Still push text to display
+                        await self._display.push_commentary(sentence, team_name)
+                else:
+                    # Text-only mode: TTS unhealthy, skip TTS and push to display only
+                    logger.info("TTS unhealthy -- delivering text-only commentary")
+                    await self._display.push_commentary(sentence, team_name)
 
             # Publish delivery event
             if self._event_bus is not None:
@@ -152,15 +171,28 @@ class CommentaryPipeline:
             context_id = str(uuid.uuid4())[:8]
             for i, question in enumerate(questions):
                 # Use "neutral" as emotion for questions (safe fallback)
-                await asyncio.gather(
-                    self._tts.speak(
-                        question.text,
-                        context_id,
-                        "neutral",
-                        is_continuation=(i > 0),
-                    ),
-                    self._display.push_question(question.text, team_name),
-                )
+                if default_health.is_healthy("cartesia_tts"):
+                    try:
+                        await asyncio.gather(
+                            self._tts.speak(
+                                question.text,
+                                context_id,
+                                "neutral",
+                                is_continuation=(i > 0),
+                            ),
+                            self._display.push_question(question.text, team_name),
+                        )
+                        if self._tts._connected:
+                            default_health.mark_healthy("cartesia_tts")
+                        else:
+                            default_health.mark_unhealthy("cartesia_tts")
+                    except Exception:
+                        logger.exception("TTS speak failed during Q&A, marking unhealthy")
+                        default_health.mark_unhealthy("cartesia_tts")
+                        await self._display.push_question(question.text, team_name)
+                else:
+                    logger.info("TTS unhealthy -- delivering text-only Q&A")
+                    await self._display.push_question(question.text, team_name)
 
             logger.info("Q&A questions delivered for team: %s", team_name)
 
