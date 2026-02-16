@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Capture Layer** - Camera + audio ingestion with operator-controlled demo lifecycle
 - [x] **Phase 2: Defense Pipeline** - Dual-LLM privilege separation with injection detection and roasting
-- [ ] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
+- [x] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
 - [ ] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
 - [ ] **Phase 5: Memory + Deliberation** - Per-demo memory storage and end-of-event comparative analysis
 - [ ] **Phase 6: Venue Hardening** - Failover, degraded modes, and reliability under real conditions
@@ -69,9 +69,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Install dependencies, commentary models, persona prompt, and streaming generator
-- [ ] 03-02-PLAN.md -- Cartesia TTS engine and FastAPI audience display server
-- [ ] 03-03-PLAN.md -- Q&A generator, commentary pipeline orchestrator, and main application integration
+- [x] 03-01-PLAN.md -- Install dependencies, commentary models, persona prompt, and streaming generator
+- [x] 03-02-PLAN.md -- Cartesia TTS engine and FastAPI audience display server
+- [x] 03-03-PLAN.md -- Q&A generator, commentary pipeline orchestrator, and main application integration
 
 ### Phase 4: Scoring System
 **Goal**: Each demo receives a fair, defensible score computed from structured observations with no LLM influence on the scoring path
@@ -127,7 +127,7 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 |-------|----------------|--------|-----------|
 | 1. Capture Layer | 4/4 | ✓ Complete | 2026-02-15 |
 | 2. Defense Pipeline | 3/3 | ✓ Complete | 2026-02-15 |
-| 3. Commentary + Output | 0/3 | Planned | - |
+| 3. Commentary + Output | 3/3 | ✓ Complete | 2026-02-15 |
 | 4. Scoring System | 0/TBD | Not started | - |
 | 5. Memory + Deliberation | 0/TBD | Not started | - |
 | 6. Venue Hardening | 0/TBD | Not started | - |
