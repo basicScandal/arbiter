@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Defense Pipeline** - Dual-LLM privilege separation with injection detection and roasting
 - [x] **Phase 3: Commentary + Output** - P-LLM persona commentary with TTS voice and text display
 - [x] **Phase 4: Scoring System** - Isolated rubric-based scoring with theatrical score reveals
-- [ ] **Phase 5: Memory + Deliberation** - Per-demo memory storage and end-of-event comparative analysis
+- [x] **Phase 5: Memory + Deliberation** - Per-demo memory storage and end-of-event comparative analysis
 - [ ] **Phase 6: Venue Hardening** - Failover, degraded modes, and reliability under real conditions
 
 ## Phase Details
@@ -100,9 +100,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Memory data models, DemoMemory persistence store
-- [ ] 05-02-PLAN.md -- Deliberation engine with Gemini structured output and Python-authoritative ranking
-- [ ] 05-03-PLAN.md -- Deliberation pipeline orchestrator, operator commands, display integration, main wiring
+- [x] 05-01-PLAN.md -- Memory data models, DemoMemory persistence store
+- [x] 05-02-PLAN.md -- Deliberation engine with Gemini structured output and Python-authoritative ranking
+- [x] 05-03-PLAN.md -- Deliberation pipeline orchestrator, operator commands, display integration, main wiring
 
 ### Phase 6: Venue Hardening
 **Goal**: Arbiter runs reliably through a full 24-demo event under real venue conditions including network failures, TTS outages, and operator intervention
@@ -132,5 +132,5 @@ Note: Phases 3 and 4 can execute in parallel (both depend on Phase 2, neither de
 | 2. Defense Pipeline | 3/3 | ✓ Complete | 2026-02-15 |
 | 3. Commentary + Output | 3/3 | ✓ Complete | 2026-02-15 |
 | 4. Scoring System | 3/3 | ✓ Complete | 2026-02-16 |
-| 5. Memory + Deliberation | 0/3 | Planning complete | - |
+| 5. Memory + Deliberation | 3/3 | ✓ Complete | 2026-02-16 |
 | 6. Venue Hardening | 0/TBD | Not started | - |
