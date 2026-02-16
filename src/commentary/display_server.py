@@ -148,6 +148,26 @@ class DisplayServer:
             "track": track,
         })
 
+    async def push_deliberation_ranking(
+        self, rank: int, team_name: str, total_score: float, track: str, reasoning: str,
+    ) -> None:
+        """Broadcast a single team's deliberation ranking to display clients."""
+        await self._manager.broadcast({
+            "type": "deliberation_ranking",
+            "rank": rank,
+            "team_name": team_name,
+            "total_score": total_score,
+            "track": track,
+            "reasoning": reasoning,
+        })
+
+    async def push_deliberation_narrative(self, narrative: str) -> None:
+        """Broadcast the overall deliberation narrative to display clients."""
+        await self._manager.broadcast({
+            "type": "deliberation_narrative",
+            "narrative": narrative,
+        })
+
     async def clear(self) -> None:
         """Clear the display on all connected clients."""
         await self._manager.broadcast({"type": "clear"})

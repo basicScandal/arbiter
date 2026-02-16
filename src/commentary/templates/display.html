@@ -256,6 +256,105 @@
     0%, 100% { text-shadow: 0 0 20px rgba(0,212,255,0.5), 0 0 40px rgba(0,212,255,0.2); }
     50%      { text-shadow: 0 0 30px rgba(0,212,255,0.8), 0 0 60px rgba(0,212,255,0.4); }
   }
+
+  /* Deliberation rankings */
+  #deliberation-card {
+    display: none;
+    background: #0f0f23;
+    border: 2px solid #16213e;
+    border-radius: 16px;
+    padding: 40px 48px;
+    max-width: 800px;
+    width: 100%;
+    margin-top: 32px;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  #deliberation-card.visible { opacity: 1; }
+
+  .deliberation-title {
+    font-size: 36px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-align: center;
+    color: #00d4ff;
+    text-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.2);
+    margin-bottom: 32px;
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+
+  .deliberation-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid #16213e;
+    opacity: 0;
+    transform: translateX(-30px);
+    animation: slideIn 0.5s ease-out forwards;
+  }
+
+  .deliberation-rank {
+    font-size: 32px;
+    font-weight: 700;
+    color: #ffd700;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .deliberation-team {
+    flex: 1;
+    font-size: 22px;
+    font-weight: 600;
+    color: #e0e0e0;
+    letter-spacing: 1px;
+  }
+
+  .deliberation-score {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .deliberation-track {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #00d4ff;
+    margin-left: 60px;
+  }
+
+  .deliberation-reasoning {
+    width: 100%;
+    font-size: 14px;
+    font-style: italic;
+    color: #7f8c8d;
+    margin-top: 6px;
+    margin-left: 60px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .deliberation-narrative {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 2px solid #16213e;
+    font-size: 18px;
+    line-height: 1.6;
+    color: #e0e0e0;
+    white-space: pre-wrap;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  .deliberation-narrative.visible { opacity: 1; }
 </style>
 </head>
 <body>
@@ -270,6 +369,11 @@
   <div class="team-name" id="teamName"></div>
   <div class="commentary-text" id="commentaryText"></div>
   <div class="idle-message" id="idleMessage">Awaiting next demo...</div>
+  <div id="deliberation-card">
+    <div class="deliberation-title">FINAL RANKINGS</div>
+    <div id="deliberationRankings"></div>
+    <div class="deliberation-narrative" id="deliberationNarrative"></div>
+  </div>
   <div id="score-card">
     <div class="score-header" id="scoreHeader"></div>
     <div class="score-label">SCORING</div>
@@ -295,6 +399,9 @@
   var scoreHeader = document.getElementById('scoreHeader');
   var scoreCriteria = document.getElementById('scoreCriteria');
   var scoreTotalSection = document.getElementById('scoreTotalSection');
+  var deliberationCard = document.getElementById('deliberation-card');
+  var deliberationRankings = document.getElementById('deliberationRankings');
+  var deliberationNarrative = document.getElementById('deliberationNarrative');
 
   function connect() {
     ws = new WebSocket(wsUrl);
@@ -433,6 +540,54 @@
       scoreTotalSection.appendChild(totalLabel);
       scoreTotalSection.appendChild(trackLabel);
 
+    } else if (msg.type === 'deliberation_ranking') {
+      idleMessage.style.display = 'none';
+      commentaryText.textContent = '';
+      commentaryText.classList.remove('visible', 'question');
+      scoreCard.style.display = 'none';
+      scoreCard.classList.remove('visible');
+
+      deliberationCard.style.display = 'block';
+      void deliberationCard.offsetWidth;
+      deliberationCard.classList.add('visible');
+
+      var rIdx = deliberationRankings.children.length;
+      var row = document.createElement('div');
+      row.className = 'deliberation-row';
+      row.style.animationDelay = (rIdx * 0.2) + 's';
+
+      var rankEl = document.createElement('span');
+      rankEl.className = 'deliberation-rank';
+      rankEl.textContent = '#' + (msg.rank != null ? msg.rank : '?');
+
+      var teamEl = document.createElement('span');
+      teamEl.className = 'deliberation-team';
+      teamEl.textContent = msg.team_name || '';
+
+      var scoreEl = document.createElement('span');
+      scoreEl.className = 'deliberation-score';
+      scoreEl.textContent = (msg.total_score != null ? msg.total_score.toFixed(1) : '0');
+
+      var trackEl = document.createElement('div');
+      trackEl.className = 'deliberation-track';
+      trackEl.textContent = msg.track || '';
+
+      var reasonEl = document.createElement('div');
+      reasonEl.className = 'deliberation-reasoning';
+      reasonEl.textContent = msg.reasoning || '';
+
+      row.appendChild(rankEl);
+      row.appendChild(teamEl);
+      row.appendChild(scoreEl);
+      row.appendChild(trackEl);
+      row.appendChild(reasonEl);
+      deliberationRankings.appendChild(row);
+
+    } else if (msg.type === 'deliberation_narrative') {
+      deliberationNarrative.textContent = msg.narrative || '';
+      void deliberationNarrative.offsetWidth;
+      deliberationNarrative.classList.add('visible');
+
     } else if (msg.type === 'clear') {
       teamName.textContent = '';
       teamName.classList.remove('visible');
@@ -443,6 +598,11 @@
       while (scoreCriteria.firstChild) scoreCriteria.removeChild(scoreCriteria.firstChild);
       scoreTotalSection.style.display = 'none';
       while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
+      deliberationCard.style.display = 'none';
+      deliberationCard.classList.remove('visible');
+      while (deliberationRankings.firstChild) deliberationRankings.removeChild(deliberationRankings.firstChild);
+      deliberationNarrative.textContent = '';
+      deliberationNarrative.classList.remove('visible');
       idleMessage.style.display = '';
     }
   }
