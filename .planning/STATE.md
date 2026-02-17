@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ## Current Position
 
 Milestone: v1.1 Reliability & Polish
-Phase: 7 of 10 (Test Infrastructure)
-Plan: 2 of 2 in current phase (PHASE COMPLETE)
-Status: Phase 7 complete
-Last activity: 2026-02-17 — Completed 07-02 parallel execution & VCR infrastructure
+Phase: 8 of 10 (E2E Pipeline Coverage)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-17 — Completed 08-01 pipeline chain & task draining E2E tests
 
-Progress: [██████████████████████░░░░░░░░] 70% (19/19 v1.0 plans complete, 2/2 phase 7 plans)
+Progress: [████████████████████████░░░░░░] 75% (19/19 v1.0 plans complete, 3/8 v1.1 plans)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: [██████████████████████░
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 2
+- Plans completed: 3
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
 
@@ -35,6 +35,7 @@ Progress: [██████████████████████░
 |-------|------|----------|-------|-------|
 | 07    | 01   | 10min    | 3     | 4     |
 | 07    | 02   | 3min     | 2     | 1     |
+| 08    | 01   | 3min     | 2     | 2     |
 
 ## Accumulated Context
 
@@ -51,6 +52,9 @@ Recent decisions affecting current work:
 - [07-01]: thread timeout method — required for pytest-xdist worker and threaded test compatibility
 - [07-02]: No xdist_group markers needed for TUI tests -- Textual headless mode works in isolated workers
 - [07-02]: VCR.py compatibility with google-genai confirmed -- httpcore patching covers httpx REST calls
+- [08-01]: Mock sub-pipelines directly, not CapturePipeline -- avoids hardware dependencies while testing real EventBus wiring
+- [08-01]: No ordering assertions between parallel subscribers -- non-deterministic task scheduling
+- [08-01]: Patch asyncio.sleep in scoring pipeline module for fast theatrical reveal tests
 
 ### Pending Todos
 
@@ -65,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-02-PLAN.md (parallel execution & VCR infrastructure -- Phase 7 complete)
+Stopped at: Completed 08-01-PLAN.md (pipeline chain & task draining E2E tests)
 Resume file: None
