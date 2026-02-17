@@ -86,11 +86,11 @@ Plans:
   1. When the WebSocket connection drops, the dashboard shows a visible "reconnecting" indicator and automatically reconnects without operator intervention
   2. The operator can see per-component health status (TTS, Gemini, scoring providers) on the dashboard at a glance
   3. When a demo finishes scoring, the scoring result appears on the operator dashboard in real-time without manual refresh
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md — Backend health endpoint + WS health/scoring push + frontend store/types/hook plumbing
+- [ ] 10-02-PLAN.md — ReconnectBanner, ConnectionDot update, HealthPanel, ScorePanel enhancement, App layout
 
 ## Progress
 
