@@ -71,6 +71,8 @@ class TTSEngine:
         self._stream: pyaudio.Stream | None = None
         self._sample_rate = 44100
         self._connected = False
+        self._closing = False
+        self._speak_lock = asyncio.Lock()
         self._fallback = FallbackChain([
             OpenAITTSFallback(),
             MacOSSayFallback(),
@@ -140,48 +142,58 @@ class TTSEngine:
         even on failure (to avoid leaving capture permanently muted).
         Falls back to macOS say command if Cartesia fails.
 
+        Holds _speak_lock during playback so close() can wait for
+        in-flight audio to finish before tearing down PyAudio.
+
         Args:
             sentence: Text to synthesize.
             context_id: Cartesia context ID grouping related sentences.
             emotion: Cartesia emotion tag for generation_config.
             is_continuation: Whether this continues a prior context send.
         """
-        connected = await self._ensure_connected()
-        if not connected and not self._fallback.available:
-            logger.warning("TTS not connected and fallback unavailable, skipping speak")
-            # Still publish TTSFinished via finally block for mute coordination
+        if self._closing:
+            return
+
+        async with self._speak_lock:
+            if self._closing:
+                return
+
+            connected = await self._ensure_connected()
+            if not connected and not self._fallback.available:
+                logger.warning("TTS not connected and fallback unavailable, skipping speak")
+                # Still publish TTSFinished via finally block for mute coordination
+                if self._event_bus:
+                    self._event_bus.publish(TTSSpeaking())
+                try:
+                    return
+                finally:
+                    if self._event_bus:
+                        self._event_bus.publish(TTSFinished())
+
             if self._event_bus:
                 self._event_bus.publish(TTSSpeaking())
+
             try:
-                return
+                if not connected:
+                    raise ConnectionError("Cartesia not connected, skip to fallback")
+
+                await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
+            except ConnectionClosedOK:
+                logger.warning("Cartesia WebSocket idle timeout, reconnecting...")
+                if await self._reconnect():
+                    try:
+                        await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
+                    except Exception:
+                        logger.exception("TTS retry failed for sentence: %s", sentence[:80])
+                        await self._try_fallback(sentence)
+                else:
+                    await self._try_fallback(sentence)
+            except Exception:
+                logger.exception("TTS speak failed for sentence: %s", sentence[:80])
+                await self._try_fallback(sentence)
             finally:
                 if self._event_bus:
                     self._event_bus.publish(TTSFinished())
-
-        if self._event_bus:
-            self._event_bus.publish(TTSSpeaking())
-
-        try:
-            if not connected:
-                raise ConnectionError("Cartesia not connected, skip to fallback")
-
-            await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
-        except ConnectionClosedOK:
-            logger.warning("Cartesia WebSocket idle timeout, reconnecting...")
-            if await self._reconnect():
-                try:
-                    await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
-                except Exception:
-                    logger.exception("TTS retry failed for sentence: %s", sentence[:80])
-                    await self._try_fallback(sentence)
-            else:
-                await self._try_fallback(sentence)
-        except Exception:
-            logger.exception("TTS speak failed for sentence: %s", sentence[:80])
-            await self._try_fallback(sentence)
-        finally:
-            if self._event_bus:
-                self._event_bus.publish(TTSFinished())
 
     async def _send_to_cartesia(
         self,
@@ -257,28 +269,38 @@ class TTSEngine:
             )
 
     async def close(self) -> None:
-        """Close WebSocket connection and PyAudio resources."""
-        if self._connection is not None:
-            try:
-                await self._connection.close()
-            except Exception:
-                logger.debug("Error closing TTS WebSocket", exc_info=True)
-            self._connection = None
+        """Close WebSocket connection and PyAudio resources.
 
-        if self._stream is not None:
-            try:
-                self._stream.stop_stream()
-                self._stream.close()
-            except Exception:
-                logger.debug("Error closing PyAudio stream", exc_info=True)
-            self._stream = None
+        Sets _closing flag to reject new speak() calls, then acquires
+        _speak_lock to wait for any in-flight playback to finish before
+        tearing down resources. This prevents the PortAudio error that
+        occurs when the stream is destroyed mid-write.
+        """
+        self._closing = True
 
-        if self._pyaudio is not None:
-            try:
-                self._pyaudio.terminate()
-            except Exception:
-                logger.debug("Error terminating PyAudio", exc_info=True)
-            self._pyaudio = None
+        # Wait for any in-flight speak() to finish writing audio
+        async with self._speak_lock:
+            if self._connection is not None:
+                try:
+                    await self._connection.close()
+                except Exception:
+                    logger.debug("Error closing TTS WebSocket", exc_info=True)
+                self._connection = None
 
-        self._connected = False
-        logger.info("TTS engine closed")
+            if self._stream is not None:
+                try:
+                    self._stream.stop_stream()
+                    self._stream.close()
+                except Exception:
+                    logger.debug("Error closing PyAudio stream", exc_info=True)
+                self._stream = None
+
+            if self._pyaudio is not None:
+                try:
+                    self._pyaudio.terminate()
+                except Exception:
+                    logger.debug("Error terminating PyAudio", exc_info=True)
+                self._pyaudio = None
+
+            self._connected = False
+            logger.info("TTS engine closed")
