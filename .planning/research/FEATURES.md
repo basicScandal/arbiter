@@ -1,201 +1,257 @@
-# Feature Research
+# Feature Landscape
 
-**Domain:** Live AI Judge Agent for Security Hackathon
-**Researched:** 2026-02-15
-**Confidence:** MEDIUM (novel domain -- no direct comparable exists; synthesized from adjacent systems)
+**Domain:** Reliability/testing infrastructure, rehearsal mode, MoE scoring hardening, and operator dashboard polish for a live AI judge agent
+**Researched:** 2026-02-17
+**Scope:** v1.1 milestone -- NEW features only. Assumes existing v1.0 pipeline (capture, defense, commentary, scoring, deliberation, dashboard) is functional.
+**Overall confidence:** HIGH (patterns well-established, codebase thoroughly analyzed)
 
-## Feature Landscape
+## Table Stakes
 
-### Table Stakes (Arbiter Fails Its Role Without These)
+Features that v1.1 must ship to call the MoE pipeline "production-ready" and the system testable at scale. Missing any of these means the event operator cannot trust the system under pressure.
 
-These are non-negotiable. If any of these are missing or broken, Arbiter cannot function as a judge on the panel.
+| Feature | Why Expected | Complexity | Dependencies on Existing |
+|---------|--------------|------------|--------------------------|
+| **MoE E2E integration tests** | MoE engine has unit tests for aggregator + engine isolation, but zero tests verifying the full flow: `ObservationVerified` event -> `ScoringPipeline._on_observation_verified` -> `MoEScoringEngine.score()` -> `ScoreAggregator` -> `ScoreStore.save()` -> `ScoringComplete` published -> theatrical reveal via `_on_commentary_delivered`. Without this, a wiring bug between components silently breaks scoring at the event. | Med | pytest-asyncio fixtures, mock LLM providers (pattern exists in `test_scoring_aggregator.py`), EventBus test harness |
+| **Pipeline E2E test harness** | `CapturePipeline` wires 6 sub-pipelines via EventBus subscriptions in its `run()` method. No test currently verifies that publishing `DemoStarted` through `DemoStopped` triggers the full downstream chain (defense sanitization -> commentary -> scoring -> display). This is the single highest-risk gap -- the glue layer has zero automated coverage. | High | EventBus test doubles, asyncio task tracking, mock Gemini/TTS/Camera/Audio, all pipeline `setup()` methods |
+| **Groq fallback for MoE scoring** | Commentary already has Gemini -> Groq -> static fallback chain (`CommentaryGenerator._call_groq`). Scoring has NO provider-level fallback -- if all 3 providers (Gemini, Claude, OpenAI) fail, it returns a hardcoded 5.0 fallback scorecard via `ScoringEngine._fallback_scorecard`. Adding Groq as a 4th MoE provider (or standalone fallback) means the system degrades gracefully instead of serving meaningless scores. | Low | New `GroqProvider` implementing `LLMProvider` base class, `create_provider("groq", ...)` factory registration, `GROQ_API_KEY` already in `CaptureConfig` |
+| **WebSocket reconnection indicator** | Dashboard has exponential backoff reconnection in `useOperatorSocket.ts` (1s -> 2s -> 4s -> ... -> 10s max). But `operatorStore.connected` state is only consumed by `ConnectionDot` -- there is no "Reconnecting..." banner, no retry count, no visual degradation. An operator at a live event staring at a frozen dashboard has no idea whether the system is down or reconnecting. | Low | React component reading `connected` from `useOperatorStore`, CSS transition |
+| **Health status panel** | `ServiceHealth` singleton (`resilience/health.py`) tracks per-component health with exponential recovery windows. `default_health.get_status()` returns a dict of service -> healthy bool. Dashboard has zero visibility into this data -- operator cannot see which services (TTS, Gemini, providers) are degraded. | Low | New `/api/health` GET endpoint on FastAPI display server exposing `default_health.get_status()`, new `HealthPanel` React component, 5s polling or piggyback on WebSocket |
+| **Test timeout guards** | Async tests that await broken event chains hang forever. With 371+ tests and more E2E tests incoming, a single hanging test blocks the entire suite. `pytest-timeout` with sensible defaults prevents CI deadlocks. | Low | `pytest-timeout` added to `[dependency-groups] dev`, timeout config in `pyproject.toml` |
+| **Integration test marking** | E2E tests are inherently slower (EventBus dispatch, `asyncio.sleep` in theatrical reveals). Must be separable from fast unit tests via `pytest -m "not integration"` so developers get sub-second feedback while CI runs the full suite. | Low | `[tool.pytest.ini_options]` marker registration in `pyproject.toml`, `@pytest.mark.integration` decorators on E2E tests |
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Multimodal demo ingestion (camera + audio)** | Arbiter must see slides/code and hear presenters like a human judge does. Without this, it cannot evaluate demos at all. | HIGH | Gemini Live API or OpenAI Realtime API are the two viable paths. Gemini 2.5 Flash Live API supports continuous video+audio streaming natively. OpenAI gpt-realtime supports images+audio but not true video streaming -- would require frame sampling. Gemini is the stronger fit for continuous video. |
-| **Structured scoring against official criteria** | Arbiter has equal voting power. Scores must map to NEBULA:FOG rubric (Technical Execution 40%, Innovation 30%, Demo Quality 30%) or human judges will reject its input. | MEDIUM | Use rubric-anchored prompting with explicit criteria definitions. LLM-as-judge research shows rubric-based evaluation produces more consistent scores than open-ended assessment. Must output per-criterion scores, not just an aggregate. |
-| **Per-demo score card output** | Human judges need to see Arbiter's reasoning. A number without justification is worthless on a panel. | LOW | Generate structured JSON with scores + short justification per criterion. Display as visual card after each demo. |
-| **TTS voice output** | Arbiter sits on a physical panel. It must speak aloud. Text-only output means it cannot participate in the live event. | MEDIUM | Cartesia (sub-100ms to first audio), ElevenLabs, or OpenAI TTS. Streaming TTS is critical -- must start speaking before full response is generated. Latency budget: under 1 second from decision to first audio. |
-| **Visual text display** | Audience in a venue cannot always hear clearly. Scores and commentary must be visible on screen. | LOW | OBS overlay, web-based display, or simple browser source. Push text via WebSocket to a display page. |
-| **Demo memory across full event** | Arbiter must remember all ~24 demos for final deliberation. A judge that forgets earlier demos cannot participate in ranking. | MEDIUM | At 3-5 min per demo with structured notes, total context is manageable. Store per-demo structured summaries (scores, key observations, strengths/weaknesses). Feed all summaries into deliberation context. Gemini 2.5 Flash context window (1M tokens) or GPT-4o (128K tokens) -- Gemini has more headroom. |
-| **Basic prompt injection resistance** | Security hackathon audience WILL attempt injection via slides, speech, project names, and demo content. Arbiter must not comply with injected instructions that alter scoring or break character. | HIGH | This is table stakes because the audience is adversarial by design. The scoring pipeline MUST be isolated from untrusted content. Use Simon Willison's privileged/quarantined LLM pattern: quarantined LLM processes demo content, privileged LLM handles scoring decisions. Never expose the scoring system prompt to raw demo input. |
-| **Consistent persona/character** | Arbiter must maintain its Simon Cowell-meets-hacker personality throughout 24 demos. Character drift or breaking character undermines the entire experience. | MEDIUM | System prompt engineering with explicit voice guidelines, behavioral rules, and example responses. Persona must be layered: voice characteristics, behavioral constraints, domain knowledge. Test for consistency across long sessions. |
+## Differentiators
 
-### Differentiators (Makes Arbiter Memorable and Valuable)
+Features that elevate Arbiter's testing and reliability beyond "it works on my machine." Not required for v1.1 launch, but high value.
 
-These features elevate Arbiter from "functional AI judge" to "the highlight of the event."
+| Feature | Value Proposition | Complexity | Dependencies on Existing |
+|---------|-------------------|------------|--------------------------|
+| **Rehearsal mode (dry-run)** | Run the full pipeline end-to-end using synthetic demo data with all LLM calls replaced by deterministic mock responses. Validates wiring, timing, display output, and theatrical pacing without API keys or hardware. Enables pre-event operator rehearsal ("walk the show") and CI pipeline validation. | Med | `--rehearsal` CLI flag in `main.py`, `MockLLMProvider` returning canned JSON, `MockCamera`/`MockAudio` feeding synthetic events, synthetic demo fixtures (reuse `test_moe_demos.py` DEMOS data) |
+| **Event trace recording** | Record every EventBus event during a live session to a JSONL file with timestamps. Enables post-event debugging ("why did scoring take 45s for Team X?"), test fixture generation from real sessions, and regression testing by replaying traces. | Med | `EventRecorder` subscriber via `EventBus.subscribe_all`, JSONL writer with `asyncio.to_thread`, CLI `--record-events` flag |
+| **Event trace replay** | Replay a recorded event trace through the pipeline at original or accelerated speed. Combined with rehearsal mode mock providers, creates fully deterministic integration tests from real production data. | Med | `EventReplayer` reading JSONL, `asyncio.sleep` for timing gaps, integration with rehearsal mode mock providers |
+| **MoE provider health tracking** | Track per-provider health in MoE scoring (latency, error rate, consecutive failures) and auto-disable unhealthy providers mid-event with `ServiceHealth` integration. Currently if OpenAI is rate-limited, every subsequent MoE scoring attempt wastes timeout duration on the dead provider before `asyncio.gather` completes. | Med | Extend `MoEScoringEngine` with `ServiceHealth` check per-provider before `asyncio.gather`, latency timing around each provider call, configurable disable threshold |
+| **Score confidence display** | `ScoreAggregator` already computes `confidence` (1.0 - stdev/10) in aggregation metadata. Surface this to the audience display during score reveals -- "MoE Confidence: 94%" for agreement, "Judges disagree: 67%" for divergent scores. Adds transparency and entertainment value. | Low | Add `confidence` field to `DemoScorecard` model, pass through from `_aggregate_scorecards` metadata, display in `push_total_score`, `ScorePanel` frontend update |
+| **Dashboard toast notifications** | `lastCommandResult` auto-clears after 3s with `setTimeout`. No visual feedback for important pipeline events like `injection_detected`, `scoring_complete`, or `deliberation_complete`. Toast/snackbar system gives operator awareness without polling the event stream. | Low | React toast component, `dispatch` handler for specific `event_type` values in `operatorStore.ts`, auto-dismiss timer |
+| **Operator action confirmation** | "Start demo" with no team name gets a silent error (`await self._send_result(ws, False, "Team name required")`). "Deliberate" with 0 demos returns nothing. Add confirmation dialogs for destructive actions (quit, reset) and validation feedback for required fields. Prevents operator mistakes at high-pressure live events. | Low | React dialog component, `CommandBar.tsx` validation logic |
+| **Provider response latency overlay** | Show per-provider latency in the score panel after MoE scoring completes. "Gemini: 1.2s / Claude: 3.4s / OpenAI: 2.1s" gives operator visibility into provider performance and whether MoE is worth the extra latency. | Low | Capture `time.monotonic()` around each provider call in `MoEScoringEngine.score()`, include timing dict in `ScoringComplete` event payload, display in `ScorePanel` |
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Real-time commentary during demos** | Human judges sit silently. An AI that reacts live -- gasping at clever exploits, roasting bad slides, praising elegant code -- is entertaining and unprecedented. This is Arbiter's signature capability. | HIGH | Requires sub-second reaction loop: ingest frame/audio -> generate short reaction -> TTS output. The Cerebrium/LiveKit/Cartesia architecture achieves ~700ms latency for this pattern. Commentary must be SHORT (1-2 sentences) and well-timed -- not a running monologue. Need a "commentary controller" that decides WHEN to comment (not every second). |
-| **Prompt injection detection + public roasting** | Instead of silently ignoring injection attempts, Arbiter calls them out by name and roasts the team. Turns a security vulnerability into entertainment. This is the most memorable possible feature for a security audience. | MEDIUM | Two-phase detection: (1) quarantined LLM flags suspicious content with confidence score, (2) privileged LLM decides whether to roast or ignore. Log all attempts for post-event review. The roast itself should be witty and specific to the attempt -- not a generic "nice try." |
-| **Comparative deliberation with full memory** | At the end of all demos, Arbiter can articulate WHY Team X beat Team Y with specific comparisons. "Team 7's zero-knowledge proof was more elegant than Team 12's, but Team 12's demo was tighter." Human judges rarely have this level of recall. | MEDIUM | Feed all 24 structured demo summaries into a deliberation prompt. Generate pairwise comparisons within each track. Research shows pairwise comparison is more robust against manipulation than absolute scoring. This also produces the most defensible rankings. |
-| **Q&A question generation** | When human judges defer to Arbiter, it generates a pointed, specific question based on what it actually observed in the demo. Better than generic questions because Arbiter has perfect recall of what was shown. | LOW | Low complexity because the demo context is already in memory. Just needs a "generate probing question" prompt that targets gaps or claims in the demo. Should prioritize: unsubstantiated claims, missing threat models, unclear technical details. |
-| **Injection attempt scoreboard** | Track and display which teams attempted prompt injection, what they tried, and Arbiter's response. Creates a meta-game within the hackathon. | LOW | Simple logging + display. Append to a running tally shown on screen between demos. Gamifies the adversarial relationship in a way the security audience will love. |
-| **Emotional/tonal variety in TTS** | Arbiter should sound genuinely excited by great work, bored by mediocre demos, and amused by injection attempts. Not monotone. | MEDIUM | Cartesia supports emotional expressiveness. ElevenLabs has voice design with adjustable stability/similarity. Can use SSML or emotion tags depending on TTS provider. Requires mapping commentary sentiment to voice parameters. |
-| **Live score reveal with dramatic timing** | Hold scores until the right moment, build tension, then reveal with commentary. "I've seen 24 demos today. And only one team made me actually sit up in my chair..." | LOW | Pure prompt engineering and timing logic. Add a configurable delay between demo end and score reveal. Commentary before score creates anticipation. |
+## Anti-Features
 
-### Anti-Features (Deliberately NOT Building)
+Features to explicitly NOT build for v1.1. These are tempting but wrong for this milestone.
 
-Features that seem appealing but would undermine Arbiter's purpose, reliability, or the event experience.
-
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **Audience chat/vote integration** | "Let the audience interact with Arbiter in real-time!" | Opens massive prompt injection surface. Every audience member becomes an attack vector. Also distracts Arbiter from its primary job (judging demos). Latency and moderation overhead is enormous for a 2-week build. | Arbiter speaks to the audience through its commentary. Audience interaction is one-way (watching Arbiter, not talking to it). If audience interaction is desired later, use a separate, sandboxed system. |
-| **Self-hosted/local LLM** | "For security, run everything locally." | 2-week timeline. Self-hosted multimodal models with real-time video+TTS are not production-ready at the quality level needed. Fine-tuning is out of scope. | Use cloud APIs (Gemini, OpenAI, Cartesia/ElevenLabs) with proper API key management. The "security" argument is theater -- the threat model is prompt injection from demo content, not API interception. |
-| **Automated prize distribution** | "Arbiter should announce winners and handle prizes." | Logistics, edge cases, human override needs. If Arbiter's scores are wrong, you need humans in the loop before prizes are committed. | Arbiter produces scores and rankings. Humans review, discuss with Arbiter during deliberation, and handle prize logistics. |
-| **Real-time code analysis / repo scanning** | "Arbiter should clone and review the team's GitHub repo." | Adds enormous complexity, attack surface (malicious repos), and is tangential to the live demo format. Demos are 3-5 minutes; there is no time to do code review. | Arbiter judges what it sees and hears during the demo. If teams show code, Arbiter can comment on what's visible. No need to clone repos. |
-| **Multi-language support** | "Some teams might present in other languages." | NEBULA:FOG is an English-language event. Adding multi-language support adds complexity without value. | English only. If a team presents in another language, Arbiter can note it cannot evaluate that portion. |
-| **Persistent memory across events** | "Arbiter should remember teams from previous hackathons." | Introduces bias. Fresh evaluation per event is fairer. Also adds storage/retrieval complexity for zero benefit at a single event. | Arbiter starts fresh each event. Demo memory is within-event only. |
-| **Complex visual UI / dashboard** | "Build a web dashboard showing real-time analytics, charts, per-criterion breakdowns, historical trends..." | 2-week build. Every hour spent on UI is an hour not spent on core judge capabilities. The audience is watching a live event, not a dashboard. | Minimal display: current score card, commentary text, injection scoreboard. Simple web page or OBS overlay. |
-| **Voice input from audience / judges** | "Human judges should be able to talk to Arbiter and have a conversation." | Real-time multi-party conversation with noise cancellation in a venue is extremely hard. Also creates injection surface from audience shouting. | Human judges can trigger Arbiter for Q&A via a simple button/interface. Arbiter responds with pre-structured output, not free-form conversation. |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Playwright/Cypress browser E2E tests** | The dashboard is a thin WebSocket client with Zustand state. Browser automation adds CI complexity (headless Chrome, flaky selectors, screenshot diffs) for minimal coverage gain over existing Vitest component tests + Python WebSocket integration tests. The protocol boundary IS the integration surface. | Test WebSocket message handling in Python via `fastapi.testclient.TestClient` (pattern already in `test_web_operator.py`). Test React components in Vitest (7 test files already exist). |
+| **Real LLM calls in CI** | Calling Gemini/Claude/OpenAI in CI creates flaky tests (rate limits, API outages, non-deterministic responses), costs money per run, and exposes API keys in CI environments. | Use `AsyncMock` providers for all E2E tests. The existing `test_moe_demos.py` stays as a manual validation script (run with real keys before events), not in the CI suite. |
+| **Event sourcing / CQRS architecture** | The EventBus is simple pub/sub with `asyncio.create_task` fire-and-forget dispatch. Retrofitting event sourcing (persistent log, replay for state reconstruction, command/query separation) is a massive architectural change for a system that runs for 4 hours at a hackathon and then shuts down. | Event trace recording (JSONL) provides debugging benefits without architectural overhead. State is ephemeral by design. |
+| **Multi-instance / distributed dashboard** | Running multiple Arbiter instances or load-balanced dashboards adds WebSocket session affinity, shared state, and distributed EventBus complexity. Arbiter runs on one laptop at one event. | Keep single-instance. Multiple operator views are already handled by multi-client WebSocket broadcast (`_operator_connections` list in `WebOperator`). |
+| **Automated model selection / routing** | Dynamic router picking the "best" provider per-criterion based on historical performance data. This is an ML research project, not a v1.1 feature. | Use static calibration in `ScoreAggregator` (already implemented: `DEFAULT_CALIBRATION` dict with per-model temperature + bias). Tune params between events based on `test_moe_demos.py` results. |
+| **Database persistence layer** | Replacing JSON file storage (`ScoreStore`, `MemoryStore`) with SQLite/Postgres. The current file-based approach works fine for 20-30 demos per event and enables easy debugging (`cat data/scores/TeamName.json`). | Keep JSON files. They are the right tool for this scale and timeline. |
 
 ## Feature Dependencies
 
 ```
-[Multimodal Demo Ingestion]
+Test infrastructure (timeout, markers)
     |
-    +--requires--> [Structured Scoring]
-    |                  |
-    |                  +--requires--> [Per-Demo Score Card]
-    |                  |
-    |                  +--enhances--> [Comparative Deliberation]
+    +-- Foundation for all new tests
     |
-    +--requires--> [Demo Memory]
-    |                  |
-    |                  +--requires--> [Comparative Deliberation]
-    |                  |
-    |                  +--requires--> [Q&A Question Generation]
+    v
+EventBus test harness (EventCollector fixture)
     |
-    +--enhances--> [Real-Time Commentary]
-    |                  |
-    |                  +--requires--> [TTS Voice Output]
-    |                  |
-    |                  +--enhances--> [Emotional TTS Variety]
-    |
-    +--enhances--> [Prompt Injection Detection]
-                       |
-                       +--enhances--> [Injection Roasting]
-                       |
-                       +--enhances--> [Injection Scoreboard]
+    +------+------+
+    |             |
+    v             v
+Pipeline E2E    MoE E2E
+tests           tests
+    |             |
+    +------+------+
+           |
+           v
+    Rehearsal mode (reuses mock providers + adds CLI flag + synthetic fixtures)
+           |
+           v
+    Event trace recording (EventRecorder subscriber)
+           |
+           v
+    Event trace replay (reads JSONL, feeds EventBus)
 
-[Consistent Persona]
-    |
-    +--enhances--> [Real-Time Commentary]
-    +--enhances--> [Injection Roasting]
-    +--enhances--> [Q&A Question Generation]
-    +--enhances--> [Live Score Reveal]
+GroqProvider (LLMProvider impl) ---------> MoE Groq scoring fallback
+    |                                          |
+    +-- Uses OpenAI-compatible SDK ----------> Same pattern as CommentaryGenerator._call_groq
+        already proven in codebase
 
-[Visual Text Display]
-    +--enhances--> [Per-Demo Score Card]
-    +--enhances--> [Injection Scoreboard]
-    +--enhances--> [Real-Time Commentary]
+/api/health endpoint ----------------------> Health status panel (React)
+    |
+    +-- ServiceHealth.get_status() ---------> Exposes existing data, not new tracking
+        already exists
+
+WebSocket reconnection indicator ----------> Independent (reads operatorStore.connected)
+
+MoE provider health tracking --------------> Provider latency overlay (needs timing data)
+    |
+    +-- ServiceHealth integration ----------> Score confidence display (needs aggregation metadata)
 ```
 
-### Dependency Notes
+## MVP Recommendation
 
-- **Multimodal Demo Ingestion is the foundation:** Nothing works without the ability to see and hear demos. This must be built and proven first.
-- **Structured Scoring requires Demo Ingestion:** Cannot score what you cannot perceive. The scoring prompt chain depends on demo content being available in context.
-- **Demo Memory requires Structured Scoring:** Memory is stored as structured summaries produced by the scoring pipeline. Raw video/audio is not stored -- only the LLM's structured observations.
-- **Comparative Deliberation requires Demo Memory:** Cannot compare demos without recall of all previous demos. This feature is last in the pipeline by necessity.
-- **Real-Time Commentary is independent of Scoring:** Commentary is a separate output stream from the same ingestion pipeline. Critical design decision: commentary and scoring should run on separate LLM calls to avoid one affecting the other.
-- **Injection Detection enhances multiple features:** The quarantined/privileged LLM pattern serves double duty -- it both protects the scoring pipeline and enables the roasting feature. Build the defense first; roasting is a fun output layer on top.
-- **Consistent Persona enhances everything downstream:** Persona consistency should be baked into the system prompt layer that all output-generating features share. Not a separate feature to build, but a design constraint to enforce.
+### Must-Have for v1.1 (Priority Order)
 
-## MVP Definition
+1. **Test infrastructure** (pytest-timeout + integration markers + EventBus test harness)
+   - Rationale: Foundation for everything else. Without timeout guards, new E2E tests risk hanging CI. Without markers, slow tests slow down dev loop. Without EventBus helpers, every E2E test reimplements subscribe-and-wait boilerplate.
+   - Estimated effort: Small. Mostly config + one shared fixture module.
 
-### Launch With (Event Day)
+2. **Pipeline E2E tests** (full event chain: DemoStarted -> ... -> ScoreRevealed)
+   - Rationale: Highest-risk coverage gap. `CapturePipeline` wiring has zero automated tests. A broken subscription, a renamed `event_type` string, or a missing `await` silently breaks the entire flow.
+   - Estimated effort: Medium. Designing representative test scenarios is the real work.
 
-Minimum viable Arbiter -- what's needed to function as a judge on the panel.
+3. **MoE E2E tests** (ObservationVerified -> MoEScoringEngine -> ScoreStore -> ScoringComplete)
+   - Rationale: MoE is the flagship v1.0 feature but only has unit-level coverage. The integration path through `ScoringPipeline`, provider dispatch, aggregation, and event publishing is untested.
+   - Estimated effort: Medium. Can reuse patterns from pipeline E2E tests.
 
-- [ ] **Multimodal demo ingestion** -- Arbiter must see and hear demos via camera + audio
-- [ ] **Structured scoring with rubric** -- Per-criterion scores mapping to NEBULA:FOG judging criteria
-- [ ] **Per-demo score card** -- Visual output of scores + brief justification
-- [ ] **TTS voice output** -- Arbiter speaks its scores and brief commentary aloud
-- [ ] **Visual text display** -- Scores and commentary visible on screen for audience
-- [ ] **Demo memory** -- Structured notes stored for each demo for later deliberation
-- [ ] **Basic prompt injection defense** -- Privileged/quarantined LLM separation so scoring cannot be manipulated
-- [ ] **Consistent persona** -- System prompt engineering for Simon Cowell-meets-hacker character
+4. **Groq scoring fallback** (GroqProvider + factory registration)
+   - Rationale: Low complexity, high reliability gain. Pattern already proven in `CommentaryGenerator._call_groq`. Closes the "all providers fail = meaningless 5.0 score" gap.
+   - Estimated effort: Small. ~50 lines of code following existing pattern.
 
-### Add After Core Works (Pre-Event Polish)
+5. **Dashboard hardening** (reconnection indicator + health panel)
+   - Rationale: Minimal code, maximum operator confidence. The `connected` state and `ServiceHealth` data already exist -- just need to surface them in the UI.
+   - Estimated effort: Small. One new FastAPI endpoint + two React components.
 
-Features to layer on once the core judging pipeline is reliable.
+6. **Rehearsal mode**
+   - Rationale: Medium complexity but uniquely valuable. Pre-event operator rehearsal catches timing, display, and flow issues that unit tests cannot. Reuses mock infrastructure built for E2E tests.
+   - Estimated effort: Medium. Mock components + CLI flag + synthetic fixtures.
 
-- [ ] **Real-time commentary during demos** -- Short reactions while demos are live (requires stable ingestion pipeline first)
-- [ ] **Prompt injection roasting** -- Detect and publicly roast injection attempts (requires working injection detection first)
-- [ ] **Comparative deliberation** -- End-of-event ranking with full demo memory (requires all demo memories stored)
-- [ ] **Q&A question generation** -- Generate pointed questions when called upon (low complexity, high value)
-- [ ] **Emotional TTS variety** -- Map sentiment to voice parameters for expressiveness
+### Defer to v1.2
 
-### Future / Post-Event Consideration
+- **Event trace recording/replay**: Valuable for post-event debugging but not blocking for v1.1 reliability goals. Mock-based rehearsal covers the CI use case.
+- **MoE provider health tracking**: The current `asyncio.gather(return_exceptions=True)` is functional. Provider health is quality-of-life, not a reliability gap.
+- **Score confidence display**: Pure polish. Data exists in aggregation metadata but surfacing requires model + frontend changes for marginal entertainment value.
+- **Toast notifications + action confirmations**: UI polish improving operator UX but not affecting system reliability.
+- **Provider latency overlay**: Debugging aid dependent on provider health tracking.
 
-- [ ] **Injection scoreboard** -- Fun but not essential for judging; add if time permits
-- [ ] **Live score reveal with dramatic timing** -- Pure polish; only matters if core is rock-solid
-- [ ] **Post-event summary generation** -- Arbiter writes up the event highlights (nice for social media, not needed live)
+## Key Design Decisions
 
-## Feature Prioritization Matrix
+### EventBus Test Harness Pattern
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Multimodal demo ingestion | HIGH | HIGH | P1 |
-| Structured scoring with rubric | HIGH | MEDIUM | P1 |
-| Per-demo score card | HIGH | LOW | P1 |
-| TTS voice output | HIGH | MEDIUM | P1 |
-| Visual text display | MEDIUM | LOW | P1 |
-| Demo memory | HIGH | MEDIUM | P1 |
-| Basic prompt injection defense | HIGH | HIGH | P1 |
-| Consistent persona | HIGH | LOW | P1 |
-| Real-time commentary | HIGH | HIGH | P2 |
-| Prompt injection roasting | HIGH | MEDIUM | P2 |
-| Comparative deliberation | MEDIUM | MEDIUM | P2 |
-| Q&A question generation | MEDIUM | LOW | P2 |
-| Emotional TTS variety | LOW | MEDIUM | P3 |
-| Injection scoreboard | LOW | LOW | P3 |
-| Live score reveal timing | LOW | LOW | P3 |
+The EventBus publishes via `asyncio.create_task` (fire-and-forget). Tests cannot simply publish and assert -- they must wait for async task completion. The standard pattern:
 
-**Priority key:**
-- P1: Must have for event day (Arbiter cannot judge without these)
-- P2: Should have, add during polish week (make Arbiter memorable)
-- P3: Nice to have, only if time permits (pure entertainment value)
+```python
+class EventCollector:
+    """Test helper that collects events and provides async wait-for semantics."""
 
-## Comparable Systems Analysis
+    def __init__(self):
+        self.events: list[CaptureEvent] = []
+        self._waiters: dict[str, asyncio.Event] = {}
 
-| Feature | ETHGlobal AIJudge | Cerebrium AI Commentator | Bundesliga AI Commentary | Arbiter Approach |
-|---------|-------------------|--------------------------|--------------------------|------------------|
-| Input modality | Text + video (async) | Live video frames | Event data feed | Live camera + audio (real-time) |
-| Scoring | Rubric-based, async | N/A (commentary only) | N/A (commentary only) | Rubric-based, real-time with live output |
-| Commentary | None | Real-time voice + text | Real-time text (multi-language) | Real-time voice + text with persona |
-| TTS | None | Cartesia (~180ms) | None (text only) | Streaming TTS (Cartesia or ElevenLabs) |
-| Persona | None | Basic commentator | Configurable style (journalist, casual, gen-z) | Deep persona (Simon Cowell x hacker) |
-| Injection defense | None | None | None | Privileged/quarantined LLM pattern |
-| Latency | Async (minutes) | ~700ms behind live | Near real-time | Target: sub-2s for commentary, sub-5s for scoring |
-| Memory | Per-project | None (stateless) | Per-match | All demos for full-event deliberation |
+    async def __call__(self, event: CaptureEvent):
+        self.events.append(event)
+        if event.event_type in self._waiters:
+            self._waiters[event.event_type].set()
 
-**Key insight:** No existing system combines live judging + commentary + injection defense + persona. Arbiter is genuinely novel. The closest analogues are sports AI commentators (for real-time commentary architecture) and LLM-as-judge systems (for scoring methodology), but nothing integrates both with adversarial robustness.
+    async def wait_for(self, event_type: str, timeout: float = 5.0):
+        waiter = asyncio.Event()
+        self._waiters[event_type] = waiter
+        # Must register BEFORE publishing the triggering event
+        await asyncio.wait_for(waiter.wait(), timeout=timeout)
 
-## Complexity and Risk Assessment
+    def get(self, event_type: str) -> list[CaptureEvent]:
+        return [e for e in self.events if e.event_type == event_type]
+```
 
-| Feature | Technical Risk | Why |
-|---------|---------------|-----|
-| Multimodal ingestion | HIGH | Depends on API reliability (Gemini/OpenAI) under live conditions. Venue audio quality is unpredictable. Camera angle/quality affects vision. Must have fallback if video fails (audio-only mode). |
-| Real-time commentary | HIGH | Timing is everything. Too frequent = annoying. Too slow = irrelevant. Wrong moment = disruptive. Need a "commentary controller" that makes taste decisions about when to speak. |
-| Prompt injection defense | MEDIUM | Well-studied patterns exist (dual LLM, privileged/quarantined). Risk is in edge cases the security audience will find. Research shows attacks achieve 30-73% success rates against undefended LLM-as-judge systems. Defense must be architectural, not just prompt-based. |
-| TTS integration | LOW | Multiple proven providers with sub-200ms latency. Risk is voice quality and emotional range, not feasibility. |
-| Scoring accuracy | MEDIUM | LLM scoring can be inconsistent across similar demos. Rubric anchoring helps. Consider: run scoring twice and average, or use pairwise comparison for final rankings (more robust per research). |
+Register via `event_bus.subscribe_all(collector)`. This avoids arbitrary `asyncio.sleep()` calls and makes tests deterministic. **HIGH confidence** -- well-established pattern for async pub/sub testing.
+
+### Rehearsal Mode Architecture
+
+Rehearsal mode is NOT a separate binary. It reuses `CapturePipeline` with injected mock components:
+
+- `--rehearsal` CLI flag sets `config.rehearsal_mode = True`
+- `CapturePipeline.__init__` checks flag and substitutes:
+  - `MockCamera` -> publishes synthetic `KeyFrameDetected` events on a timer
+  - `MockAudio` -> publishes synthetic `TranscriptReceived` events
+  - `MockGeminiSession` -> returns canned observations from DEMOS fixtures
+  - All `LLMProvider` instances -> `MockLLMProvider` returning canned scoring JSON
+  - `TTSEngine` -> `MockTTSEngine` (logs speech text, skips audio playback)
+- Everything else runs REAL: EventBus, DemoMachine, DefensePipeline, ScoringPipeline, CommentaryPipeline, DisplayServer, WebOperator
+
+This validates actual wiring, timing, and display behavior with zero external dependencies.
+
+### Groq Scoring Provider Pattern
+
+Follow the exact pattern from `CommentaryGenerator._call_groq`:
+
+```python
+class GroqProvider(LLMProvider):
+    """Groq scoring provider via OpenAI-compatible API."""
+
+    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
+        self._client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1",
+            timeout=15.0,
+        )
+        self._model = model
+
+    async def generate(self, prompt, system_prompt, *, temperature=0.3, max_tokens=1000) -> str:
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return response.choices[0].message.content or ""
+        except Exception:
+            logger.exception("Groq provider failed")
+            return ""
+
+    @property
+    def name(self) -> str:
+        return f"groq:{self._model}"
+```
+
+Register in `factory.py` as `"groq"`. Add to `CapturePipeline` MoE provider list when `config.groq_api_key` is set. Add Groq calibration to `DEFAULT_CALIBRATION` in `aggregator.py`. **HIGH confidence** -- Groq uses the OpenAI-compatible API already proven in commentary fallback.
+
+### Health Endpoint Design
+
+Piggyback on the existing FastAPI app in `DisplayServer`:
+
+```python
+@app.get("/api/health")
+async def health():
+    return {
+        "services": default_health.get_status(),
+        "failure_counts": {
+            svc: default_health.failure_count(svc)
+            for svc in default_health._healthy
+        },
+    }
+```
+
+Dashboard polls every 5s or receives health updates via WebSocket counter messages. **HIGH confidence** -- trivial endpoint exposing existing singleton data.
+
+## Complexity Budget
+
+| Category | Feature Count | Total Complexity | Notes |
+|----------|--------------|------------------|-------|
+| Test infrastructure | 3 (timeout, markers, harness) | Low | Config + one shared fixture module |
+| E2E tests | 2 (pipeline, MoE) | Med-High | Main engineering effort: scenario design |
+| Groq fallback | 1 | Low | ~50 LOC following existing pattern |
+| Dashboard hardening | 2 (reconnect, health) | Low | 1 endpoint + 2 React components |
+| Rehearsal mode | 1 | Med | CLI flag + mock providers + synthetic data |
+| **Total v1.1 MVP** | **9 features** | **Medium overall** | Dominated by test harness design + E2E scenario authoring |
 
 ## Sources
 
-- [ETHGlobal AIJudge](https://ethglobal.com/showcase/aijudge-oeihx) -- Automated hackathon judging platform (async, text+video)
-- [Cerebrium AI Commentator](https://www.cerebrium.ai/blog/creating-a-realtime-ai-commentator-with-cerebrium-livekit-and-cartesia) -- Real-time sports commentator architecture (~700ms latency)
-- [Bundesliga AI Commentary (AWS)](https://aws.amazon.com/blogs/media/revolutionizing-fan-engagementcer-bundesliga-generative-ai-powered-live-commentary/) -- Multi-language, multi-style real-time commentary
-- [Simon Willison: Design Patterns for Securing LLM Agents](https://simonwillison.net/2025/Jun/13/prompt-injection-design-patterns/) -- Six patterns including privileged/quarantined LLM
-- [Adversarial Attacks on LLM-as-a-Judge](https://arxiv.org/abs/2504.18333) -- Attack success rates and defense strategies for LLM judges
-- [Investigating LLM-as-Judge Vulnerability to Prompt Injection](https://arxiv.org/abs/2505.13348) -- Pairwise comparison more robust than absolute scoring
-- [Gemini Live API](https://ai.google.dev/gemini-api/docs/live) -- Real-time video+audio streaming with multimodal processing
-- [OpenAI Realtime API](https://platform.openai.com/docs/guides/realtime) -- Audio+image realtime processing (not true video streaming)
-- [LLM as a Judge Guide (Label Your Data)](https://labelyourdata.com/articles/llm-as-a-judge) -- Rubric-based evaluation methodology
-- [AI Security 2026: Prompt Injection and Defenses](https://airia.com/ai-security-in-2026-prompt-injection-the-lethal-trifecta-and-how-to-defend/) -- Current state of prompt injection landscape
-
----
-*Feature research for: Arbiter -- Live AI Judge Agent*
-*Researched: 2026-02-15*
+- Arbiter codebase analysis (direct reading of `src/`, `tests/`, `operator-dashboard/`)
+- [pytest-asyncio documentation](https://pytest-asyncio.readthedocs.io/en/latest/concepts.html) -- async fixture scoping, event loop management
+- [FastAPI WebSocket testing](https://fastapi.tiangolo.com/tutorial/testing/) -- TestClient WebSocket support
+- [FastAPI WebSocket testing patterns](https://www.compilenrun.com/docs/framework/fastapi/fastapi-websockets/fastapi-websocket-testing/) -- integration test approaches
+- [pytest-timeout PyPI](https://pypi.org/project/pytest-timeout/) -- per-test timeout configuration
+- [async test patterns for pytest](https://tonybaloney.github.io/posts/async-test-patterns-for-pytest-and-unittest.html) -- AsyncMock, event-driven test strategies
+- [BBC cloudfit async testing](https://bbc.github.io/cloudfit-public-docs/asyncio/testing.html) -- AsyncMock patterns for pipeline testing
+- [Groq Python SDK](https://github.com/groq/groq-python) -- OpenAI-compatible client with auto-retry
+- [Groq API overview](https://console.groq.com/docs/overview) -- supported models, rate limits
+- [React WebSocket reliability](https://iamrajatsingh.medium.com/enhancing-websocket-reliability-in-react-a-fallback-mechanism-for-seamless-connectivity-8b2b79659cc0) -- reconnection indicators, health monitoring
+- [WebSocket dashboard patterns](https://oneuptime.com/blog/post/2026-01-15-websockets-react-real-time-applications/view) -- production hardening patterns
+- [pytest-xdist + async testing](https://github.com/pytest-dev/pytest-asyncio/issues/947) -- event loop compatibility
