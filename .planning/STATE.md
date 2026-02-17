@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 7 — Test Infrastructure (v1.1 Reliability & Polish)
+**Current focus:** Phase 8 — E2E Pipeline Coverage (v1.1 Reliability & Polish)
 
 ## Current Position
 
