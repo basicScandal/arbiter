@@ -27,7 +27,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 - [x] **Phase 7: Test Infrastructure** — Timeout guards, EventCollector, singleton reset, parallel test support, VCR cassettes (completed 2026-02-17)
 - [x] **Phase 8: E2E Pipeline Coverage** — Full pipeline chain tests, MoE integration, event wiring regression, multi-level task draining (completed 2026-02-17)
-- [ ] **Phase 9: Groq Fallback + Rehearsal Mode** — Groq scoring provider, MoE timeout hardening, synthetic capture, replay provider, CLI rehearsal
+- [x] **Phase 9: Groq Fallback + Rehearsal Mode** — Groq scoring provider, MoE timeout hardening, synthetic capture, replay provider, CLI rehearsal (completed 2026-02-17)
 - [ ] **Phase 10: Dashboard Hardening** — WebSocket reconnect indicator, health endpoint, scoring event forwarding
 
 ## Phase Details
@@ -75,8 +75,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — GroqProvider scoring fallback + MoE timeout hardening (REL-01, REL-02, REL-03)
-- [ ] 09-02-PLAN.md — Rehearsal mode: synthetic capture, replay provider, CLI + dashboard integration (RHS-01, RHS-02, RHS-03)
+- [x] 09-01-PLAN.md — GroqProvider scoring fallback + MoE timeout hardening (REL-01, REL-02, REL-03)
+- [x] 09-02-PLAN.md — Rehearsal mode: synthetic capture, replay provider, CLI + dashboard integration (RHS-01, RHS-02, RHS-03)
 
 ### Phase 10: Dashboard Hardening
 **Goal**: The operator dashboard is reliable under real venue conditions — survives WiFi blips, shows system health, and streams scoring events live
@@ -108,5 +108,5 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 6. Venue Hardening | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 7. Test Infrastructure | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 8. E2E Pipeline Coverage | v1.1 | 2/2 | Complete | 2026-02-17 |
-| 9. Groq Fallback + Rehearsal | v1.1 | 0/2 | Not started | - |
+| 9. Groq Fallback + Rehearsal | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 10. Dashboard Hardening | v1.1 | 0/TBD | Not started | - |
