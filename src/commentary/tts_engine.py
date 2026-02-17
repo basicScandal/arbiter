@@ -13,6 +13,7 @@ import uuid
 
 import pyaudio
 from cartesia import AsyncCartesia
+from websockets.exceptions import ConnectionClosedOK
 
 from src.capture.event_bus import EventBus
 from src.commentary.models import TTSFinished, TTSSpeaking
@@ -74,6 +75,28 @@ class TTSEngine:
             logger.warning("TTS reconnection failed", exc_info=True)
             return False
 
+    async def _reconnect(self) -> bool:
+        """Force reconnect after idle timeout or WebSocket close.
+
+        Closes stale resources and opens a fresh connection.
+        """
+        logger.info("TTS reconnecting after idle timeout")
+        self._connected = False
+        try:
+            if self._connection is not None:
+                try:
+                    await self._connection.close()
+                except Exception:
+                    pass
+                self._connection = None
+            self._connection = await self._client.tts.websocket_connect().enter()
+            self._connected = True
+            logger.info("TTS reconnected successfully")
+            return True
+        except Exception:
+            logger.warning("TTS reconnection failed", exc_info=True)
+            return False
+
     async def speak(
         self,
         sentence: str,
@@ -112,49 +135,72 @@ class TTSEngine:
             if not connected:
                 raise ConnectionError("Cartesia not connected, skip to fallback")
 
-            voice_spec = {"id": self._voice_id, "mode": "id"}
-            ctx = self._connection.context(
-                context_id=context_id,
-                model_id="sonic-3",
-                voice=voice_spec,
-                output_format={
-                    "container": "raw",
-                    "encoding": "pcm_f32le",
-                    "sample_rate": self._sample_rate,
-                },
-                generation_config={"speed": 1.1, "emotion": emotion},
-            )
-            await ctx.send(
-                model_id="sonic-3",
-                transcript=sentence,
-                voice=voice_spec,
-                output_format={
-                    "container": "raw",
-                    "encoding": "pcm_f32le",
-                    "sample_rate": self._sample_rate,
-                },
-                continue_=is_continuation,
-                generation_config={"speed": 1.1, "emotion": emotion},
-            )
-            await ctx.no_more_inputs()
-
-            async for event in ctx.receive():
-                if event.type == "chunk" and event.audio:
-                    await asyncio.to_thread(self._stream.write, event.audio)
+            await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
+        except ConnectionClosedOK:
+            logger.warning("Cartesia WebSocket idle timeout, reconnecting...")
+            if await self._reconnect():
+                try:
+                    await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
+                except Exception:
+                    logger.exception("TTS retry failed for sentence: %s", sentence[:80])
+                    await self._try_fallback(sentence)
+            else:
+                await self._try_fallback(sentence)
         except Exception:
             logger.exception("TTS speak failed for sentence: %s", sentence[:80])
-            # Attempt macOS say fallback
-            try:
-                if self._fallback.available:
-                    logger.warning("Cartesia TTS failed, attempting macOS say fallback")
-                    await self._fallback.speak(sentence)
-                else:
-                    logger.warning("macOS say fallback not available")
-            except Exception:
-                logger.exception("macOS say fallback also failed")
+            await self._try_fallback(sentence)
         finally:
             if self._event_bus:
                 self._event_bus.publish(TTSFinished())
+
+    async def _send_to_cartesia(
+        self,
+        sentence: str,
+        context_id: str,
+        emotion: str,
+        is_continuation: bool,
+    ) -> None:
+        """Send a sentence to Cartesia WebSocket and play audio chunks."""
+        voice_spec = {"id": self._voice_id, "mode": "id"}
+        ctx = self._connection.context(
+            context_id=context_id,
+            model_id="sonic-3",
+            voice=voice_spec,
+            output_format={
+                "container": "raw",
+                "encoding": "pcm_f32le",
+                "sample_rate": self._sample_rate,
+            },
+            generation_config={"speed": 1.1, "emotion": emotion},
+        )
+        await ctx.send(
+            model_id="sonic-3",
+            transcript=sentence,
+            voice=voice_spec,
+            output_format={
+                "container": "raw",
+                "encoding": "pcm_f32le",
+                "sample_rate": self._sample_rate,
+            },
+            continue_=is_continuation,
+            generation_config={"speed": 1.1, "emotion": emotion},
+        )
+        await ctx.no_more_inputs()
+
+        async for event in ctx.receive():
+            if event.type == "chunk" and event.audio:
+                await asyncio.to_thread(self._stream.write, event.audio)
+
+    async def _try_fallback(self, sentence: str) -> None:
+        """Attempt macOS say fallback for a sentence."""
+        try:
+            if self._fallback.available:
+                logger.warning("Cartesia TTS failed, attempting macOS say fallback")
+                await self._fallback.speak(sentence)
+            else:
+                logger.warning("macOS say fallback not available")
+        except Exception:
+            logger.exception("macOS say fallback also failed")
 
     async def speak_commentary(
         self,
