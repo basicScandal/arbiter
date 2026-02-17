@@ -140,17 +140,26 @@ class ArbiterTUI(App):
     def _install_log_handler(self) -> None:
         """Replace stderr logging with TUI-routed logging.
 
-        Removes the root logger's StreamHandler (from basicConfig) so nothing
-        writes to stderr while Textual controls the terminal. Installs a
-        TUI handler that posts LogRecord messages into the Textual event loop.
+        Removes ALL StreamHandlers across every logger (root, uvicorn, pyasn1,
+        etc.) so nothing writes to stderr while Textual controls the terminal.
+        Libraries like pyasn1 and uvicorn configure their own StreamHandlers
+        with propagate=False, bypassing root logger cleanup entirely.
 
         INFO+ for camera/audio/pipeline (operator needs to see startup),
         WARNING+ for everything else (avoids Gemini reconnect spam).
         """
         root = logging.getLogger()
 
-        # Remove StreamHandlers that write to stderr — they interfere with
-        # Textual's alternate screen mode and can corrupt terminal state.
+        # Remove StreamHandlers from ALL loggers — not just root.
+        # Libraries like pyasn1 (DEBUG-level TLS noise), uvicorn, and
+        # uvicorn.access create their own StreamHandlers with propagate=False,
+        # which bypass root cleanup and corrupt Textual's alternate screen.
+        for name in list(logging.Logger.manager.loggerDict):
+            lg = logging.getLogger(name)
+            if isinstance(lg, logging.Logger):
+                for h in lg.handlers[:]:
+                    if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
+                        lg.removeHandler(h)
         for h in root.handlers[:]:
             if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
                 root.removeHandler(h)
