@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 10 — Dashboard Hardening (v1.1 Reliability & Polish)
+**Current focus:** v1.1 Reliability & Polish -- COMPLETE
 
 ## Current Position
 
 Milestone: v1.1 Reliability & Polish
 Phase: 10 of 10 (Dashboard Hardening)
-Plan: 1 of 2 in current phase
-Status: Executing phase 10
-Last activity: 2026-02-17 — Completed 10-01 Dashboard data layer (health endpoint, WS push, connectionState, scorecard extraction)
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: v1.1 milestone complete
+Last activity: 2026-02-17 — Completed 10-02 Dashboard UI components (ReconnectBanner, HealthPanel, ScorePanel, App layout)
 
-Progress: [██████████████████████████████] 93% (19/19 v1.0 plans complete, 7/8 v1.1 plans)
+Progress: [██████████████████████████████] 100% (19/19 v1.0 plans complete, 8/8 v1.1 plans)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: [███████████████████████
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 7
+- Plans completed: 8
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
 
@@ -40,6 +40,7 @@ Progress: [███████████████████████
 | 09    | 01   | 4min     | 2     | 6     |
 | 09    | 02   | 6min     | 2     | 6     |
 | 10    | 01   | 3min     | 2     | 5     |
+| 10    | 02   | 2min     | 2     | 8     |
 
 ## Accumulated Context
 
@@ -73,6 +74,10 @@ Recent decisions affecting current work:
 - [10-01]: setConnected kept for backward compat; also syncs connectionState for new consumers
 - [10-01]: Health pushed on same 1s loop as counters -- tiny payload, simplicity over optimization
 - [10-01]: Scorecard rides on existing 'event' WS message type (no separate message type needed)
+- [10-02]: ReconnectBanner only shows for 'reconnecting', never 'connecting' -- prevents flash on initial page load
+- [10-02]: HealthPanel uses underscore-to-space replacement for service names for readability
+- [10-02]: ScorePanel criterion justifications as title tooltip -- compact panel, information preserved
+- [10-02]: HealthPanel placed between DefensePanel and ScorePanel for logical visual flow
 
 ### Pending Todos
 
@@ -87,5 +92,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 10-01-PLAN.md (Dashboard data layer -- health endpoint, WS push, connectionState, scorecard extraction)
+Stopped at: Completed 10-02-PLAN.md (Dashboard UI components -- ReconnectBanner, HealthPanel, ScorePanel, App layout). v1.1 milestone complete.
 Resume file: None
