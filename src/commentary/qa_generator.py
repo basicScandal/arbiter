@@ -53,7 +53,8 @@ class QAGenerator:
         self._model = model
 
         # Groq fallback via OpenAI-compatible SDK
-        groq_key = groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        # None = check env, "" = explicitly disabled
+        groq_key = os.environ.get("GROQ_API_KEY", "") if groq_api_key is None else groq_api_key
         if groq_key:
             self._groq_client: AsyncOpenAI | None = AsyncOpenAI(
                 api_key=groq_key, base_url=_GROQ_BASE_URL

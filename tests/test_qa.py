@@ -280,7 +280,7 @@ class TestFallback:
         self, sanitized: SanitizedOutput
     ) -> None:
         """With no Groq configured, Gemini failure returns static fallback."""
-        gen = QAGenerator(api_key="fake-key")
+        gen = QAGenerator(api_key="fake-key", groq_api_key="")
         with patch.object(
             gen, "_call_gemini", side_effect=RuntimeError("API down")
         ):
@@ -292,7 +292,7 @@ class TestFallback:
     async def test_generate_returns_fallback_on_empty_response(
         self, sanitized: SanitizedOutput
     ) -> None:
-        gen = QAGenerator(api_key="fake-key")
+        gen = QAGenerator(api_key="fake-key", groq_api_key="")
         with patch.object(gen, "_call_gemini", return_value=""):
             questions = await gen.generate(sanitized)
         assert len(questions) == 1
