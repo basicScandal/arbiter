@@ -138,37 +138,52 @@ class ArbiterTUI(App):
     # ------------------------------------------------------------------
 
     def _install_log_handler(self) -> None:
-        """Replace stderr logging with TUI-routed logging.
+        """Replace all root handlers with TUI handler + persistent FileHandler.
 
-        Removes ALL StreamHandlers across every logger (root, uvicorn, pyasn1,
-        etc.) so nothing writes to stderr while Textual controls the terminal.
-        Libraries like pyasn1 and uvicorn configure their own StreamHandlers
-        with propagate=False, bypassing root logger cleanup entirely.
+        Nukes ALL existing handlers on root and every named logger to prevent
+        stderr writes while Textual controls the terminal. pytest's logging
+        plugin and libraries like pyasn1/uvicorn may inject their own handlers
+        (e.g. _FileHandler(/dev/null), StreamHandler(stderr)) — we remove
+        everything and install exactly two handlers:
 
-        INFO+ for camera/audio/pipeline (operator needs to see startup),
-        WARNING+ for everything else (avoids Gemini reconnect spam).
+        1. _TUILogHandler — routes WARNING+ (and INFO for capture modules)
+           into the TUI event log via Textual's message loop.
+        2. FileHandler(/tmp/arbiter.log) — captures ALL logs at DEBUG level
+           for post-mortem diagnosis.
+
+        Also restores root level to DEBUG (pytest raises it to WARNING).
         """
         root = logging.getLogger()
 
-        # Remove StreamHandlers from ALL loggers — not just root.
-        # Libraries like pyasn1 (DEBUG-level TLS noise), uvicorn, and
-        # uvicorn.access create their own StreamHandlers with propagate=False,
-        # which bypass root cleanup and corrupt Textual's alternate screen.
+        # Nuke ALL handlers from every logger — nothing survives.
+        # This removes pytest's _FileHandler(/dev/null), _LiveLoggingNullHandler,
+        # LogCaptureHandler, pyasn1's StreamHandler(stderr), uvicorn's handlers,
+        # and any stale _TUILogHandler from a previous on_mount.
         for name in list(logging.Logger.manager.loggerDict):
             lg = logging.getLogger(name)
             if isinstance(lg, logging.Logger):
-                for h in lg.handlers[:]:
-                    if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
-                        lg.removeHandler(h)
-        for h in root.handlers[:]:
-            if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
-                root.removeHandler(h)
+                lg.handlers.clear()
+        root.handlers.clear()
 
-        handler = _TUILogHandler(self)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+        # Restore root level — pytest raises it to WARNING (30)
+        root.setLevel(logging.DEBUG)
 
-        # Only allow INFO from capture modules; WARNING+ from everything else
+        # 1. Persistent FileHandler for all logs
+        file_handler = logging.FileHandler("/tmp/arbiter.log", mode="a")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                datefmt="%H:%M:%S",
+            )
+        )
+        root.addHandler(file_handler)
+
+        # 2. TUI handler for operator-visible logs
+        tui_handler = _TUILogHandler(self)
+        tui_handler.setLevel(logging.INFO)
+        tui_handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+
         class _CaptureFilter(logging.Filter):
             _INFO_LOGGERS = frozenset({
                 "src.capture.camera",
@@ -182,8 +197,10 @@ class ArbiterTUI(App):
                     return True
                 return record.name in self._INFO_LOGGERS
 
-        handler.addFilter(_CaptureFilter())
-        root.addHandler(handler)
+        tui_handler.addFilter(_CaptureFilter())
+        root.addHandler(tui_handler)
+
+        logger.info("Log handlers installed (FileHandler + TUI)")
 
     # ------------------------------------------------------------------
     # Tick handler (1-second interval)

@@ -6,11 +6,13 @@ timed exponential recovery windows.
 """
 
 from src.resilience.health import ServiceHealth, default_health
+from src.resilience.rate_limiter import GeminiRateLimiter
 from src.resilience.retry import GEMINI_RETRY, GEMINI_RETRY_BACKGROUND
 
 __all__ = [
     "GEMINI_RETRY",
     "GEMINI_RETRY_BACKGROUND",
+    "GeminiRateLimiter",
     "ServiceHealth",
     "default_health",
 ]
