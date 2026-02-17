@@ -20,6 +20,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
@@ -85,6 +86,15 @@ class DisplayServer:
         @self._app.get("/", response_class=HTMLResponse)
         async def display_page(request: Request) -> HTMLResponse:
             return self._templates.TemplateResponse("display.html", {"request": request})
+
+        # Mount React audience display (production build)
+        react_dist = Path(__file__).parent / "../../audience-display/dist"
+        if react_dist.exists():
+            self._app.mount(
+                "/app",
+                StaticFiles(directory=str(react_dist.resolve()), html=True),
+                name="react-app",
+            )
 
         @self._app.websocket("/ws/display")
         async def websocket_endpoint(ws: WebSocket) -> None:

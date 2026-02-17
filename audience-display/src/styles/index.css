@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-arbiter-bg: #1a1a2e;
+  --color-arbiter-surface: #16213e;
+  --color-arbiter-accent: #00d4ff;
+  --color-arbiter-accent-dim: #00d4ff66;
+  --color-arbiter-text: #e0e0e0;
+  --color-arbiter-muted: #8892b0;
+  --color-arbiter-gold: #ffd700;
+  --color-arbiter-orange: #ff8c00;
+  --color-arbiter-red: #ff4444;
+  --color-arbiter-green: #00ff88;
+
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.6; filter: blur(0px); }
+  50% { opacity: 1; filter: blur(1px); }
+}
+
+@keyframes scorePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@utility animate-glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+@utility animate-score-pulse {
+  animation: scorePulse 2s ease-in-out infinite;
+}
+
+@utility animate-dot-pulse {
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+}
