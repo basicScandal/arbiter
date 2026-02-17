@@ -42,11 +42,11 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
   3. Running the full test suite twice in a row produces identical results — no singleton state leaks between tests
   4. `pytest -m integration` runs only integration tests; `pytest -m "not integration"` runs only unit tests
   5. `pytest -n auto` distributes tests across CPU cores without interference or shared-state failures
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md — Core test config, dependencies, conftest.py fixtures, EventCollector helper
+- [ ] 07-02-PLAN.md — Parallel execution validation (pytest-xdist) and VCR.py cassette infrastructure
 
 ### Phase 8: E2E Pipeline Coverage
 **Goal**: The full event pipeline from capture through deliberation is covered by automated tests that catch wiring regressions
@@ -106,7 +106,7 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 4. Scoring System | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 5. Memory + Deliberation | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 6. Venue Hardening | v1.0 | 3/3 | Complete | 2026-02-16 |
-| 7. Test Infrastructure | v1.1 | 0/TBD | Not started | - |
+| 7. Test Infrastructure | v1.1 | 0/2 | Not started | - |
 | 8. E2E Pipeline Coverage | v1.1 | 0/TBD | Not started | - |
 | 9. Groq Fallback + Rehearsal | v1.1 | 0/TBD | Not started | - |
 | 10. Dashboard Hardening | v1.1 | 0/TBD | Not started | - |
