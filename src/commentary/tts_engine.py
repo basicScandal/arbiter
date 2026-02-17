@@ -112,10 +112,11 @@ class TTSEngine:
             if not connected:
                 raise ConnectionError("Cartesia not connected, skip to fallback")
 
+            voice_spec = {"id": self._voice_id, "mode": "id"}
             ctx = self._connection.context(
                 context_id=context_id,
                 model_id="sonic-3",
-                voice={"id": self._voice_id},
+                voice=voice_spec,
                 output_format={
                     "container": "raw",
                     "encoding": "pcm_f32le",
@@ -126,7 +127,7 @@ class TTSEngine:
             await ctx.send(
                 model_id="sonic-3",
                 transcript=sentence,
-                voice={"id": self._voice_id},
+                voice=voice_spec,
                 output_format={
                     "container": "raw",
                     "encoding": "pcm_f32le",
