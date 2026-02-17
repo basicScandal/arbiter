@@ -28,12 +28,20 @@ def main() -> None:
 
     load_dotenv()
 
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    # Configure logging — attach FileHandler directly to root logger.
+    # Cannot use basicConfig() because library imports may have already
+    # configured root, making basicConfig a silent no-op.
+    log_fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
+    file_handler = logging.FileHandler("/tmp/arbiter.log", mode="w")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(log_fmt)
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    root.addHandler(file_handler)
 
     config = load_config()
     pipeline = CapturePipeline(config, use_tui=not args.cli)

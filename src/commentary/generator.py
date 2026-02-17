@@ -51,6 +51,7 @@ class CommentaryGenerator:
     def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
+        self._demo_count = 0
 
     async def generate(self, sanitized: SanitizedOutput) -> Commentary:
         """Generate commentary for a completed demo.
@@ -63,7 +64,8 @@ class CommentaryGenerator:
             A Commentary object with full text, sentence breakdown, and
             per-sentence emotion mapping for TTS.
         """
-        user_prompt = self._build_user_prompt(sanitized)
+        self._demo_count += 1
+        user_prompt = self._build_user_prompt(sanitized, demo_number=self._demo_count)
 
         try:
             full_text = await self._stream_gemini(user_prompt)
@@ -90,27 +92,42 @@ class CommentaryGenerator:
         Retries up to 3 times with exponential backoff + jitter on network
         errors. Non-retryable errors propagate to generate() fallback logic.
         """
+        # Gradually increase temperature for later demos to boost variety
+        # Starts at 0.8, increases by 0.005 per demo, caps at 0.95
+        temp = min(0.95, 0.8 + self._demo_count * 0.005)
+
+        # Build demo context based on demo number
+        if self._demo_count <= 7:
+            demo_context = "You're feeling generous — give benefit of the doubt, but still be sharp."
+        elif self._demo_count <= 15:
+            demo_context = "Classic Arbiter — sharp, fair, increasingly hard to impress."
+        else:
+            demo_context = "You've seen it all today — only genuine brilliance impresses you now."
+
+        # Format the persona prompt with demo context
+        formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
+
         full_text = ""
         async for chunk in await self._client.aio.models.generate_content_stream(
             model=self._model,
             contents=user_prompt,
             config=types.GenerateContentConfig(
-                system_instruction=PERSONA_PROMPT,
+                system_instruction=formatted_prompt,
                 max_output_tokens=500,
-                temperature=0.8,
+                temperature=temp,
             ),
         ):
             if chunk.text:
                 full_text += chunk.text
         return full_text
 
-    def _build_user_prompt(self, sanitized: SanitizedOutput) -> str:
+    def _build_user_prompt(self, sanitized: SanitizedOutput, demo_number: int) -> str:
         """Build the user prompt from sanitized demo output.
 
         Structures observations, transcripts, and injection attempts
         into a clear format for the persona to react to.
         """
-        sections: list[str] = [f"## Demo: {sanitized.team_name}"]
+        sections: list[str] = [f"## Demo: {sanitized.team_name}", f"Demo #{demo_number} of the day"]
 
         # Observations
         if sanitized.observations:

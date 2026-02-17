@@ -97,12 +97,58 @@ class CommentaryPipeline:
 
         logger.info("Commentary pipeline armed")
 
+    async def _deliver_sentence(
+        self,
+        sentence: str,
+        team_name: str,
+        context_id: str,
+        emotion: str,
+        is_continuation: bool,
+    ) -> None:
+        """Deliver a single sentence via TTS and display.
+
+        Handles TTS health checking and graceful degradation to text-only
+        mode if TTS is unavailable.
+
+        Args:
+            sentence: The sentence text to deliver.
+            team_name: Team name for display context.
+            context_id: Cartesia context ID for sentence grouping.
+            emotion: Cartesia emotion tag for TTS.
+            is_continuation: Whether this continues a prior context.
+        """
+        if default_health.is_healthy("cartesia_tts"):
+            try:
+                await asyncio.gather(
+                    self._tts.speak(
+                        sentence,
+                        context_id,
+                        emotion,
+                        is_continuation=is_continuation,
+                    ),
+                    self._display.push_commentary(sentence, team_name),
+                )
+                # TTS succeeded -- mark healthy for future checks
+                if self._tts._connected:
+                    default_health.mark_healthy("cartesia_tts")
+                else:
+                    default_health.mark_unhealthy("cartesia_tts")
+            except Exception:
+                logger.exception("TTS speak failed, marking unhealthy")
+                default_health.mark_unhealthy("cartesia_tts")
+                # Still push text to display
+                await self._display.push_commentary(sentence, team_name)
+        else:
+            # Text-only mode: TTS unhealthy, skip TTS and push to display only
+            logger.info("TTS unhealthy -- delivering text-only commentary")
+            await self._display.push_commentary(sentence, team_name)
+
     async def _on_observation_verified(self, event: ObservationVerified) -> None:
         """Generate and deliver commentary after a demo stops.
 
-        Streams sentences to TTS and display in parallel. Each sentence
-        is spoken and displayed before moving to the next, providing
-        sequential sentence delivery with parallel output channels.
+        Pipelines first sentence delivery with enrichment to reduce latency.
+        Each sentence is spoken and displayed before moving to the next,
+        providing sequential sentence delivery with parallel output channels.
         """
         try:
             self._last_sanitized = event.output
@@ -111,44 +157,60 @@ class CommentaryPipeline:
             # Generate commentary from sanitized observations
             commentary = await self._generator.generate(event.output)
 
-            # Enrich commentary via secondary model (if configured)
-            if self._enricher is not None:
-                commentary = await self._enricher.enrich(
-                    commentary, event.output.observations
-                )
-
             # Clear display before new commentary
             await self._display.clear()
 
-            # Stream sentences to TTS and display in parallel
             context_id = str(uuid.uuid4())[:8]
-            for i, sentence in enumerate(commentary.sentences):
-                emotion = commentary.emotion_map.get(i, "sarcastic")
-                if default_health.is_healthy("cartesia_tts"):
-                    try:
-                        await asyncio.gather(
-                            self._tts.speak(
-                                sentence,
-                                context_id,
-                                emotion,
-                                is_continuation=(i > 0),
-                            ),
-                            self._display.push_commentary(sentence, team_name),
+
+            # Pipeline first sentence with enrichment to reduce latency
+            if commentary.sentences:
+                first_sentence = commentary.sentences[0]
+                first_emotion = commentary.emotion_map.get(0, "sarcastic")
+
+                if self._enricher is not None:
+                    # Deliver first sentence while enriching in parallel
+                    first_delivery = self._deliver_sentence(
+                        first_sentence,
+                        team_name,
+                        context_id,
+                        first_emotion,
+                        is_continuation=False,
+                    )
+                    enrichment = self._enricher.enrich(
+                        commentary, event.output.observations
+                    )
+                    _, enriched = await asyncio.gather(first_delivery, enrichment)
+                    commentary = enriched
+                    # Deliver remaining sentences
+                    for i in range(1, len(commentary.sentences)):
+                        sentence = commentary.sentences[i]
+                        emotion = commentary.emotion_map.get(i, "sarcastic")
+                        await self._deliver_sentence(
+                            sentence,
+                            team_name,
+                            context_id,
+                            emotion,
+                            is_continuation=True,
                         )
-                        # TTS succeeded -- mark healthy for future checks
-                        if self._tts._connected:
-                            default_health.mark_healthy("cartesia_tts")
-                        else:
-                            default_health.mark_unhealthy("cartesia_tts")
-                    except Exception:
-                        logger.exception("TTS speak failed, marking unhealthy")
-                        default_health.mark_unhealthy("cartesia_tts")
-                        # Still push text to display
-                        await self._display.push_commentary(sentence, team_name)
                 else:
-                    # Text-only mode: TTS unhealthy, skip TTS and push to display only
-                    logger.info("TTS unhealthy -- delivering text-only commentary")
-                    await self._display.push_commentary(sentence, team_name)
+                    # No enrichment -- deliver all sentences sequentially
+                    await self._deliver_sentence(
+                        first_sentence,
+                        team_name,
+                        context_id,
+                        first_emotion,
+                        is_continuation=False,
+                    )
+                    for i in range(1, len(commentary.sentences)):
+                        sentence = commentary.sentences[i]
+                        emotion = commentary.emotion_map.get(i, "sarcastic")
+                        await self._deliver_sentence(
+                            sentence,
+                            team_name,
+                            context_id,
+                            emotion,
+                            is_continuation=True,
+                        )
 
             # Publish delivery event
             if self._event_bus is not None:

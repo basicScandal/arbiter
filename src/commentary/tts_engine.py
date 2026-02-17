@@ -16,8 +16,9 @@ from cartesia import AsyncCartesia
 from websockets.exceptions import ConnectionClosedOK
 
 from src.capture.event_bus import EventBus
+from src.commentary.audio_processor import AudioProcessor
 from src.commentary.models import TTSFinished, TTSSpeaking
-from src.commentary.tts_fallback import MacOSSayFallback
+from src.commentary.tts_fallback import FallbackChain, MacOSSayFallback, OpenAITTSFallback
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,11 @@ class TTSEngine:
         self._stream: pyaudio.Stream | None = None
         self._sample_rate = 44100
         self._connected = False
-        self._fallback = MacOSSayFallback()
+        self._fallback = FallbackChain([
+            OpenAITTSFallback(),
+            MacOSSayFallback(),
+        ])
+        self._audio_processor = AudioProcessor()
 
     async def connect(self) -> None:
         """Open Cartesia WebSocket connection and PyAudio output stream."""
@@ -189,7 +194,8 @@ class TTSEngine:
 
         async for event in ctx.receive():
             if event.type == "chunk" and event.audio:
-                await asyncio.to_thread(self._stream.write, event.audio)
+                processed = self._audio_processor.process_chunk(event.audio)
+                await asyncio.to_thread(self._stream.write, processed)
 
     async def _try_fallback(self, sentence: str) -> None:
         """Attempt macOS say fallback for a sentence."""

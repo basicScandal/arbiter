@@ -152,8 +152,13 @@ class DisplayServer:
 
     @staticmethod
     def _port_is_free(port: int) -> bool:
-        """Return True if the given port can be bound."""
+        """Return True if the given port can be bound.
+
+        Uses SO_REUSEADDR to match uvicorn's default behavior — sockets
+        in TIME_WAIT from a recently killed process won't block the check.
+        """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(("0.0.0.0", port))
                 return True
