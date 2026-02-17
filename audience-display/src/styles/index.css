@@ -2,11 +2,11 @@
 
 @theme {
   --color-arbiter-bg: #1a1a2e;
-  --color-arbiter-surface: #16213e;
+  --color-arbiter-surface: #1e2a4a;
   --color-arbiter-accent: #00d4ff;
   --color-arbiter-accent-dim: #00d4ff66;
-  --color-arbiter-text: #e0e0e0;
-  --color-arbiter-muted: #8892b0;
+  --color-arbiter-text: #f0f0f0;
+  --color-arbiter-muted: #a8b2d0;
   --color-arbiter-gold: #ffd700;
   --color-arbiter-orange: #ff8c00;
   --color-arbiter-red: #ff4444;
