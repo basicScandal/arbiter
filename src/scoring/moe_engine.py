@@ -20,6 +20,8 @@ from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
 logger = logging.getLogger(__name__)
 
+MOE_TIMEOUT = 15.0  # seconds — hard cap per Phase 9 success criterion
+
 
 class MoEScoringEngine:
     """Multi-model scoring engine with ensemble aggregation.
@@ -54,24 +56,51 @@ class MoEScoringEngine:
 
         prompt = ScoringEngine._build_prompt(sanitized, track, criteria, track_criteria)
 
-        # Call all providers in parallel
-        tasks = [
-            provider.generate(
-                prompt=prompt,
-                system_prompt=SCORING_SYSTEM_PROMPT,
-                temperature=0.3,
-                max_tokens=1500,
-            )
+        # Create named tasks for each provider
+        tasks = {
+            asyncio.create_task(
+                provider.generate(
+                    prompt=prompt,
+                    system_prompt=SCORING_SYSTEM_PROMPT,
+                    temperature=0.3,
+                    max_tokens=1500,
+                ),
+                name=provider.name,
+            ): provider
             for provider in self._providers
-        ]
+        }
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Wait with hard timeout — returns (done, pending)
+        done, pending = await asyncio.wait(
+            tasks.keys(),
+            timeout=MOE_TIMEOUT,
+            return_when=asyncio.ALL_COMPLETED,
+        )
 
-        # Parse responses from each provider
+        # Cancel any providers that didn't finish in time
+        for task in pending:
+            provider = tasks[task]
+            task.cancel()
+            logger.warning(
+                "Provider %s timed out after %.0fs, cancelling",
+                provider.name,
+                MOE_TIMEOUT,
+            )
+        # Await cancelled tasks to allow proper cleanup (Pitfall 2 from research)
+        for task in pending:
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        # Parse responses from completed providers
         parsed: dict[str, DemoScorecard] = {}
-        for provider, result in zip(self._providers, results):
-            if isinstance(result, Exception):
-                logger.warning("Provider %s raised exception: %s", provider.name, result)
+        for task in done:
+            provider = tasks[task]
+            try:
+                result = task.result()
+            except Exception as exc:
+                logger.warning("Provider %s raised exception: %s", provider.name, exc)
                 continue
             if not result:
                 logger.warning("Provider %s returned empty response", provider.name)
