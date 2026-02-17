@@ -43,7 +43,7 @@ class TTSEngine:
         self._connection = None
         self._pyaudio: pyaudio.PyAudio | None = None
         self._stream: pyaudio.Stream | None = None
-        self._sample_rate = 22050
+        self._sample_rate = 44100
         self._connected = False
         self._fallback = MacOSSayFallback()
 
@@ -52,7 +52,7 @@ class TTSEngine:
         self._connection = await self._client.tts.websocket_connect().enter()
         self._pyaudio = pyaudio.PyAudio()
         self._stream = self._pyaudio.open(
-            format=pyaudio.paFloat32,
+            format=pyaudio.paInt16,
             channels=1,
             rate=self._sample_rate,
             output=True,
@@ -168,7 +168,7 @@ class TTSEngine:
             voice=voice_spec,
             output_format={
                 "container": "raw",
-                "encoding": "pcm_f32le",
+                "encoding": "pcm_s16le",
                 "sample_rate": self._sample_rate,
             },
             generation_config={"speed": 1.1, "emotion": emotion},
@@ -179,7 +179,7 @@ class TTSEngine:
             voice=voice_spec,
             output_format={
                 "container": "raw",
-                "encoding": "pcm_f32le",
+                "encoding": "pcm_s16le",
                 "sample_rate": self._sample_rate,
             },
             continue_=is_continuation,
