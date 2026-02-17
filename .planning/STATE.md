@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 Milestone: v1.1 Reliability & Polish
 Phase: 9 of 10 (Groq Fallback & Rehearsal Mode)
-Plan: 1 of 2 in current phase
-Status: Executing phase 9
-Last activity: 2026-02-17 — Completed 09-01 GroqProvider + MoE timeout hardening
+Plan: 2 of 2 in current phase (PHASE COMPLETE)
+Status: Phase 9 complete
+Last activity: 2026-02-17 — Completed 09-02 Rehearsal mode (SyntheticCapture, ReplayProvider, RehearsalPipeline)
 
-Progress: [███████████████████████████░░░] 83% (19/19 v1.0 plans complete, 5/8 v1.1 plans)
+Progress: [██████████████████████████████] 87% (19/19 v1.0 plans complete, 6/8 v1.1 plans)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: [███████████████████████
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 5
+- Plans completed: 6
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 | 08    | 01   | 3min     | 2     | 2     |
 | 08    | 02   | 5min     | 2     | 2     |
 | 09    | 01   | 4min     | 2     | 6     |
+| 09    | 02   | 6min     | 2     | 6     |
 
 ## Accumulated Context
 
@@ -63,6 +64,10 @@ Recent decisions affecting current work:
 - [09-01]: JSON mode enforced via response_format for reliable Groq scoring output
 - [09-01]: Neutral calibration defaults (temperature=1.0, bias=0.0) for Groq pending empirical tuning
 - [09-01]: asyncio.wait replaces asyncio.gather in MoE for partial-result support on timeout
+- [09-02]: ReplayProvider canned scoring uses realistic varied scores (8.5/7.0/6.5) -- validates MoE scoring path
+- [09-02]: --rehearsal flag placed before load_dotenv() -- zero external dependencies required
+- [09-02]: RehearsalPipeline accepts optional display parameter -- dashboard shares production DisplayServer, CLI uses MagicMock
+- [09-02]: Scoring pipeline sleep patched to 0.1s max in rehearsal for fast verification
 
 ### Pending Todos
 
@@ -77,5 +82,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 09-01-PLAN.md (GroqProvider + MoE timeout hardening)
+Stopped at: Completed 09-02-PLAN.md (Rehearsal mode -- Phase 9 complete)
 Resume file: None
