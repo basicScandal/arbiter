@@ -89,6 +89,16 @@ class WebOperator:
         """Register HTTP and WebSocket routes on the display server's FastAPI app."""
         app = self._display_server.app
 
+        @app.get("/api/health")
+        async def health_endpoint():
+            from src.resilience.health import default_health
+
+            status = default_health.get_status()
+            return {
+                "status": "ok" if all(status.values()) or not status else "degraded",
+                "services": status,
+            }
+
         @app.websocket("/ws/operator")
         async def operator_ws(ws: WebSocket) -> None:
             await ws.accept()
@@ -152,15 +162,43 @@ class WebOperator:
                 "confidence": event.attempt.confidence,
             }
 
+        # Extract full scorecard from scoring_complete events
+        if event.event_type == "scoring_complete" and hasattr(event, "scorecard"):
+            sc = event.scorecard
+            event_data["data"]["scorecard"] = {
+                "team_name": sc.team_name,
+                "track": sc.track,
+                "total_score": sc.total_score,
+                "criteria": [
+                    {"name": c.name, "score": c.score, "weight": c.weight, "justification": c.justification}
+                    for c in sc.criteria
+                ],
+                "track_bonus": {
+                    "name": sc.track_bonus.name,
+                    "score": sc.track_bonus.score,
+                    "weight": sc.track_bonus.weight,
+                    "justification": sc.track_bonus.justification,
+                } if sc.track_bonus else None,
+            }
+
         await self._broadcast_to_operators(event_data)
 
     async def _push_counters_loop(self) -> None:
-        """Background task that pushes counter updates to operator clients every second."""
+        """Background task that pushes counter and health updates to operator clients every second."""
         while True:
             await asyncio.sleep(1.0)
             await self._broadcast_to_operators({
                 "type": "counters",
                 **self._counters,
+            })
+
+            # Also push health status on the same 1s interval
+            from src.resilience.health import default_health
+
+            health_status = default_health.get_status()
+            await self._broadcast_to_operators({
+                "type": "health",
+                "services": health_status,
             })
 
     async def _handle_command(self, data: dict, ws: WebSocket) -> None:
@@ -298,7 +336,7 @@ class WebOperator:
             pass
 
     async def _push_state(self, ws: WebSocket) -> None:
-        """Push current demo state to a specific operator client.
+        """Push current demo state and health to a specific operator client.
 
         Args:
             ws: The WebSocket connection to send to.
@@ -306,6 +344,15 @@ class WebOperator:
         state_data = self._get_state_data()
         try:
             await ws.send_json(state_data)
+
+            # Also push health so newly connected clients get current status immediately
+            from src.resilience.health import default_health
+
+            health_status = default_health.get_status()
+            await ws.send_json({
+                "type": "health",
+                "services": health_status,
+            })
         except Exception:
             # Client may have disconnected
             pass
