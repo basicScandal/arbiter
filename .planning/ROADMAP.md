@@ -26,7 +26,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 **Milestone Goal:** Harden the system for live event reliability — full test coverage, rehearsal mode, fallback coverage, MoE ensemble E2E, and operator dashboard polish.
 
 - [x] **Phase 7: Test Infrastructure** — Timeout guards, EventCollector, singleton reset, parallel test support, VCR cassettes (completed 2026-02-17)
-- [ ] **Phase 8: E2E Pipeline Coverage** — Full pipeline chain tests, MoE integration, event wiring regression, multi-level task draining
+- [x] **Phase 8: E2E Pipeline Coverage** — Full pipeline chain tests, MoE integration, event wiring regression, multi-level task draining (completed 2026-02-17)
 - [ ] **Phase 9: Groq Fallback + Rehearsal Mode** — Groq scoring provider, MoE timeout hardening, synthetic capture, replay provider, CLI rehearsal
 - [ ] **Phase 10: Dashboard Hardening** — WebSocket reconnect indicator, health endpoint, scoring event forwarding
 
@@ -60,8 +60,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Full pipeline chain E2E test + multi-level task draining tests (E2E-01, E2E-04)
-- [ ] 08-02-PLAN.md — MoE integration through pipeline event path + event wiring regression tests (E2E-02, E2E-03)
+- [x] 08-01-PLAN.md — Full pipeline chain E2E test + multi-level task draining tests (E2E-01, E2E-04)
+- [x] 08-02-PLAN.md — MoE integration through pipeline event path + event wiring regression tests (E2E-02, E2E-03)
 
 ### Phase 9: Groq Fallback + Rehearsal Mode
 **Goal**: Scoring pipeline has a working fallback when Gemini is unavailable, and operators can rehearse the full system without live hardware or API keys
@@ -107,6 +107,6 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 5. Memory + Deliberation | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 6. Venue Hardening | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 7. Test Infrastructure | v1.1 | 2/2 | Complete | 2026-02-17 |
-| 8. E2E Pipeline Coverage | v1.1 | 0/2 | Not started | - |
+| 8. E2E Pipeline Coverage | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 9. Groq Fallback + Rehearsal | v1.1 | 0/TBD | Not started | - |
 | 10. Dashboard Hardening | v1.1 | 0/TBD | Not started | - |
