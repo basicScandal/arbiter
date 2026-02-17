@@ -39,15 +39,19 @@ _EMOTION_KEYWORDS: dict[str, list[str]] = {
     "sarcastic": ["bold strategy", "interesting choice", "somehow", "mysteriously", "apparently", "of course"],
     "ironic": ["ironic", "irony", "ironically", "paradox"],
     "contempt": ["pathetic", "embarrassing", "lazy", "half-baked", "amateur"],
-    "surprised": ["actually", "genuinely", "surprisingly", "didn't expect", "impressed", "wow"],
+    "surprised": ["actually", "genuinely", "surprisingly", "didn't expect", "wow"],
+    "triumphant": ["most polished", "best i've seen", "first time today", "genuinely impressed", "this is what"],
     "amazed": ["incredible", "remarkable", "exceptional", "brilliant", "stunning"],
     "disappointed": ["unfortunately", "shame", "disaster", "terrible", "awful", "missing", "broken", "failed", "crashed"],
-    "content": ["solid", "clean", "elegant", "respect", "well-built", "thoughtful"],
+    "content": ["solid", "clean", "elegant", "well-built"],
+    "enthusiastic": ["fix that and", "ship it", "keep going", "next step", "get there", "on the right track"],
+    "contemplative": ["the one area", "worth noting", "consider", "the question is", "what's missing"],
+    "determined": ["for production", "integrate with", "you should", "add a", "implement"],
     "excited": ["love", "amazing", "fantastic", "breakthrough"],
-    "confident": ["clearly the best", "no question", "without doubt", "winner"],
-    "skeptical": ["claims", "supposedly", "allegedly", "in theory", "if we believe", "questionable"],
+    "confident": ["clearly the best", "no question", "without doubt", "production-level", "production-ready"],
+    "skeptical": ["claims", "supposedly", "allegedly", "in theory", "if we believe", "questionable", "weak point"],
     "curious": ["interesting", "intriguing", "wonder", "how did"],
-    "proud": ["now that", "that's what", "exactly right", "nailed"],
+    "proud": ["now that", "that's what", "exactly right", "nailed", "came here to see"],
 }
 
 
@@ -69,12 +73,25 @@ class CommentaryGenerator:
             when no key is available.
     """
 
-    # Emotion tags the LLM is instructed to use (must match PERSONA_PROMPT)
+    # Emotion tags the LLM is instructed to use (must match PERSONA_PROMPT).
+    # Includes both native Cartesia emotions and semantic aliases that get
+    # mapped to valid Cartesia emotions via _LLM_TO_CARTESIA_MAP.
     _VALID_LLM_EMOTIONS: frozenset[str] = frozenset({
         "sarcastic", "ironic", "contempt", "surprised", "amazed",
         "disappointed", "content", "excited", "confident", "skeptical",
         "curious", "proud",
+        # New constructive emotions (mapped to Cartesia equivalents)
+        "impressed", "thoughtful", "encouraging", "constructive",
     })
+
+    # Map semantic LLM emotions to valid Cartesia TTS emotions.
+    # Unmapped emotions pass through directly (they're already valid).
+    _LLM_TO_CARTESIA_MAP: dict[str, str] = {
+        "impressed": "triumphant",
+        "thoughtful": "contemplative",
+        "encouraging": "enthusiastic",
+        "constructive": "determined",
+    }
 
     def __init__(
         self,
@@ -375,15 +392,18 @@ class CommentaryGenerator:
 
     @staticmethod
     def _parse_emotion_tag(sentence: str) -> tuple[str, str]:
-        """Extract [emotion] tag from sentence start, return (clean_sentence, emotion).
+        """Extract [emotion] tag from sentence start, return (clean_sentence, cartesia_emotion).
 
+        Maps semantic LLM emotions (e.g. 'impressed') to valid Cartesia TTS
+        emotions (e.g. 'triumphant') via _LLM_TO_CARTESIA_MAP.
         If no valid tag found, returns original sentence with empty emotion.
         """
         match = re.match(r'\[(\w+)\]\s*', sentence)
         if match:
             tag = match.group(1).lower()
             if tag in CommentaryGenerator._VALID_LLM_EMOTIONS:
-                return sentence[match.end():], tag
+                cartesia_emotion = CommentaryGenerator._LLM_TO_CARTESIA_MAP.get(tag, tag)
+                return sentence[match.end():], cartesia_emotion
         return sentence, ""
 
     @staticmethod

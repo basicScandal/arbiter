@@ -141,6 +141,10 @@ class WebOperator:
         # Add relevant payload fields based on event type
         if hasattr(event, "team_name"):
             event_data["data"]["team_name"] = event.team_name
+        if hasattr(event, "commentary_text"):
+            event_data["data"]["text"] = event.commentary_text
+        if hasattr(event, "segment"):
+            event_data["data"]["segment"] = event.segment
         if hasattr(event, "attempt"):
             event_data["data"]["attempt"] = {
                 "injection_type": event.attempt.injection_type,
