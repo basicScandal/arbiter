@@ -248,6 +248,22 @@ class WebOperator:
                 await self._send_result(ws, True, "Deliberation triggered. Processing all demos...")
                 logger.info("Operator triggered end-of-event deliberation")
 
+            elif action == "rehearsal":
+                from src.rehearsal import RehearsalPipeline
+
+                await self._send_result(ws, True, "Starting rehearsal mode...")
+                rehearsal = RehearsalPipeline(display=self._display_server)
+
+                async def _run_rehearsal():
+                    try:
+                        await rehearsal.run_demo()
+                        logger.info("Dashboard-triggered rehearsal complete")
+                    except Exception:
+                        logger.exception("Rehearsal failed")
+
+                asyncio.create_task(_run_rehearsal())
+                logger.info("Operator triggered rehearsal mode from dashboard")
+
             elif action == "quit":
                 await self._send_result(ws, True, "Shutting down")
                 self._quit_signal.set()

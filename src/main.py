@@ -30,7 +30,31 @@ def main() -> None:
         action="store_true",
         help="Shorthand for --operator cli",
     )
+    parser.add_argument(
+        "--rehearsal",
+        action="store_true",
+        help="Run a full demo rehearsal with synthetic data (no hardware or API keys needed)",
+    )
     args = parser.parse_args()
+
+    # Rehearsal mode: run full pipeline with synthetic data, no env/config needed
+    if args.rehearsal:
+        from src.rehearsal import RehearsalPipeline
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
+        print("=" * 50)
+        print("  Arbiter Rehearsal Mode")
+        print("  Running full demo cycle with synthetic data...")
+        print("=" * 50)
+        print()
+        pipeline = RehearsalPipeline()
+        asyncio.run(pipeline.run_demo())
+        print()
+        print("Rehearsal complete!")
+        return
 
     load_dotenv()
 
