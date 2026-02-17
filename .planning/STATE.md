@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 9 — Groq Fallback & Rehearsal Mode (v1.1 Reliability & Polish)
+**Current focus:** Phase 10 — Dashboard Hardening (v1.1 Reliability & Polish)
 
 ## Current Position
 
 Milestone: v1.1 Reliability & Polish
-Phase: 9 of 10 (Groq Fallback & Rehearsal Mode)
-Plan: 2 of 2 in current phase (PHASE COMPLETE)
-Status: Phase 9 complete
-Last activity: 2026-02-17 — Completed 09-02 Rehearsal mode (SyntheticCapture, ReplayProvider, RehearsalPipeline)
+Phase: 10 of 10 (Dashboard Hardening)
+Plan: 1 of 2 in current phase
+Status: Executing phase 10
+Last activity: 2026-02-17 — Completed 10-01 Dashboard data layer (health endpoint, WS push, connectionState, scorecard extraction)
 
-Progress: [██████████████████████████████] 87% (19/19 v1.0 plans complete, 6/8 v1.1 plans)
+Progress: [██████████████████████████████] 93% (19/19 v1.0 plans complete, 7/8 v1.1 plans)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: [███████████████████████
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 6
+- Plans completed: 7
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
 
@@ -39,6 +39,7 @@ Progress: [███████████████████████
 | 08    | 02   | 5min     | 2     | 2     |
 | 09    | 01   | 4min     | 2     | 6     |
 | 09    | 02   | 6min     | 2     | 6     |
+| 10    | 01   | 3min     | 2     | 5     |
 
 ## Accumulated Context
 
@@ -68,6 +69,10 @@ Recent decisions affecting current work:
 - [09-02]: --rehearsal flag placed before load_dotenv() -- zero external dependencies required
 - [09-02]: RehearsalPipeline accepts optional display parameter -- dashboard shares production DisplayServer, CLI uses MagicMock
 - [09-02]: Scoring pipeline sleep patched to 0.1s max in rehearsal for fast verification
+- [10-01]: Initial connectionState is 'connecting' (not 'reconnecting') to prevent banner flash on page load
+- [10-01]: setConnected kept for backward compat; also syncs connectionState for new consumers
+- [10-01]: Health pushed on same 1s loop as counters -- tiny payload, simplicity over optimization
+- [10-01]: Scorecard rides on existing 'event' WS message type (no separate message type needed)
 
 ### Pending Todos
 
@@ -82,5 +87,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 09-02-PLAN.md (Rehearsal mode -- Phase 9 complete)
+Stopped at: Completed 10-01-PLAN.md (Dashboard data layer -- health endpoint, WS push, connectionState, scorecard extraction)
 Resume file: None
