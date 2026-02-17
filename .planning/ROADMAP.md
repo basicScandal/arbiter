@@ -57,11 +57,11 @@ Plans:
   2. A test validates MoE scoring with 3 mock providers returning different scores, and ScoreAggregator produces a weighted result
   3. A test verifies that all EventBus subscriptions wired in CapturePipeline.setup() are connected and responsive to their trigger events
   4. A test that publishes an event triggering a two-level create_task chain (e.g., observation_verified -> score() -> scoring_complete) correctly drains all task depths before asserting
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — Full pipeline chain E2E test + multi-level task draining tests (E2E-01, E2E-04)
+- [ ] 08-02-PLAN.md — MoE integration through pipeline event path + event wiring regression tests (E2E-02, E2E-03)
 
 ### Phase 9: Groq Fallback + Rehearsal Mode
 **Goal**: Scoring pipeline has a working fallback when Gemini is unavailable, and operators can rehearse the full system without live hardware or API keys
@@ -107,6 +107,6 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 5. Memory + Deliberation | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 6. Venue Hardening | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 7. Test Infrastructure | v1.1 | 2/2 | Complete | 2026-02-17 |
-| 8. E2E Pipeline Coverage | v1.1 | 0/TBD | Not started | - |
+| 8. E2E Pipeline Coverage | v1.1 | 0/2 | Not started | - |
 | 9. Groq Fallback + Rehearsal | v1.1 | 0/TBD | Not started | - |
 | 10. Dashboard Hardening | v1.1 | 0/TBD | Not started | - |
