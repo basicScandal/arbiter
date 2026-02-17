@@ -268,6 +268,22 @@ class TTSEngine:
                 is_continuation=(i > 0),
             )
 
+    async def play_sound(self, pcm_bytes: bytes) -> None:
+        """Play raw PCM int16 bytes through the PyAudio stream.
+
+        Used for sound effects (chimes, alerts). Respects _speak_lock
+        and _closing flag like speak().
+        """
+        if self._closing or self._stream is None:
+            return
+        async with self._speak_lock:
+            if self._closing or self._stream is None:
+                return
+            try:
+                await asyncio.to_thread(self._stream.write, pcm_bytes)
+            except Exception:
+                logger.debug("Sound effect playback failed", exc_info=True)
+
     async def close(self) -> None:
         """Close WebSocket connection and PyAudio resources.
 

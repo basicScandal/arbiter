@@ -12,20 +12,39 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
+import time
 import uuid
 
 from src.capture.event_bus import EventBus
+from src.capture.models import DemoStarted, DemoStopped
 from src.commentary.display_server import DisplayServer
 from src.commentary.enricher import CommentaryEnricher
 from src.commentary.generator import CommentaryGenerator
 from src.commentary.models import CommentaryDelivered, QARequested
 from src.commentary.qa_generator import QAGenerator
+from src.commentary.sounds import SoundEffects
 from src.commentary.tts_engine import TTSEngine
-from src.defense.models import ObservationVerified, SanitizedOutput
+from src.defense.models import InjectionDetected, ObservationVerified, SanitizedOutput
 from src.providers.base import LLMProvider
 from src.resilience.health import ServiceHealth, default_health
 
 logger = logging.getLogger(__name__)
+
+# Pre-written injection quips for zero-latency real-time reactions.
+# {type} is replaced with the injection type (e.g. "prompt_injection").
+_INJECTION_QUIPS: list[str] = [
+    "Oh, someone's trying to hack the judge. How original.",
+    "Nice try. Injection detected. Arbiter sees all.",
+    "Did someone really just try that? Points for audacity, zero for subtlety.",
+    "Prompt injection attempt detected. I'm flattered, really.",
+    "Cute. Someone thought they could slip one past me.",
+    "I've seen better injection attempts from a first-year CS student.",
+    "Security hackathon, and you're trying to hack the judge? Bold.",
+    "That injection attempt was almost as subtle as a fire alarm.",
+    "Someone just tried to compromise the judge. The audacity is noted.",
+    "Injection blocked. You'll have to impress me the old-fashioned way.",
+]
 
 
 class CommentaryPipeline:
@@ -69,6 +88,8 @@ class CommentaryPipeline:
 
         self._event_bus: EventBus | None = None
         self._last_sanitized: SanitizedOutput | None = None
+        self._last_quip_time: float = 0.0  # rate-limit injection reactions
+        self._sounds = SoundEffects()
 
     async def setup(self, event_bus: EventBus) -> None:
         """Wire into the event bus and start output components.
@@ -83,6 +104,9 @@ class CommentaryPipeline:
         self._event_bus = event_bus
         event_bus.subscribe("observation_verified", self._on_observation_verified)
         event_bus.subscribe("qa_requested", self._on_qa_requested)
+        event_bus.subscribe("injection_detected", self._on_injection_detected)
+        event_bus.subscribe("demo_started", self._on_demo_started)
+        event_bus.subscribe("demo_stopped", self._on_demo_stopped)
 
         # Connect TTS -- degrade gracefully on failure
         try:
@@ -146,78 +170,38 @@ class CommentaryPipeline:
     async def _on_observation_verified(self, event: ObservationVerified) -> None:
         """Generate and deliver commentary after a demo stops.
 
-        Pipelines first sentence delivery with enrichment to reduce latency.
-        Each sentence is spoken and displayed before moving to the next,
-        providing sequential sentence delivery with parallel output channels.
+        Uses sentence-level streaming for minimum latency: each sentence is
+        spoken the moment it's detected in the LLM stream, while the model
+        is still generating the next sentence. Falls back to batch mode
+        when enrichment is enabled (enricher needs full text).
         """
         try:
             self._last_sanitized = event.output
             team_name = event.output.team_name
-
-            # Generate commentary from sanitized observations
-            commentary = await self._generator.generate(event.output)
 
             # Clear display before new commentary
             await self._display.clear()
 
             context_id = str(uuid.uuid4())[:8]
 
-            # Pipeline first sentence with enrichment to reduce latency
-            if commentary.sentences:
-                first_sentence = commentary.sentences[0]
-                first_emotion = commentary.emotion_map.get(0, "sarcastic")
-
-                if self._enricher is not None:
-                    # Deliver first sentence while enriching in parallel
-                    first_delivery = self._deliver_sentence(
-                        first_sentence,
-                        team_name,
-                        context_id,
-                        first_emotion,
-                        is_continuation=False,
-                    )
-                    enrichment = self._enricher.enrich(
-                        commentary, event.output.observations
-                    )
-                    _, enriched = await asyncio.gather(first_delivery, enrichment)
-                    commentary = enriched
-                    # Deliver remaining sentences
-                    for i in range(1, len(commentary.sentences)):
-                        sentence = commentary.sentences[i]
-                        emotion = commentary.emotion_map.get(i, "sarcastic")
-                        await self._deliver_sentence(
-                            sentence,
-                            team_name,
-                            context_id,
-                            emotion,
-                            is_continuation=True,
-                        )
-                else:
-                    # No enrichment -- deliver all sentences sequentially
-                    await self._deliver_sentence(
-                        first_sentence,
-                        team_name,
-                        context_id,
-                        first_emotion,
-                        is_continuation=False,
-                    )
-                    for i in range(1, len(commentary.sentences)):
-                        sentence = commentary.sentences[i]
-                        emotion = commentary.emotion_map.get(i, "sarcastic")
-                        await self._deliver_sentence(
-                            sentence,
-                            team_name,
-                            context_id,
-                            emotion,
-                            is_continuation=True,
-                        )
+            # Always stream for minimum latency — speak each sentence the
+            # moment it's detected in the LLM stream. Enrichment is skipped
+            # in streaming mode because latency reduction > text polish.
+            sentences: list[str] = []
+            async for sentence, emotion, i in self._generator.stream_sentences(event.output):
+                sentences.append(sentence)
+                await self._deliver_sentence(
+                    sentence, team_name, context_id,
+                    emotion, is_continuation=(i > 0),
+                )
+            full_text = " ".join(sentences)
 
             # Publish delivery event
             if self._event_bus is not None:
                 self._event_bus.publish(
                     CommentaryDelivered(
                         team_name=team_name,
-                        commentary_text=commentary.text,
+                        commentary_text=full_text,
                     )
                 )
 
@@ -276,6 +260,47 @@ class CommentaryPipeline:
 
         except Exception:
             logger.exception("Q&A delivery failed")
+
+    async def _on_demo_started(self, event: DemoStarted) -> None:
+        """Play start chime when a demo begins."""
+        try:
+            await self._tts.play_sound(self._sounds.start_chime)
+        except Exception:
+            logger.debug("Start chime playback failed", exc_info=True)
+
+    async def _on_demo_stopped(self, event: DemoStopped) -> None:
+        """Play stop tone when a demo ends."""
+        try:
+            await self._tts.play_sound(self._sounds.stop_tone)
+        except Exception:
+            logger.debug("Stop tone playback failed", exc_info=True)
+
+    async def _on_injection_detected(self, event: InjectionDetected) -> None:
+        """React to injection attempts in real-time with a spoken quip.
+
+        Rate-limited to max one quip per 15 seconds to avoid overwhelming
+        the audience. Uses pre-written quips for zero latency.
+        """
+        now = time.time()
+        if now - self._last_quip_time < 15.0:
+            return
+        self._last_quip_time = now
+
+        # Play alert sound then speak the quip
+        try:
+            await self._tts.play_sound(self._sounds.injection_alert)
+        except Exception:
+            pass
+
+        quip = random.choice(_INJECTION_QUIPS)
+        context_id = str(uuid.uuid4())[:8]
+        try:
+            await self._deliver_sentence(
+                quip, "Arbiter", context_id, "sarcastic", is_continuation=False,
+            )
+            logger.info("Injection quip delivered: %s", quip[:60])
+        except Exception:
+            logger.debug("Injection quip delivery failed", exc_info=True)
 
     async def close(self) -> None:
         """Shut down generators, TTS engine, and display server."""

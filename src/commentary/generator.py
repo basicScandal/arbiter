@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import time
+from collections.abc import AsyncGenerator
 
 from google import genai
 from google.genai import types
@@ -68,6 +69,13 @@ class CommentaryGenerator:
             when no key is available.
     """
 
+    # Emotion tags the LLM is instructed to use (must match PERSONA_PROMPT)
+    _VALID_LLM_EMOTIONS: frozenset[str] = frozenset({
+        "sarcastic", "ironic", "contempt", "surprised", "amazed",
+        "disappointed", "content", "excited", "confident", "skeptical",
+        "curious", "proud",
+    })
+
     def __init__(
         self,
         api_key: str,
@@ -77,6 +85,7 @@ class CommentaryGenerator:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         self._demo_count = 0
+        self._demo_history: list[dict[str, str]] = []
 
         # Groq fallback via OpenAI-compatible SDK
         groq_key = os.environ.get("GROQ_API_KEY", "") if groq_api_key is None else groq_api_key
@@ -138,6 +147,98 @@ class CommentaryGenerator:
             emotion_map=emotion_map,
             generated_at=time.time(),
         )
+
+    async def stream_sentences(
+        self, sanitized: SanitizedOutput,
+    ) -> AsyncGenerator[tuple[str, str, int], None]:
+        """Yield (sentence, emotion, index) as sentences complete in the LLM stream.
+
+        Tries Gemini streaming first for minimum latency — each sentence is
+        yielded the moment it's detected so TTS can start speaking while the
+        LLM is still generating. Falls back to Groq batch then static fallback.
+        """
+        self._demo_count += 1
+        user_prompt = self._build_user_prompt(sanitized, demo_number=self._demo_count)
+        self._record_demo(sanitized)
+
+        # Primary: Gemini streaming (yields sentences as they complete)
+        try:
+            async for item in self._stream_gemini_sentences(user_prompt):
+                yield item
+            return
+        except Exception:
+            logger.exception("Gemini streaming failed for team %s", sanitized.team_name)
+
+        # Fallback: Groq batch
+        full_text = ""
+        if self._groq_client is not None:
+            try:
+                logger.info("Falling back to Groq for streaming commentary")
+                full_text = await self._call_groq(user_prompt)
+            except Exception:
+                logger.exception("Groq commentary fallback also failed")
+
+        # Last resort: static
+        if not full_text.strip():
+            full_text = "Technical difficulties. Even Arbiter needs a moment."
+
+        sentences = self._split_sentences(full_text.strip())
+        for i, sentence in enumerate(sentences):
+            emotion = self._detect_sentence_emotion(sentence)
+            yield sentence, emotion, i
+
+    async def _stream_gemini_sentences(
+        self, user_prompt: str,
+    ) -> AsyncGenerator[tuple[str, str, int], None]:
+        """Stream sentences from Gemini, yielding each as its boundary is detected."""
+        temp = min(0.95, 0.8 + self._demo_count * 0.005)
+
+        if self._demo_count <= 7:
+            demo_context = "You're feeling generous — give benefit of the doubt, but still be sharp."
+        elif self._demo_count <= 15:
+            demo_context = "Classic Arbiter — sharp, fair, increasingly hard to impress."
+        else:
+            demo_context = "You've seen it all today — only genuine brilliance impresses you now."
+
+        formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
+
+        buffer = ""
+        sentence_index = 0
+
+        async with GeminiRateLimiter.default().acquire("commentary-stream"):
+            async for chunk in await self._client.aio.models.generate_content_stream(
+                model=self._model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=formatted_prompt,
+                    max_output_tokens=500,
+                    temperature=temp,
+                ),
+            ):
+                if chunk.text:
+                    buffer += chunk.text
+                    # Extract complete sentences from buffer
+                    while True:
+                        match = re.search(r'(?<=[.!?])\s+', buffer)
+                        if match:
+                            raw = buffer[:match.start()].strip()
+                            buffer = buffer[match.end():]
+                            if raw:
+                                clean, emotion = self._parse_emotion_tag(raw)
+                                if not emotion:
+                                    emotion = self._detect_sentence_emotion(clean)
+                                yield clean, emotion, sentence_index
+                                sentence_index += 1
+                        else:
+                            break
+
+        # Flush remaining buffer (last sentence may not end with whitespace)
+        if buffer.strip():
+            raw = buffer.strip()
+            clean, emotion = self._parse_emotion_tag(raw)
+            if not emotion:
+                emotion = self._detect_sentence_emotion(clean)
+            yield clean, emotion, sentence_index
 
     @GEMINI_RETRY
     async def _stream_gemini(self, user_prompt: str) -> str:
@@ -209,6 +310,18 @@ class CommentaryGenerator:
         if self._groq_client is not None:
             await self._groq_client.close()
 
+    def _record_demo(self, sanitized: SanitizedOutput) -> None:
+        """Record a demo summary for cross-demo memory."""
+        parts = [f"{len(sanitized.observations)} observations"]
+        if sanitized.injection_attempts:
+            parts.append(f"{len(sanitized.injection_attempts)} injection attempts")
+        if sanitized.demo_duration:
+            parts.append(f"{sanitized.demo_duration:.0f}s")
+        self._demo_history.append({
+            "team": sanitized.team_name,
+            "summary": ", ".join(parts),
+        })
+
     def _build_user_prompt(self, sanitized: SanitizedOutput, demo_number: int) -> str:
         """Build the user prompt from sanitized demo output.
 
@@ -228,6 +341,12 @@ class CommentaryGenerator:
 
         # Duration
         sections.append(f"### Duration\n{sanitized.demo_duration:.0f}s")
+
+        # Cross-demo memory: reference previous demos for continuity
+        if self._demo_history:
+            recent = self._demo_history[-5:]  # last 5 demos
+            history_lines = [f"- {h['team']}: {h['summary']}" for h in recent]
+            sections.append("### Earlier Demos Today\n" + "\n".join(history_lines))
 
         # Injection attempts (with roasts if available)
         if sanitized.injection_attempts:
@@ -253,6 +372,31 @@ class CommentaryGenerator:
             return []
         parts = re.split(r"(?<=[.!?])\s+", text)
         return [s.strip() for s in parts if s.strip()]
+
+    @staticmethod
+    def _parse_emotion_tag(sentence: str) -> tuple[str, str]:
+        """Extract [emotion] tag from sentence start, return (clean_sentence, emotion).
+
+        If no valid tag found, returns original sentence with empty emotion.
+        """
+        match = re.match(r'\[(\w+)\]\s*', sentence)
+        if match:
+            tag = match.group(1).lower()
+            if tag in CommentaryGenerator._VALID_LLM_EMOTIONS:
+                return sentence[match.end():], tag
+        return sentence, ""
+
+    @staticmethod
+    def _detect_sentence_emotion(sentence: str) -> str:
+        """Detect emotion: parse LLM bracket tag first, fall back to keyword matching."""
+        clean, emotion = CommentaryGenerator._parse_emotion_tag(sentence)
+        if emotion:
+            return emotion
+        lower = clean.lower()
+        for emotion, keywords in _EMOTION_KEYWORDS.items():
+            if any(kw in lower for kw in keywords):
+                return emotion
+        return "sarcastic"
 
     @staticmethod
     def _build_emotion_map(sentences: list[str]) -> dict[int, str]:
