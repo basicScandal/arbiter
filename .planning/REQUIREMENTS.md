@@ -73,31 +73,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| TEST-04 | — | Pending |
-| TEST-05 | — | Pending |
-| TEST-06 | — | Pending |
-| E2E-01 | — | Pending |
-| E2E-02 | — | Pending |
-| E2E-03 | — | Pending |
-| E2E-04 | — | Pending |
-| REL-01 | — | Pending |
-| REL-02 | — | Pending |
-| REL-03 | — | Pending |
-| RHS-01 | — | Pending |
-| RHS-02 | — | Pending |
-| RHS-03 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| DASH-03 | — | Pending |
+| TEST-01 | Phase 7 | Pending |
+| TEST-02 | Phase 7 | Pending |
+| TEST-03 | Phase 7 | Pending |
+| TEST-04 | Phase 7 | Pending |
+| TEST-05 | Phase 7 | Pending |
+| TEST-06 | Phase 7 | Pending |
+| E2E-01 | Phase 8 | Pending |
+| E2E-02 | Phase 8 | Pending |
+| E2E-03 | Phase 8 | Pending |
+| E2E-04 | Phase 8 | Pending |
+| REL-01 | Phase 9 | Pending |
+| REL-02 | Phase 9 | Pending |
+| REL-03 | Phase 9 | Pending |
+| RHS-01 | Phase 9 | Pending |
+| RHS-02 | Phase 9 | Pending |
+| RHS-03 | Phase 9 | Pending |
+| DASH-01 | Phase 10 | Pending |
+| DASH-02 | Phase 10 | Pending |
+| DASH-03 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-17*
-*Last updated: 2026-02-17 after initial definition*
+*Last updated: 2026-02-17 after roadmap creation*
