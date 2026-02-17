@@ -26,7 +26,22 @@ Arbiter must produce fair, defensible scores that hold up alongside human judge 
 
 ### Active
 
-(None — v1.0 shipped. Define new requirements with `/gsd:new-milestone`)
+- [ ] E2E integration tests across full pipeline (capture → defense → commentary → scoring → deliberation)
+- [ ] Rehearsal/dry-run mode for testing without live camera
+- [ ] Groq fallback for scoring pipeline (not just commentary)
+- [ ] MoE ensemble scoring tested end-to-end with real multi-provider flow
+- [ ] Operator web dashboard hardening (reconnect, shortcuts, status indicators)
+
+## Current Milestone: v1.1 Reliability & Polish
+
+**Goal:** Harden the system for live event reliability — full test coverage, rehearsal mode, fallback coverage, MoE ensemble e2e, and operator dashboard polish.
+
+**Target features:**
+- E2E integration tests across the full pipeline
+- Rehearsal/dry-run mode against recorded or synthetic demos
+- Groq fallback for scoring (extending the commentary pattern)
+- MoE multi-provider scoring wired and tested end-to-end
+- Operator dashboard polish (WebSocket reconnect, keyboard shortcuts, status)
 
 ### Out of Scope
 
@@ -41,7 +56,7 @@ Arbiter must produce fair, defensible scores that hold up alongside human judge 
 ## Context
 
 Shipped v1.0 with 6,141 LOC Python across 113 files.
-Tech stack: Python 3.12, Gemini 2.0/2.5 Flash, Cartesia TTS, OpenCV, PyAudio, FastAPI, Textual TUI.
+Tech stack: Python 3.13, Gemini 2.0/2.5 Flash, Cartesia TTS, OpenCV, PyAudio, FastAPI, React + Vite (operator dashboard).
 Architecture: Event-driven async pipeline with 4 isolated Gemini clients (defense, commentary, scoring, deliberation).
 Built in 2 days (2026-02-15 → 2026-02-16), 19 plans across 6 phases.
 
@@ -73,8 +88,9 @@ Built in 2 days (2026-02-15 → 2026-02-16), 19 plans across 6 phases.
 | Hand-rolled async event bus | Lightweight alternative to external library, asyncio.create_task dispatch | ✓ Good — 8 publishers, 20 subscribers, 16 event types |
 | Cartesia WebSocket TTS with macOS say fallback | Primary quality TTS with offline fallback chain | ✓ Good — graceful degradation verified |
 | Python-computed scores (never trust LLM arithmetic) | LLM provides qualitative assessment, Python computes weighted totals | ✓ Good — eliminates score manipulation risk |
-| Textual TUI over stdin CLI | Rich operator interface with keybindings and visual feedback | ✓ Good — replaced basic input() loop |
+| Textual TUI → React web dashboard | Rich operator interface with keybindings and visual feedback | ✓ Good — replaced TUI with web dashboard post-v1.0 |
+| Groq fallback for commentary | Gemini rate-limited at scale; Groq provides fast fallback | ✓ Good — transparent failover, no quality loss |
 | Detached asyncio tasks for display/reveals | Score reveals and display pushes must not block event bus | ✓ Good — consistent pattern across scoring and deliberation |
 
 ---
-*Last updated: 2026-02-16 after v1.0 milestone*
+*Last updated: 2026-02-17 after v1.1 milestone start*
