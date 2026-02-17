@@ -65,6 +65,12 @@ INJECTION_PATTERNS: list[InjectionPattern] = [
         severity="medium",
         category="role_manipulation",
     ),
+    InjectionPattern(
+        name="prompt_override",
+        pattern=r"(?i)\b(override|overwrite|replace|bypass|reset)\b.{0,20}\b(system|initial|original|scoring)?\s*(prompt|instructions?|rules?|config)\b",
+        severity="high",
+        category="instruction_override",
+    ),
     # --- extraction (medium severity) ---
     InjectionPattern(
         name="prompt_extraction",
