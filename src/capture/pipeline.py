@@ -100,6 +100,8 @@ class CapturePipeline:
                 providers.append(create_provider("claude", config.anthropic_api_key))
             if config.openai_api_key:
                 providers.append(create_provider("openai", config.openai_api_key))
+            if config.groq_api_key:
+                providers.append(create_provider("groq", config.groq_api_key))
             if len(providers) >= 2:
                 moe_engine = MoEScoringEngine(providers)
                 logger.info("MoE scoring enabled with %d providers: %s",

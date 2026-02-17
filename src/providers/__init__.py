@@ -22,6 +22,7 @@ from src.providers.base import LLMProvider
 from src.providers.claude_provider import ClaudeProvider
 from src.providers.factory import create_provider
 from src.providers.gemini_provider import GeminiProvider
+from src.providers.groq_provider import GroqProvider
 from src.providers.openai_provider import OpenAIProvider
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "GeminiProvider",
     "ClaudeProvider",
     "OpenAIProvider",
+    "GroqProvider",
     "create_provider",
 ]

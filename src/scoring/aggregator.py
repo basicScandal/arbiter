@@ -18,6 +18,7 @@ DEFAULT_CALIBRATION: dict[str, dict[str, float]] = {
     "gemini": {"temperature": 1.1, "bias": -0.2},
     "claude": {"temperature": 1.2, "bias": 0.0},
     "openai": {"temperature": 1.5, "bias": 0.3},
+    "groq": {"temperature": 1.0, "bias": 0.0},  # Neutral defaults — needs empirical calibration
 }
 
 OUTLIER_THRESHOLD = 2.0  # Points from median to flag as outlier

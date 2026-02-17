@@ -9,6 +9,7 @@ from __future__ import annotations
 from src.providers.base import LLMProvider
 from src.providers.claude_provider import ClaudeProvider
 from src.providers.gemini_provider import GeminiProvider
+from src.providers.groq_provider import GroqProvider
 from src.providers.openai_provider import OpenAIProvider
 
 
@@ -33,8 +34,10 @@ def create_provider(name: str, api_key: str) -> LLMProvider:
         return ClaudeProvider(api_key=api_key)
     elif name_lower == "openai":
         return OpenAIProvider(api_key=api_key)
+    elif name_lower == "groq":
+        return GroqProvider(api_key=api_key)
     else:
         raise ValueError(
             f"Unknown provider name: {name}. "
-            f"Supported providers: gemini, claude, openai"
+            f"Supported providers: gemini, claude, openai, groq"
         )
