@@ -86,6 +86,7 @@ class CapturePipeline:
             display_host=config.display_host,
             display_port=config.display_port,
             enrichment_provider=enrichment_provider,
+            groq_api_key=config.groq_api_key,
         )
 
         # Build MoE scoring providers if configured

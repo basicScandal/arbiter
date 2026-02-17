@@ -1,16 +1,21 @@
-"""Q&A question generator using Gemini for targeted post-demo questioning.
+"""Q&A question generator with Gemini primary and Groq fallback.
 
 When human judges defer a Q&A question to Arbiter, this generator produces
 1-2 pointed technical questions based on the sanitized demo observations.
 Uses non-streaming generation since Q&A questions are short.
+
+Falls back to Groq (Llama 3.3 70B) when Gemini is unavailable due to
+rate limits or errors, then to a static fallback question as last resort.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 
 from google import genai
 from google.genai import types
+from openai import AsyncOpenAI
 
 from src.commentary.models import QAQuestion
 from src.commentary.prompts import QA_PROMPT
@@ -19,24 +24,49 @@ from src.resilience.retry import GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
 
+_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+_GROQ_MODEL = "llama-3.3-70b-versatile"
+
 
 class QAGenerator:
     """Generates targeted Q&A questions from sanitized demo output.
 
-    Uses Gemini non-streaming generation with QA_PROMPT as system
-    instruction. Each call is independent -- no chat history accumulates.
+    Uses Gemini as primary provider with Groq as fallback when Gemini
+    is rate-limited or unavailable. Each call is independent -- no chat
+    history accumulates.
 
     Args:
         api_key: Gemini API key.
         model: Gemini model name for generation.
+        groq_api_key: Optional Groq API key. If not provided, reads
+            GROQ_API_KEY from environment. Groq fallback is disabled
+            when no key is available.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gemini-2.5-flash",
+        groq_api_key: str | None = None,
+    ) -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
 
+        # Groq fallback via OpenAI-compatible SDK
+        groq_key = groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        if groq_key:
+            self._groq_client: AsyncOpenAI | None = AsyncOpenAI(
+                api_key=groq_key, base_url=_GROQ_BASE_URL
+            )
+            logger.info("Groq fallback enabled for QA generation")
+        else:
+            self._groq_client = None
+
     async def generate(self, sanitized: SanitizedOutput) -> list[QAQuestion]:
         """Generate pointed Q&A questions for a completed demo.
+
+        Tries Gemini first, falls back to Groq, then to a static
+        fallback question as last resort.
 
         Args:
             sanitized: Clean observations and transcripts from the defense
@@ -47,20 +77,29 @@ class QAGenerator:
         """
         user_prompt = self._build_user_prompt(sanitized)
 
+        # Primary: Gemini
         try:
             raw_text = await self._call_gemini(user_prompt)
             questions = self._parse_questions(raw_text, sanitized.team_name)
-
-            if not questions:
-                return self._fallback_questions()
-
-            return questions
-
+            if questions:
+                return questions
         except Exception:
             logger.exception(
-                "Q&A generation failed for team %s", sanitized.team_name
+                "Gemini Q&A generation failed for team %s", sanitized.team_name
             )
-            return self._fallback_questions()
+
+        # Fallback: Groq
+        if self._groq_client is not None:
+            try:
+                logger.info("Falling back to Groq for Q&A generation")
+                raw_text = await self._call_groq(user_prompt)
+                questions = self._parse_questions(raw_text, sanitized.team_name)
+                if questions:
+                    return questions
+            except Exception:
+                logger.exception("Groq Q&A fallback also failed")
+
+        return self._fallback_questions()
 
     @GEMINI_RETRY
     async def _call_gemini(self, user_prompt: str) -> str:
@@ -88,6 +127,22 @@ class QAGenerator:
                 )
 
         return response.text or ""
+
+    async def _call_groq(self, user_prompt: str) -> str:
+        """Call Groq via OpenAI-compatible API and return the response text."""
+        assert self._groq_client is not None
+        response = await self._groq_client.chat.completions.create(
+            model=_GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": QA_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=500,
+            temperature=0.7,
+        )
+        if response.choices:
+            return response.choices[0].message.content or ""
+        return ""
 
     @staticmethod
     def _parse_questions(raw_text: str, team_name: str) -> list[QAQuestion]:

@@ -279,6 +279,7 @@ class TestFallback:
     async def test_generate_returns_fallback_on_api_error(
         self, sanitized: SanitizedOutput
     ) -> None:
+        """With no Groq configured, Gemini failure returns static fallback."""
         gen = QAGenerator(api_key="fake-key")
         with patch.object(
             gen, "_call_gemini", side_effect=RuntimeError("API down")
@@ -296,6 +297,58 @@ class TestFallback:
             questions = await gen.generate(sanitized)
         assert len(questions) == 1
         assert questions[0].context == "fallback"
+
+    @pytest.mark.asyncio
+    async def test_groq_fallback_on_gemini_failure(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """When Gemini fails, Groq should be tried before static fallback."""
+        gen = QAGenerator(api_key="fake-key", groq_api_key="fake-groq-key")
+
+        groq_response = "What is your key rotation strategy for those hardcoded API keys?"
+
+        with (
+            patch.object(gen, "_call_gemini", side_effect=RuntimeError("Gemini 429")),
+            patch.object(gen, "_call_groq", return_value=groq_response),
+        ):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == 1
+        assert "key rotation" in questions[0].text
+        assert questions[0].context == "CyberFalcons"
+
+    @pytest.mark.asyncio
+    async def test_static_fallback_when_both_fail(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """When both Gemini and Groq fail, static fallback is returned."""
+        gen = QAGenerator(api_key="fake-key", groq_api_key="fake-groq-key")
+
+        with (
+            patch.object(gen, "_call_gemini", side_effect=RuntimeError("Gemini down")),
+            patch.object(gen, "_call_groq", side_effect=RuntimeError("Groq down")),
+        ):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == 1
+        assert questions[0].context == "fallback"
+
+    @pytest.mark.asyncio
+    async def test_groq_not_called_when_gemini_succeeds(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Groq should not be called when Gemini succeeds."""
+        gen = QAGenerator(api_key="fake-key", groq_api_key="fake-groq-key")
+
+        with (
+            patch.object(gen, "_call_gemini", return_value="How does your auth work?"),
+            patch.object(gen, "_call_groq") as mock_groq,
+        ):
+            questions = await gen.generate(sanitized)
+
+        mock_groq.assert_not_called()
+        assert len(questions) == 1
+        assert "auth" in questions[0].text
 
 
 # ---------------------------------------------------------------------------

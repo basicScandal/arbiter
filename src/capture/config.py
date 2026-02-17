@@ -35,6 +35,7 @@ class CaptureConfig(BaseModel):
     # MoE multi-model scoring and commentary enrichment
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    groq_api_key: str = ""
     moe_scoring_enabled: bool = False
     commentary_enrichment_enabled: bool = False
 
@@ -70,6 +71,7 @@ def load_config() -> CaptureConfig:
         display_port=int(os.getenv("DISPLAY_PORT", "8080")),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        groq_api_key=os.getenv("GROQ_API_KEY", ""),
         moe_scoring_enabled=os.getenv("MOE_SCORING_ENABLED", "").lower() in ("true", "1", "yes"),
         commentary_enrichment_enabled=os.getenv("COMMENTARY_ENRICHMENT_ENABLED", "").lower() in ("true", "1", "yes"),
     )

@@ -50,9 +50,10 @@ class CommentaryPipeline:
         display_host: str = "0.0.0.0",
         display_port: int = 8080,
         enrichment_provider: LLMProvider | None = None,
+        groq_api_key: str = "",
     ) -> None:
         self._generator = CommentaryGenerator(api_key=api_key)
-        self._qa_generator = QAGenerator(api_key=api_key)
+        self._qa_generator = QAGenerator(api_key=api_key, groq_api_key=groq_api_key or None)
         self._enricher: CommentaryEnricher | None = (
             CommentaryEnricher(enrichment_provider) if enrichment_provider else None
         )
