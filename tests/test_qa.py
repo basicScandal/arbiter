@@ -100,16 +100,16 @@ class TestParseQuestions:
         assert "zero-day" in result[1].text
 
     def test_two_questions_on_separate_lines_no_blank(self) -> None:
-        """Without blank lines, consecutive lines merge into one question."""
+        """Two questions on consecutive lines (each ending with '?') split correctly."""
         raw = (
             "How does your encryption handle key rotation?\n"
             "What happens when the ML model encounters a zero-day payload?"
         )
         result = QAGenerator._parse_questions(raw, "TestTeam")
-        # Consecutive lines without a blank line → joined into one question
-        assert len(result) == 1
+        # Each line ends with '?' → split into separate questions
+        assert len(result) == 2
         assert "key rotation?" in result[0].text
-        assert "zero-day" in result[0].text
+        assert "zero-day" in result[1].text
 
     def test_multiline_wrapped_question(self) -> None:
         """A single long question wrapped across multiple lines joins properly."""
@@ -160,10 +160,62 @@ class TestParseQuestions:
         assert len(result) == 2
 
     def test_strips_individual_lines(self) -> None:
+        """Lines ending with '?' are each treated as a complete question."""
         raw = "  How does it work?  \n  And what about edge cases?  "
         result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 2
+        assert result[0].text == "How does it work?"
+        assert result[1].text == "And what about edge cases?"
+
+
+    def test_numbered_questions_stripped(self) -> None:
+        """Numbered prefixes (e.g. '1. ') are stripped from questions."""
+        raw = "1. How does your encryption handle key rotation?\n2. What's your deployment strategy?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 2
+        assert result[0].text == "How does your encryption handle key rotation?"
+        assert result[1].text == "What's your deployment strategy?"
+
+    def test_numbered_parenthesis_stripped(self) -> None:
+        """Numbered prefixes with parenthesis (e.g. '1) ') are stripped."""
+        raw = "1) How does it work?\n2) What could go wrong?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 2
+        assert result[0].text == "How does it work?"
+        assert result[1].text == "What could go wrong?"
+
+    def test_bulleted_questions_stripped(self) -> None:
+        """Bullet prefixes ('- ' or '* ') are stripped from questions."""
+        raw = "- How does it handle failures?\n- What about scalability?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 2
+        assert result[0].text == "How does it handle failures?"
+        assert result[1].text == "What about scalability?"
+
+    def test_question_without_trailing_question_mark(self) -> None:
+        """A question without '?' at end is still captured on flush."""
+        raw = "Explain your key management approach"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
         assert len(result) == 1
-        assert result[0].text == "How does it work? And what about edge cases?"
+        assert result[0].text == "Explain your key management approach"
+
+    def test_mixed_question_and_statement_lines(self) -> None:
+        """Lines without '?' are joined to the next question-ending line."""
+        raw = (
+            "Given your claim of 99.7% accuracy,\n"
+            "how did you handle adversarial samples?"
+        )
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 1
+        assert result[0].text == "Given your claim of 99.7% accuracy, how did you handle adversarial samples?"
+
+    def test_numbered_with_blank_line_separators(self) -> None:
+        """Numbered questions with blank lines between them parse correctly."""
+        raw = "1. How does it work?\n\n2. What could go wrong?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 2
+        assert result[0].text == "How does it work?"
+        assert result[1].text == "What could go wrong?"
 
 
 # ---------------------------------------------------------------------------
@@ -467,3 +519,66 @@ class TestPipelineDelivery:
         pushed_text = pipeline._display.push_question.call_args_list[0].args[0]
         assert pushed_text == long_question
         assert len(pushed_text) > 150
+
+    @pytest.mark.asyncio
+    async def test_consecutive_line_questions_both_reach_display(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Regression: two questions on consecutive lines (no blank separator)
+        must BOTH reach the display as separate push_question calls."""
+        from src.commentary.models import QARequested
+        from src.commentary.pipeline import CommentaryPipeline
+        from src.resilience.health import default_health
+
+        default_health.mark_unhealthy("cartesia_tts")
+
+        pipeline = CommentaryPipeline.__new__(CommentaryPipeline)
+        pipeline._last_sanitized = sanitized
+        pipeline._qa_generator = QAGenerator(api_key="fake-key")
+        pipeline._tts = MagicMock()
+        pipeline._display = MagicMock()
+        pipeline._display.push_question = AsyncMock()
+
+        # Gemini outputs two questions on consecutive lines (no blank line)
+        q1 = "How did you validate the accuracy claim?"
+        q2 = "What's your key rotation strategy?"
+        raw = f"{q1}\n{q2}"
+
+        with patch.object(pipeline._qa_generator, "_call_gemini", return_value=raw):
+            event = QARequested(team_name="CyberFalcons")
+            await pipeline._on_qa_requested(event)
+
+        assert pipeline._display.push_question.call_count == 2
+        calls = pipeline._display.push_question.call_args_list
+        assert calls[0].args == (q1, "CyberFalcons")
+        assert calls[1].args == (q2, "CyberFalcons")
+
+    @pytest.mark.asyncio
+    async def test_numbered_questions_reach_display_stripped(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Numbered questions from Gemini have prefixes stripped before display."""
+        from src.commentary.models import QARequested
+        from src.commentary.pipeline import CommentaryPipeline
+        from src.resilience.health import default_health
+
+        default_health.mark_unhealthy("cartesia_tts")
+
+        pipeline = CommentaryPipeline.__new__(CommentaryPipeline)
+        pipeline._last_sanitized = sanitized
+        pipeline._qa_generator = QAGenerator(api_key="fake-key")
+        pipeline._tts = MagicMock()
+        pipeline._display = MagicMock()
+        pipeline._display.push_question = AsyncMock()
+
+        raw = "1. How did you validate the accuracy claim?\n2. What's your key rotation strategy?"
+
+        with patch.object(pipeline._qa_generator, "_call_gemini", return_value=raw):
+            event = QARequested(team_name="CyberFalcons")
+            await pipeline._on_qa_requested(event)
+
+        assert pipeline._display.push_question.call_count == 2
+        calls = pipeline._display.push_question.call_args_list
+        # Numbering should be stripped
+        assert calls[0].args == ("How did you validate the accuracy claim?", "CyberFalcons")
+        assert calls[1].args == ("What's your key rotation strategy?", "CyberFalcons")

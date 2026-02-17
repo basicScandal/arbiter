@@ -93,22 +93,35 @@ class QAGenerator:
     def _parse_questions(raw_text: str, team_name: str) -> list[QAQuestion]:
         """Parse raw Gemini output into QAQuestion objects.
 
-        Handles multi-line questions by joining lines that don't look like
-        the start of a new question. A new question starts after a blank
-        line or when the text ends.
+        Handles three output formats from the LLM:
+        1. Questions separated by blank lines (intended format).
+        2. Questions on consecutive lines each ending with '?'.
+        3. Numbered/bulleted questions (strips the prefix).
+
+        Multi-line questions (a single question wrapped across lines)
+        are joined when intermediate lines don't end with '?'.
         """
+        import re
+
         raw_text = raw_text.strip()
         if not raw_text:
             return []
 
-        # Split into lines and group into questions.
-        # Blank lines separate questions; consecutive non-blank lines
-        # belong to the same question (handles line-wrapped output).
+        # Strip common numbering/bullet prefixes: "1. ", "1) ", "- ", "* "
+        cleaned_lines: list[str] = []
+        for line in raw_text.split("\n"):
+            stripped = line.strip()
+            stripped = re.sub(r"^\d+[.)]\s+", "", stripped)
+            stripped = re.sub(r"^[-*]\s+", "", stripped)
+            cleaned_lines.append(stripped)
+
+        # Group lines into questions.
+        # Blank lines are always a question boundary.
+        # A non-blank line ending with '?' also ends the current question.
         questions: list[QAQuestion] = []
         current_lines: list[str] = []
 
-        for line in raw_text.split("\n"):
-            stripped = line.strip()
+        for stripped in cleaned_lines:
             if not stripped:
                 # Blank line = question boundary
                 if current_lines:
@@ -121,8 +134,17 @@ class QAGenerator:
                     current_lines = []
             else:
                 current_lines.append(stripped)
+                # If the line ends with '?', flush as a complete question
+                if stripped.endswith("?"):
+                    questions.append(
+                        QAQuestion(
+                            text=" ".join(current_lines),
+                            context=team_name,
+                        )
+                    )
+                    current_lines = []
 
-        # Flush the last question
+        # Flush any remaining lines (question without trailing '?')
         if current_lines:
             questions.append(
                 QAQuestion(

@@ -84,5 +84,6 @@ bold claims.
 - If something was clearly missing, ask why.
 
 OUTPUT FORMAT:
-One question per line. Plain text only. No numbering, no bullet points.
+One question per paragraph. Separate questions with a blank line. Plain text \
+only. No numbering, no bullet points.
 """
