@@ -27,18 +27,45 @@ from tests.helpers.event_collector import EventCollector
 def _reset_singletons():
     """Reset all module-level singletons before and after each test.
 
-    Prevents state leakage between tests by replacing module-level singleton
-    instances with fresh objects. Covers:
+    Clears state in-place on the original singleton objects so that ALL
+    references stay valid -- both module-attribute reads and import-time
+    name bindings (e.g. ``from src.resilience.health import default_health``
+    in pipeline.py). We also ensure the module attribute points to the
+    canonical object in case a test replaced it.
+
+    Covers:
     - EventBus (default_bus) -- subscribers and pending events
     - ServiceHealth (default_health) -- health/failure state
     - GeminiRateLimiter (_instance) -- semaphore state
     """
-    event_bus_module.default_bus = EventBus()
-    health_module.default_health = ServiceHealth()
-    GeminiRateLimiter._instance = None
+    _do_reset()
     yield
-    event_bus_module.default_bus = EventBus()
-    health_module.default_health = ServiceHealth()
+    _do_reset()
+
+
+# Keep references to the original singletons captured at import time.
+# These are the same objects that other modules bind when they do
+# ``from src.resilience.health import default_health`` at module level.
+_original_bus = event_bus_module.default_bus
+_original_health = health_module.default_health
+
+
+def _do_reset() -> None:
+    """Clear singleton state in-place and restore module attributes."""
+    # Clear EventBus state in-place
+    _original_bus._subscribers.clear()
+    _original_bus._global_subscribers.clear()
+    # Ensure the module attribute points to the canonical object
+    event_bus_module.default_bus = _original_bus
+
+    # Clear ServiceHealth state in-place
+    _original_health._healthy.clear()
+    _original_health._last_failure.clear()
+    _original_health._failure_count.clear()
+    # Ensure the module attribute points to the canonical object
+    health_module.default_health = _original_health
+
+    # GeminiRateLimiter uses class-level singleton, no import-time binding issue
     GeminiRateLimiter._instance = None
 
 
