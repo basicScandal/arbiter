@@ -7,6 +7,7 @@ describe("operatorStore", () => {
     vi.useFakeTimers();
     useOperatorStore.setState({
       connected: false,
+      connectionState: "connecting",
       demoState: "idle",
       teamName: "",
       track: "",
@@ -14,6 +15,8 @@ describe("operatorStore", () => {
       counters: { frames: 0, transcripts: 0, attacks: 0, clean: 0 },
       events: [],
       lastCommandResult: null,
+      health: {},
+      lastScorecard: null,
     });
   });
 

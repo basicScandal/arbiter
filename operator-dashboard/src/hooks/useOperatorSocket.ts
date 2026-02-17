@@ -6,7 +6,7 @@ const MAX_BACKOFF_MS = 10_000;
 
 export function useOperatorSocket() {
   const dispatch = useOperatorStore((s) => s.dispatch);
-  const setConnected = useOperatorStore((s) => s.setConnected);
+  const setConnectionState = useOperatorStore((s) => s.setConnectionState);
   const setSendCommand = useOperatorStore((s) => s.setSendCommand);
   const wsRef = useRef<WebSocket | null>(null);
   const backoffRef = useRef(1000);
@@ -35,7 +35,7 @@ export function useOperatorSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setConnected(true);
+        setConnectionState('connected');
         backoffRef.current = 1000;
       };
 
@@ -49,7 +49,7 @@ export function useOperatorSocket() {
       };
 
       ws.onclose = () => {
-        setConnected(false);
+        setConnectionState('reconnecting');
         wsRef.current = null;
         if (!unmounted) {
           reconnectTimer = setTimeout(() => {
@@ -74,5 +74,5 @@ export function useOperatorSocket() {
       clearTimeout(reconnectTimer);
       wsRef.current?.close();
     };
-  }, [dispatch, setConnected]);
+  }, [dispatch, setConnectionState]);
 }

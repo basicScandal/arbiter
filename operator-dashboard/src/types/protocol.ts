@@ -36,4 +36,9 @@ export interface CommandResultMessage {
   message: string;
 }
 
-export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage;
+export interface HealthMessage {
+  type: 'health';
+  services: Record<string, boolean>;
+}
+
+export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage | HealthMessage;

@@ -10,6 +10,7 @@ export interface EventEntry {
 
 export interface OperatorState {
   connected: boolean;
+  connectionState: 'connecting' | 'connected' | 'reconnecting';
   demoState: 'idle' | 'capturing' | 'paused' | 'stopped';
   teamName: string;
   track: string;
@@ -22,9 +23,18 @@ export interface OperatorState {
   };
   events: EventEntry[];
   lastCommandResult: { success: boolean; message: string; } | null;
+  health: Record<string, boolean>;
+  lastScorecard: {
+    team_name: string;
+    track: string;
+    total_score: number;
+    criteria: Array<{name: string; score: number; weight: number; justification: string}>;
+    track_bonus: {name: string; score: number; weight: number; justification: string} | null;
+  } | null;
   sendCommand: (action: string, params?: Record<string, string>) => void;
   dispatch: (msg: ServerMessage) => void;
   setConnected: (connected: boolean) => void;
+  setConnectionState: (state: 'connecting' | 'connected' | 'reconnecting') => void;
   setSendCommand: (fn: (action: string, params?: Record<string, string>) => void) => void;
 }
 
@@ -32,6 +42,7 @@ let eventIdCounter = 0;
 
 export const useOperatorStore = create<OperatorState>((set) => ({
   connected: false,
+  connectionState: 'connecting',
   demoState: 'idle',
   teamName: '',
   track: '',
@@ -44,9 +55,12 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   },
   events: [],
   lastCommandResult: null,
+  health: {},
+  lastScorecard: null,
   sendCommand: () => {},
 
-  setConnected: (connected) => set({ connected }),
+  setConnected: (connected) => set({ connected, connectionState: connected ? 'connected' : 'reconnecting' }),
+  setConnectionState: (connectionState) => set({ connectionState, connected: connectionState === 'connected' }),
   setSendCommand: (fn) => set({ sendCommand: fn }),
 
   dispatch: (msg) => {
@@ -60,7 +74,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
         });
         break;
 
-      case 'event':
+      case 'event': {
         set((state) => ({
           events: [
             {
@@ -72,7 +86,12 @@ export const useOperatorStore = create<OperatorState>((set) => ({
             ...state.events,
           ].slice(0, 200),
         }));
+        // Extract scorecard from scoring_complete events
+        if (msg.event_type === 'scoring_complete' && msg.data?.scorecard) {
+          set({ lastScorecard: msg.data.scorecard as OperatorState['lastScorecard'] });
+        }
         break;
+      }
 
       case 'counters':
         set({
@@ -83,6 +102,10 @@ export const useOperatorStore = create<OperatorState>((set) => ({
             clean: msg.clean,
           },
         });
+        break;
+
+      case 'health':
+        set({ health: msg.services });
         break;
 
       case 'command_result':
