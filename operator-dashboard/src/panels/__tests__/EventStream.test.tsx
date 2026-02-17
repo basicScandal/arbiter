@@ -9,150 +9,100 @@ describe("EventStream", () => {
     useOperatorStore.setState({ events: [] });
   });
 
-  it("shows 'No events yet' when empty", () => {
+  it("shows empty state message when no events", () => {
     render(<EventStream />);
-    expect(screen.getByText("No events yet")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting neural activity...")).toBeInTheDocument();
   });
 
-  it("renders EVENT STREAM heading", () => {
+  it("renders NEURAL FEED heading", () => {
     render(<EventStream />);
-    expect(screen.getByText("EVENT STREAM")).toBeInTheDocument();
+    expect(screen.getByText("NEURAL FEED")).toBeInTheDocument();
   });
 
-  it("renders events with event_type", () => {
+  it("renders known event types with semantic labels", () => {
     const events: EventEntry[] = [
-      { id: 1, event_type: "frame_captured", timestamp: 1700000000 },
-      { id: 0, event_type: "session_start", timestamp: 1699999900 },
+      { id: 1, event_type: "key_frame_detected", timestamp: 1700000000 },
+      { id: 0, event_type: "transcript_received", timestamp: 1699999900 },
     ];
     useOperatorStore.setState({ events });
     render(<EventStream />);
-    expect(screen.getByText("frame_captured")).toBeInTheDocument();
-    expect(screen.getByText("session_start")).toBeInTheDocument();
+    expect(screen.getByText("Key frame")).toBeInTheDocument();
+    expect(screen.getByText("Transcript")).toBeInTheDocument();
   });
 
-  it("renders timestamps formatted from unix seconds", () => {
+  it("renders unknown event types as fallback label", () => {
     const events: EventEntry[] = [
-      { id: 0, event_type: "test", timestamp: 1700000000 },
+      { id: 0, event_type: "custom_event", timestamp: 1700000000 },
     ];
     useOperatorStore.setState({ events });
     render(<EventStream />);
-    // Timestamp 1700000000 should be rendered as a time string
-    // The exact format depends on locale, so just check it exists and isn't the raw number
-    const timeElements = document.querySelectorAll(".text-arbiter-muted.shrink-0");
+    expect(screen.getByText("custom_event")).toBeInTheDocument();
+  });
+
+  it("renders timestamps", () => {
+    const events: EventEntry[] = [
+      { id: 0, event_type: "demo_started", timestamp: 1700000000 },
+    ];
+    useOperatorStore.setState({ events });
+    render(<EventStream />);
+    const timeElements = document.querySelectorAll(".text-text-dim.shrink-0");
     expect(timeElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders event data as JSON", () => {
+  it("does not render detail span when no data", () => {
+    const events: EventEntry[] = [
+      { id: 0, event_type: "key_frame_detected", timestamp: 1700000000 },
+    ];
+    useOperatorStore.setState({ events });
+    render(<EventStream />);
+    const truncateSpans = document.querySelectorAll(".text-text-secondary.truncate");
+    expect(truncateSpans).toHaveLength(0);
+  });
+
+  it("formats commentary events with text detail", () => {
     const events: EventEntry[] = [
       {
         id: 0,
-        event_type: "test",
+        event_type: "commentary_delivered",
         timestamp: 1700000000,
-        data: { key: "value" },
+        data: { text: "Great presentation by the team" },
       },
     ];
     useOperatorStore.setState({ events });
     render(<EventStream />);
-    expect(screen.getByText('{"key":"value"}')).toBeInTheDocument();
+    expect(screen.getByText("Great presentation by the team")).toBeInTheDocument();
   });
 
-  it("does not render data span when no data", () => {
+  it("formats injection events with type and confidence", () => {
     const events: EventEntry[] = [
-      { id: 0, event_type: "test", timestamp: 1700000000 },
+      {
+        id: 0,
+        event_type: "injection_detected",
+        timestamp: 1700000000,
+        data: { attempt: { injection_type: "visual_overlay", confidence: 0.92 } },
+      },
     ];
     useOperatorStore.setState({ events });
     render(<EventStream />);
-    const truncateSpans = document.querySelectorAll(".text-arbiter-text.truncate");
-    expect(truncateSpans).toHaveLength(0);
+    expect(screen.getByText("visual_overlay (0.92)")).toBeInTheDocument();
   });
 
-  describe("color coding", () => {
-    it("error events get red color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "parse_error", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("parse_error");
-      expect(el.className).toContain("text-arbiter-red");
-    });
+  it("renders semantic icons for known events", () => {
+    const events: EventEntry[] = [
+      { id: 0, event_type: "injection_detected", timestamp: 1700000000, data: { attempt: { injection_type: "test", confidence: 0.5 } } },
+    ];
+    useOperatorStore.setState({ events });
+    render(<EventStream />);
+    expect(screen.getByText("INJECTION")).toBeInTheDocument();
+  });
 
-    it("fail events get red color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "auth_fail", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("auth_fail");
-      expect(el.className).toContain("text-arbiter-red");
-    });
-
-    it("warning events get yellow color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "rate_warning", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("rate_warning");
-      expect(el.className).toContain("text-arbiter-yellow");
-    });
-
-    it("warn events get yellow color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "buffer_warn", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("buffer_warn");
-      expect(el.className).toContain("text-arbiter-yellow");
-    });
-
-    it("injection events get purple color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "prompt_injection", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("prompt_injection");
-      expect(el.className).toContain("text-arbiter-purple");
-    });
-
-    it("defense events get purple color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "defense_triggered", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("defense_triggered");
-      expect(el.className).toContain("text-arbiter-purple");
-    });
-
-    it("attack events get purple color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "attack_detected", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("attack_detected");
-      expect(el.className).toContain("text-arbiter-purple");
-    });
-
-    it("default events get green color class", () => {
-      useOperatorStore.setState({
-        events: [
-          { id: 0, event_type: "frame_captured", timestamp: 1700000000 },
-        ],
-      });
-      render(<EventStream />);
-      const el = screen.getByText("frame_captured");
-      expect(el.className).toContain("text-arbiter-green");
-    });
+  it("applies injection styling to injection events", () => {
+    const events: EventEntry[] = [
+      { id: 0, event_type: "injection_detected", timestamp: 1700000000, data: { attempt: { injection_type: "test", confidence: 0.5 } } },
+    ];
+    useOperatorStore.setState({ events });
+    render(<EventStream />);
+    const injectionRow = document.querySelector(".bg-event-injection\\/5");
+    expect(injectionRow).toBeInTheDocument();
   });
 });

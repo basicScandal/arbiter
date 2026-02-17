@@ -5,10 +5,10 @@ export function ConnectionDot() {
 
   return (
     <span
-      className={`inline-block w-3.5 h-3.5 rounded-full ${
+      className={`inline-block w-2 h-2 rounded-full ${
         connected
-          ? "bg-arbiter-green animate-dot-pulse"
-          : "bg-arbiter-red"
+          ? "bg-accent-capturing animate-dot-pulse"
+          : "bg-event-injection"
       }`}
       title={connected ? "Connected" : "Disconnected"}
     />

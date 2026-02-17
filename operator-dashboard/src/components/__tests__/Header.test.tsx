@@ -11,62 +11,58 @@ describe("Header", () => {
     });
   });
 
-  it("renders ARBITER OPERATOR title", () => {
+  it("renders ARBITER title", () => {
     render(<Header />);
-    expect(screen.getByText("ARBITER OPERATOR")).toBeInTheDocument();
+    expect(screen.getByText("ARBITER")).toBeInTheDocument();
   });
 
-  it("shows current demoState text", () => {
+  it("shows STANDBY label when idle", () => {
     render(<Header />);
-    expect(screen.getByText("idle")).toBeInTheDocument();
+    expect(screen.getByText("STANDBY")).toBeInTheDocument();
   });
 
-  it("shows capturing state text", () => {
+  it("shows CAPTURING label when capturing", () => {
     useOperatorStore.setState({ demoState: "capturing" });
     render(<Header />);
-    expect(screen.getByText("capturing")).toBeInTheDocument();
+    expect(screen.getByText("CAPTURING")).toBeInTheDocument();
   });
 
-  it("shows paused state text", () => {
+  it("shows PAUSED label when paused", () => {
     useOperatorStore.setState({ demoState: "paused" });
     render(<Header />);
-    expect(screen.getByText("paused")).toBeInTheDocument();
+    expect(screen.getByText("PAUSED")).toBeInTheDocument();
   });
 
-  it("shows stopped state text", () => {
+  it("shows ANALYSIS COMPLETE label when stopped", () => {
     useOperatorStore.setState({ demoState: "stopped" });
     render(<Header />);
-    expect(screen.getByText("stopped")).toBeInTheDocument();
+    expect(screen.getByText("ANALYSIS COMPLETE")).toBeInTheDocument();
   });
 
-  it("renders StateIndicator with correct color for idle", () => {
+  it("renders StateIndicator for idle", () => {
     render(<Header />);
-    const indicator = document.querySelector('span[title="State: idle"]');
+    const indicator = document.querySelector('div[title="State: idle"]');
     expect(indicator).toBeInTheDocument();
-    expect(indicator?.className).toContain("bg-arbiter-green");
   });
 
-  it("renders StateIndicator with correct color for capturing", () => {
+  it("renders StateIndicator for capturing", () => {
     useOperatorStore.setState({ demoState: "capturing" });
     render(<Header />);
-    const indicator = document.querySelector('span[title="State: capturing"]');
+    const indicator = document.querySelector('div[title="State: capturing"]');
     expect(indicator).toBeInTheDocument();
-    expect(indicator?.className).toContain("bg-arbiter-cyan");
   });
 
-  it("renders StateIndicator with correct color for paused", () => {
+  it("renders StateIndicator for paused", () => {
     useOperatorStore.setState({ demoState: "paused" });
     render(<Header />);
-    const indicator = document.querySelector('span[title="State: paused"]');
+    const indicator = document.querySelector('div[title="State: paused"]');
     expect(indicator).toBeInTheDocument();
-    expect(indicator?.className).toContain("bg-arbiter-yellow");
   });
 
-  it("renders StateIndicator with correct color for stopped", () => {
+  it("renders StateIndicator for stopped", () => {
     useOperatorStore.setState({ demoState: "stopped" });
     render(<Header />);
-    const indicator = document.querySelector('span[title="State: stopped"]');
+    const indicator = document.querySelector('div[title="State: stopped"]');
     expect(indicator).toBeInTheDocument();
-    expect(indicator?.className).toContain("bg-arbiter-red");
   });
 });

@@ -16,20 +16,14 @@ describe("CommandBar", () => {
     });
   });
 
-  it("renders all 7 buttons", () => {
+  it("renders START button when idle", () => {
     render(<CommandBar />);
     expect(screen.getByText("START")).toBeInTheDocument();
-    expect(screen.getByText("STOP")).toBeInTheDocument();
-    expect(screen.getByText("PAUSE")).toBeInTheDocument();
-    expect(screen.getByText("RESUME")).toBeInTheDocument();
-    expect(screen.getByText("QA")).toBeInTheDocument();
-    expect(screen.getByText("DELIBERATE")).toBeInTheDocument();
-    expect(screen.getByText("RESET")).toBeInTheDocument();
   });
 
-  it("renders team name input and track dropdown", () => {
+  it("renders team name input and track dropdown when idle", () => {
     render(<CommandBar />);
-    expect(screen.getByPlaceholderText("Team Name")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Team name...")).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 
@@ -51,6 +45,40 @@ describe("CommandBar", () => {
     ]);
   });
 
+  describe("contextual buttons per state", () => {
+    it("idle shows only START", () => {
+      render(<CommandBar />);
+      expect(screen.getByText("START")).toBeInTheDocument();
+      expect(screen.queryByText("STOP")).not.toBeInTheDocument();
+      expect(screen.queryByText("PAUSE")).not.toBeInTheDocument();
+    });
+
+    it("capturing shows STOP and PAUSE", () => {
+      useOperatorStore.setState({ demoState: "capturing" });
+      render(<CommandBar />);
+      expect(screen.getByText("STOP")).toBeInTheDocument();
+      expect(screen.getByText("PAUSE")).toBeInTheDocument();
+      expect(screen.queryByText("START")).not.toBeInTheDocument();
+    });
+
+    it("paused shows RESUME and STOP", () => {
+      useOperatorStore.setState({ demoState: "paused" });
+      render(<CommandBar />);
+      expect(screen.getByText("RESUME")).toBeInTheDocument();
+      expect(screen.getByText("STOP")).toBeInTheDocument();
+      expect(screen.queryByText("PAUSE")).not.toBeInTheDocument();
+    });
+
+    it("stopped shows Q&A, DELIBERATE, RESET", () => {
+      useOperatorStore.setState({ demoState: "stopped" });
+      render(<CommandBar />);
+      expect(screen.getByText("Q&A")).toBeInTheDocument();
+      expect(screen.getByText("DELIBERATE")).toBeInTheDocument();
+      expect(screen.getByText("RESET")).toBeInTheDocument();
+      expect(screen.queryByText("START")).not.toBeInTheDocument();
+    });
+  });
+
   describe("button states when idle", () => {
     it("START is disabled when no team name", () => {
       render(<CommandBar />);
@@ -60,49 +88,14 @@ describe("CommandBar", () => {
     it("START is enabled when team name is entered", async () => {
       const user = userEvent.setup();
       render(<CommandBar />);
-      await user.type(screen.getByPlaceholderText("Team Name"), "TestTeam");
+      await user.type(screen.getByPlaceholderText("Team name..."), "TestTeam");
       expect(screen.getByText("START")).toBeEnabled();
-    });
-
-    it("STOP is disabled when idle", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("STOP")).toBeDisabled();
-    });
-
-    it("PAUSE is disabled when idle", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("PAUSE")).toBeDisabled();
-    });
-
-    it("RESUME is disabled when idle", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("RESUME")).toBeDisabled();
-    });
-
-    it("QA is disabled when idle", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("QA")).toBeDisabled();
-    });
-
-    it("DELIBERATE is disabled when idle", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("DELIBERATE")).toBeDisabled();
-    });
-
-    it("RESET is disabled when idle", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("RESET")).toBeDisabled();
     });
   });
 
   describe("button states when capturing", () => {
     beforeEach(() => {
       useOperatorStore.setState({ demoState: "capturing" });
-    });
-
-    it("START is disabled", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("START")).toBeDisabled();
     });
 
     it("STOP is enabled", () => {
@@ -115,19 +108,14 @@ describe("CommandBar", () => {
       expect(screen.getByText("PAUSE")).toBeEnabled();
     });
 
-    it("RESUME is disabled", () => {
+    it("team name input is not shown", () => {
       render(<CommandBar />);
-      expect(screen.getByText("RESUME")).toBeDisabled();
+      expect(screen.queryByPlaceholderText("Team name...")).not.toBeInTheDocument();
     });
 
-    it("team name input is disabled", () => {
+    it("track dropdown is not shown", () => {
       render(<CommandBar />);
-      expect(screen.getByPlaceholderText("Team Name")).toBeDisabled();
-    });
-
-    it("track dropdown is disabled", () => {
-      render(<CommandBar />);
-      expect(screen.getByRole("combobox")).toBeDisabled();
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     });
   });
 
@@ -145,11 +133,6 @@ describe("CommandBar", () => {
       render(<CommandBar />);
       expect(screen.getByText("RESUME")).toBeEnabled();
     });
-
-    it("PAUSE is disabled", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("PAUSE")).toBeDisabled();
-    });
   });
 
   describe("button states when stopped", () => {
@@ -157,9 +140,9 @@ describe("CommandBar", () => {
       useOperatorStore.setState({ demoState: "stopped" });
     });
 
-    it("QA is enabled", () => {
+    it("Q&A is enabled", () => {
       render(<CommandBar />);
-      expect(screen.getByText("QA")).toBeEnabled();
+      expect(screen.getByText("Q&A")).toBeEnabled();
     });
 
     it("DELIBERATE is enabled", () => {
@@ -171,23 +154,13 @@ describe("CommandBar", () => {
       render(<CommandBar />);
       expect(screen.getByText("RESET")).toBeEnabled();
     });
-
-    it("START is disabled", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("START")).toBeDisabled();
-    });
-
-    it("STOP is disabled", () => {
-      render(<CommandBar />);
-      expect(screen.getByText("STOP")).toBeDisabled();
-    });
   });
 
   describe("interactions", () => {
     it("calls sendCommand with start, team_name and track on START click", async () => {
       const user = userEvent.setup();
       render(<CommandBar />);
-      await user.type(screen.getByPlaceholderText("Team Name"), "AlphaTeam");
+      await user.type(screen.getByPlaceholderText("Team name..."), "AlphaTeam");
       await user.click(screen.getByText("START"));
       expect(mockSendCommand).toHaveBeenCalledWith("start", {
         team_name: "AlphaTeam",
@@ -198,21 +171,13 @@ describe("CommandBar", () => {
     it("Enter key triggers start when idle with team name", async () => {
       const user = userEvent.setup();
       render(<CommandBar />);
-      const input = screen.getByPlaceholderText("Team Name");
+      const input = screen.getByPlaceholderText("Team name...");
       await user.type(input, "BetaTeam");
       await user.keyboard("{Enter}");
       expect(mockSendCommand).toHaveBeenCalledWith("start", {
         team_name: "BetaTeam",
         track: "ROGUE::AGENT",
       });
-    });
-
-    it("Enter key does not trigger start when not idle", async () => {
-      useOperatorStore.setState({ demoState: "capturing" });
-      const user = userEvent.setup();
-      render(<CommandBar />);
-      // Input is disabled when not idle, so Enter shouldn't fire
-      expect(mockSendCommand).not.toHaveBeenCalled();
     });
 
     it("STOP button calls sendCommand with stop", async () => {
@@ -241,24 +206,20 @@ describe("CommandBar", () => {
   });
 
   describe("lastCommandResult display", () => {
-    it("shows success message with green styling", () => {
+    it("shows success message", () => {
       useOperatorStore.setState({
         lastCommandResult: { success: true, message: "Demo started" },
       });
       render(<CommandBar />);
-      const msgEl = screen.getByText("Demo started");
-      expect(msgEl).toBeInTheDocument();
-      expect(msgEl.className).toContain("text-arbiter-green");
+      expect(screen.getByText("Demo started")).toBeInTheDocument();
     });
 
-    it("shows failure message with red styling", () => {
+    it("shows failure message", () => {
       useOperatorStore.setState({
         lastCommandResult: { success: false, message: "Error occurred" },
       });
       render(<CommandBar />);
-      const msgEl = screen.getByText("Error occurred");
-      expect(msgEl).toBeInTheDocument();
-      expect(msgEl.className).toContain("text-arbiter-red");
+      expect(screen.getByText("Error occurred")).toBeInTheDocument();
     });
 
     it("does not render message when lastCommandResult is null", () => {

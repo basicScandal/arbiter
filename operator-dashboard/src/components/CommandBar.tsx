@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useOperatorStore } from "../store/operatorStore";
 
 const TRACKS = [
@@ -7,6 +8,32 @@ const TRACKS = [
   "ZERO::PROOF",
   "ROGUE::AGENT",
 ];
+
+interface ActionButton {
+  label: string;
+  action: string;
+  color: string;
+  hoverGlow: string;
+}
+
+const STATE_ACTIONS: Record<string, ActionButton[]> = {
+  idle: [
+    { label: "START", action: "start", color: "bg-accent-capturing/20 text-accent-capturing border border-accent-capturing/40", hoverGlow: "rgba(0,255,136,0.3)" },
+  ],
+  capturing: [
+    { label: "STOP", action: "stop", color: "bg-event-injection/20 text-event-injection border border-event-injection/40", hoverGlow: "rgba(255,68,68,0.3)" },
+    { label: "PAUSE", action: "pause", color: "bg-accent-paused/20 text-accent-paused border border-accent-paused/40", hoverGlow: "rgba(255,170,0,0.3)" },
+  ],
+  paused: [
+    { label: "RESUME", action: "resume", color: "bg-accent-capturing/20 text-accent-capturing border border-accent-capturing/40", hoverGlow: "rgba(0,255,136,0.3)" },
+    { label: "STOP", action: "stop", color: "bg-event-injection/20 text-event-injection border border-event-injection/40", hoverGlow: "rgba(255,68,68,0.3)" },
+  ],
+  stopped: [
+    { label: "Q&A", action: "qa", color: "bg-event-commentary/20 text-event-commentary border border-event-commentary/40", hoverGlow: "rgba(255,204,0,0.3)" },
+    { label: "DELIBERATE", action: "deliberate", color: "bg-accent-stopped/20 text-accent-stopped border border-accent-stopped/40", hoverGlow: "rgba(102,136,255,0.3)" },
+    { label: "RESET", action: "reset", color: "bg-text-dim/20 text-text-secondary border border-text-dim/40", hoverGlow: "rgba(85,85,112,0.3)" },
+  ],
+};
 
 export function CommandBar() {
   const demoState = useOperatorStore((s) => s.demoState);
@@ -21,86 +48,78 @@ export function CommandBar() {
     }
   };
 
+  const actions = STATE_ACTIONS[demoState] ?? [];
+
   return (
-    <div className="flex flex-col gap-3 px-6 py-4 bg-arbiter-surface border-t border-arbiter-accent-dim">
-      {lastCommandResult && (
-        <div className={`text-sm px-3 py-1 rounded ${lastCommandResult.success ? 'text-arbiter-green bg-arbiter-green/10' : 'text-arbiter-red bg-arbiter-red/10'}`}>
-          {lastCommandResult.message}
-        </div>
-      )}
+    <div className="glass-panel-elevated mx-4 mb-4 px-5 py-3">
+      <AnimatePresence>
+        {lastCommandResult && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 8 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            transition={{ duration: 0.2 }}
+            className={`text-xs px-3 py-1.5 rounded overflow-hidden ${
+              lastCommandResult.success
+                ? 'text-accent-capturing bg-accent-capturing/10'
+                : 'text-event-injection bg-event-injection/10'
+            }`}
+          >
+            {lastCommandResult.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex items-center gap-3">
-        <input
-          type="text"
-          value={teamName}
-          onChange={(e) => setTeamName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && demoState === 'idle') handleStart(); }}
-          placeholder="Team Name"
-          className="px-3 py-2 bg-arbiter-bg border border-arbiter-muted rounded text-arbiter-text font-mono flex-1"
-          disabled={demoState !== 'idle'}
-        />
-        <select
-          value={track}
-          onChange={(e) => setTrack(e.target.value)}
-          className="px-3 py-2 bg-arbiter-bg border border-arbiter-muted rounded text-arbiter-text font-mono"
-          disabled={demoState !== 'idle'}
-        >
-          {TRACKS.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex gap-3">
-        <button
-          onClick={handleStart}
-          disabled={demoState !== 'idle' || !teamName.trim()}
-          className="px-6 py-3 bg-arbiter-green text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          START
-        </button>
-        <button
-          onClick={() => sendCommand('stop')}
-          disabled={demoState !== 'capturing' && demoState !== 'paused'}
-          className="px-6 py-3 bg-arbiter-red text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          STOP
-        </button>
-        <button
-          onClick={() => sendCommand('pause')}
-          disabled={demoState !== 'capturing'}
-          className="px-6 py-3 bg-arbiter-yellow text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          PAUSE
-        </button>
-        <button
-          onClick={() => sendCommand('resume')}
-          disabled={demoState !== 'paused'}
-          className="px-6 py-3 bg-arbiter-yellow text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          RESUME
-        </button>
-        <button
-          onClick={() => sendCommand('qa')}
-          disabled={demoState !== 'stopped'}
-          className="px-6 py-3 bg-arbiter-cyan text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          QA
-        </button>
-        <button
-          onClick={() => sendCommand('deliberate')}
-          disabled={demoState !== 'stopped'}
-          className="px-6 py-3 bg-arbiter-purple text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          DELIBERATE
-        </button>
-        <button
-          onClick={() => sendCommand('reset')}
-          disabled={demoState !== 'stopped'}
-          className="px-6 py-3 bg-arbiter-muted text-arbiter-bg font-bold rounded hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-1"
-        >
-          RESET
-        </button>
+        <span className="neon-text text-sm font-bold shrink-0">arbiter&gt;</span>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={demoState}
+            className="flex items-center gap-3 flex-1"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            {demoState === 'idle' && (
+              <>
+                <input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleStart(); }}
+                  placeholder="Team name..."
+                  className="px-3 py-2 bg-surface-elevated border border-[var(--border-accent)] rounded-lg text-text-primary font-mono text-sm flex-1 outline-none focus:neon-border transition-all"
+                />
+                <select
+                  value={track}
+                  onChange={(e) => setTrack(e.target.value)}
+                  className="px-3 py-2 bg-surface-elevated border border-[var(--border-accent)] rounded-lg text-text-primary font-mono text-xs"
+                >
+                  {TRACKS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {actions.map((btn) => (
+              <motion.button
+                key={btn.action}
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ boxShadow: `0 0 16px ${btn.hoverGlow}` }}
+                onClick={() => {
+                  if (btn.action === 'start') handleStart();
+                  else sendCommand(btn.action);
+                }}
+                disabled={btn.action === 'start' && !teamName.trim()}
+                className={`px-5 py-2 font-bold text-sm rounded-lg transition-colors duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${btn.color}`}
+              >
+                {btn.label}
+              </motion.button>
+            ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

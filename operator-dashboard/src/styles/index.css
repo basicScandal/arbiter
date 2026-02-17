@@ -1,31 +1,119 @@
 @import "tailwindcss";
 
 @theme {
-  --color-arbiter-bg: #1a1a2e;
-  --color-arbiter-surface: #1e2a4a;
-  --color-arbiter-accent: #00d4ff;
-  --color-arbiter-accent-dim: #00d4ff66;
-  --color-arbiter-text: #f0f0f0;
-  --color-arbiter-muted: #a8b2d0;
+  /* Backgrounds */
+  --color-void: #06060c;
+  --color-surface: #0c0c18;
+  --color-surface-elevated: #12122a;
+
+  /* Text */
+  --color-text-primary: #e0e0f0;
+  --color-text-secondary: #8888aa;
+  --color-text-dim: #555570;
+
+  /* Static accents (for direct reference) */
+  --color-accent-idle: #5588aa;
+  --color-accent-capturing: #00ff88;
+  --color-accent-paused: #ffaa00;
+  --color-accent-stopped: #6688ff;
+
+  /* Semantic event colors */
+  --color-event-started: #00ff88;
+  --color-event-stopped: #6688ff;
+  --color-event-transcript: #00ccff;
+  --color-event-frame: #5588aa;
+  --color-event-injection: #ff4444;
+  --color-event-roast: #ff00aa;
+  --color-event-verified: #00ff88;
+  --color-event-commentary: #ffcc00;
+  --color-event-tts: #555570;
+
+  /* Legacy compat (used in tests) */
+  --color-arbiter-bg: #06060c;
+  --color-arbiter-surface: #0c0c18;
+  --color-arbiter-accent: var(--color-accent-idle);
+  --color-arbiter-accent-dim: rgba(85, 136, 170, 0.2);
+  --color-arbiter-text: #e0e0f0;
+  --color-arbiter-muted: #8888aa;
   --color-arbiter-gold: #ffd700;
   --color-arbiter-orange: #ff8c00;
   --color-arbiter-red: #ff4444;
   --color-arbiter-green: #00ff88;
-  --color-arbiter-yellow: #ffdd44;
-  --color-arbiter-cyan: #00ddff;
+  --color-arbiter-yellow: #ffaa00;
+  --color-arbiter-cyan: #00ccff;
   --color-arbiter-purple: #bb88ff;
 
   --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
 }
 
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.6; filter: blur(0px); }
-  50% { opacity: 1; filter: blur(1px); }
+/* ---------- Dynamic state theme (set by useStateTheme hook) ---------- */
+
+:root {
+  --accent: #5588aa;
+  --accent-rgb: 85, 136, 170;
+  --glow: rgba(85, 136, 170, 0.15);
+  --border-accent: rgba(85, 136, 170, 0.25);
+  --pulse-speed: 4s;
 }
 
-@keyframes scorePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+/* ---------- Frosted Glass ---------- */
+
+@utility glass-panel {
+  background: rgba(12, 12, 24, 0.7);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  border: 1px solid var(--border-accent, rgba(100, 100, 160, 0.15));
+  border-radius: 12px;
+}
+
+@utility glass-panel-elevated {
+  background: rgba(18, 18, 42, 0.8);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--border-accent, rgba(100, 100, 160, 0.3));
+  border-radius: 12px;
+  box-shadow: 0 0 20px var(--glow, rgba(85, 136, 170, 0.15));
+}
+
+/* ---------- Neon Effects ---------- */
+
+@utility neon-text {
+  color: var(--accent, #5588aa);
+  text-shadow: 0 0 8px var(--glow, rgba(85, 136, 170, 0.4));
+}
+
+@utility neon-border {
+  border-color: var(--accent, #5588aa);
+  box-shadow: 0 0 12px var(--glow, rgba(85, 136, 170, 0.2)),
+              inset 0 0 12px var(--glow, rgba(85, 136, 170, 0.05));
+}
+
+/* ---------- Section Labels ---------- */
+
+@utility section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent, #5588aa);
+  opacity: 0.7;
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: var(--border-accent); box-shadow: 0 0 12px var(--glow); }
+  50% { border-color: var(--accent); box-shadow: 0 0 24px var(--glow); }
+}
+
+@keyframes orbPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 8px var(--glow); }
+  50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 20px var(--glow), 0 0 40px var(--glow); }
 }
 
 @keyframes dotPulse {
@@ -33,17 +121,28 @@
   50% { opacity: 0.4; }
 }
 
-@utility animate-glow-pulse {
-  animation: glowPulse 3s ease-in-out infinite;
+@utility animate-shimmer {
+  background: linear-gradient(90deg, var(--accent) 0%, #ffffff 50%, var(--accent) 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 5s linear infinite;
 }
 
-@utility animate-score-pulse {
-  animation: scorePulse 2s ease-in-out infinite;
+@utility animate-border-glow {
+  animation: borderGlow var(--pulse-speed, 4s) ease-in-out infinite;
+}
+
+@utility animate-orb-pulse {
+  animation: orbPulse var(--pulse-speed, 4s) ease-in-out infinite;
 }
 
 @utility animate-dot-pulse {
   animation: dotPulse 2s ease-in-out infinite;
 }
+
+/* ---------- Base ---------- */
 
 html, body, #root {
   margin: 0;
@@ -51,7 +150,25 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #1a1a2e;
-  color: #e0e0e0;
+  background-color: #06060c;
+  color: #e0e0f0;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+}
+
+/* Scrollbar styling for the dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 100, 160, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 100, 160, 0.5);
 }

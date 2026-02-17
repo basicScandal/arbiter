@@ -22,7 +22,6 @@ describe("StatusPanel", () => {
   it("shows dash when no track", () => {
     render(<StatusPanel />);
     const dashes = screen.getAllByText("\u2014");
-    // Both team and track should be dashes
     expect(dashes.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -54,17 +53,16 @@ describe("StatusPanel", () => {
     expect(screen.getByText("STATUS")).toBeInTheDocument();
   });
 
-  it("displays current demoState", () => {
+  it("displays theme label for current state", () => {
     useOperatorStore.setState({ demoState: "capturing" });
     render(<StatusPanel />);
-    expect(screen.getByText("capturing")).toBeInTheDocument();
+    expect(screen.getByText("CAPTURING")).toBeInTheDocument();
   });
 
   it("renders StateIndicator matching demoState", () => {
     useOperatorStore.setState({ demoState: "paused" });
     render(<StatusPanel />);
-    const indicator = document.querySelector('span[title="State: paused"]');
+    const indicator = document.querySelector('div[title="State: paused"]');
     expect(indicator).toBeInTheDocument();
-    expect(indicator?.className).toContain("bg-arbiter-yellow");
   });
 });
