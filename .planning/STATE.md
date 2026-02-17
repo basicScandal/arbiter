@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Produce fair, defensible scores alongside human judges -- while being entertaining and resistant to prompt injection from a security-savvy audience.
-**Current focus:** Phase 8 — E2E Pipeline Coverage (v1.1 Reliability & Polish)
+**Current focus:** Phase 9 — Groq Fallback & Rehearsal Mode (v1.1 Reliability & Polish)
 
 ## Current Position
 
 Milestone: v1.1 Reliability & Polish
-Phase: 8 of 10 (E2E Pipeline Coverage)
-Plan: 2 of 2 in current phase (PHASE COMPLETE)
-Status: Phase 8 complete
-Last activity: 2026-02-17 — Completed 08-02 MoE scoring & event wiring E2E tests
+Phase: 9 of 10 (Groq Fallback & Rehearsal Mode)
+Plan: 1 of 2 in current phase
+Status: Executing phase 9
+Last activity: 2026-02-17 — Completed 09-01 GroqProvider + MoE timeout hardening
 
-Progress: [██████████████████████████░░░░] 80% (19/19 v1.0 plans complete, 4/8 v1.1 plans)
+Progress: [███████████████████████████░░░] 83% (19/19 v1.0 plans complete, 5/8 v1.1 plans)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: [███████████████████████
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 4
+- Plans completed: 5
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
 
@@ -37,6 +37,7 @@ Progress: [███████████████████████
 | 07    | 02   | 3min     | 2     | 1     |
 | 08    | 01   | 3min     | 2     | 2     |
 | 08    | 02   | 5min     | 2     | 2     |
+| 09    | 01   | 4min     | 2     | 6     |
 
 ## Accumulated Context
 
@@ -58,6 +59,10 @@ Recent decisions affecting current work:
 - [08-01]: Patch asyncio.sleep in scoring pipeline module for fast theatrical reveal tests
 - [08-02]: 13 sub-pipeline subscriptions (not 14) -- accurate recount: defense(4)+commentary(5)+scoring(2)+deliberation(2)
 - [08-02]: Scoped wiring tests to 4 sub-pipelines; CapturePipeline-direct subscriptions covered by existing unit tests
+- [09-01]: Groq uses OpenAI-compatible SDK with base_url override -- no separate groq SDK dependency
+- [09-01]: JSON mode enforced via response_format for reliable Groq scoring output
+- [09-01]: Neutral calibration defaults (temperature=1.0, bias=0.0) for Groq pending empirical tuning
+- [09-01]: asyncio.wait replaces asyncio.gather in MoE for partial-result support on timeout
 
 ### Pending Todos
 
@@ -72,5 +77,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08-02-PLAN.md (MoE scoring & event wiring E2E tests -- Phase 8 complete)
+Stopped at: Completed 09-01-PLAN.md (GroqProvider + MoE timeout hardening)
 Resume file: None
