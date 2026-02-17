@@ -2,11 +2,13 @@ import { motion } from "framer-motion";
 import { useOperatorSocket } from "./hooks/useOperatorSocket";
 import { useStateTheme } from "./hooks/useStateTheme";
 import { Header } from "./components/Header";
+import { ReconnectBanner } from "./components/ReconnectBanner";
 import { CommandBar } from "./components/CommandBar";
 import { StatusPanel } from "./panels/StatusPanel";
 import { EventStream } from "./panels/EventStream";
 import { CountersPanel } from "./panels/CountersPanel";
 import { DefensePanel } from "./panels/DefensePanel";
+import { HealthPanel } from "./panels/HealthPanel";
 import { ScorePanel } from "./panels/ScorePanel";
 
 const panelEntrance = (delay: number) => ({
@@ -21,6 +23,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-void font-mono">
+      <ReconnectBanner />
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -45,6 +48,9 @@ export default function App() {
             <DefensePanel />
           </motion.div>
           <motion.div {...panelEntrance(0.30)}>
+            <HealthPanel />
+          </motion.div>
+          <motion.div {...panelEntrance(0.36)}>
             <ScorePanel />
           </motion.div>
         </div>
