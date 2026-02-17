@@ -46,6 +46,12 @@ INJECTION_PATTERNS: list[InjectionPattern] = [
         severity="high",
         category="scoring",
     ),
+    InjectionPattern(
+        name="prize_manipulation",
+        pattern=r"(?i)\b(give|award|grant)\b.{0,30}\b(prize|winner|first place|grand prize|winning)\b",
+        severity="high",
+        category="scoring",
+    ),
     # --- role_manipulation (medium severity) ---
     InjectionPattern(
         name="role_override",

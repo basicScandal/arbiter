@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from src.capture.event_bus import EventBus
 from src.capture.gemini_session import GeminiSession
@@ -37,6 +38,35 @@ from src.defense.roast_generator import RoastGenerator
 from src.defense.sanitizer import ObservationSanitizer
 
 logger = logging.getLogger(__name__)
+
+# Sentence-ending punctuation for splitting reassembled token streams
+_SENTENCE_ENDINGS = re.compile(r'(?<=[.!?])\s+')
+
+
+def _reassemble_tokens(tokens: list[str]) -> list[str]:
+    """Join token-level fragments into sentence-level strings for scanning.
+
+    Gemini Live API streams observations/transcripts as individual tokens
+    (e.g., [" ignore", " all", " previous", " instructions"]). Injection
+    detection regexes require multi-word phrases in a single string.
+    This function concatenates tokens and splits on sentence boundaries.
+
+    Args:
+        tokens: List of token-level text fragments.
+
+    Returns:
+        List of sentence-level strings suitable for regex scanning.
+    """
+    if not tokens:
+        return []
+
+    full_text = "".join(tokens).strip()
+    if not full_text:
+        return []
+
+    # Split on sentence-ending punctuation
+    sentences = _SENTENCE_ENDINGS.split(full_text)
+    return [s.strip() for s in sentences if s.strip()]
 
 
 class DefensePipeline:
@@ -69,6 +99,8 @@ class DefensePipeline:
         self._current_team: str = ""
         self._roasts: list[str] = []
         self._transcripts: list[str] = []
+        self._transcript_buffer: str = ""
+        self._transcript_cooldown: int = 0
         self._pending_roast_tasks: list[asyncio.Task] = []
 
     async def setup(self, event_bus: EventBus) -> None:
@@ -89,6 +121,8 @@ class DefensePipeline:
         self._current_team = event.team_name
         self._roasts.clear()
         self._transcripts.clear()
+        self._transcript_buffer = ""
+        self._transcript_cooldown = 0
         self._pending_roast_tasks.clear()
         self._logger.clear()
         logger.info("Defense pipeline active for team: %s", event.team_name)
@@ -119,19 +153,39 @@ class DefensePipeline:
                 self._pending_roast_tasks.append(task)
 
     async def _on_transcript(self, event: TranscriptReceived) -> None:
-        """Scan transcript text for verbal injection patterns."""
-        self._transcripts.append(event.segment.text)
+        """Scan transcript text for verbal injection patterns.
 
-        result = self._detector.scan_verbal(event.segment.text)
+        Gemini Live API streams transcripts token-by-token (e.g., " ig",
+        "nore", " all"). Individual tokens never match multi-word injection
+        patterns. We accumulate tokens into a sliding buffer and scan the
+        trailing window so patterns spanning multiple tokens are detected.
+
+        After a detection, we set a cooldown counter to skip scanning for
+        a few tokens, avoiding duplicate detections from overlapping windows.
+        """
+        self._transcripts.append(event.segment.text)
+        self._transcript_buffer += event.segment.text
+
+        # Skip scanning during cooldown after a detection
+        if self._transcript_cooldown > 0:
+            self._transcript_cooldown -= 1
+            return
+
+        # Scan the trailing window (last 200 chars covers any injection phrase)
+        window = self._transcript_buffer[-200:]
+        result = self._detector.scan_verbal(window)
         if result.is_injection:
             attempt = InjectionAttempt(
                 timestamp=event.timestamp,
                 injection_type="verbal",
-                content=result.matched_text or event.segment.text[:200],
+                content=result.matched_text or window.strip()[:200],
                 pattern=",".join(result.matched_patterns),
                 confidence=result.confidence,
                 team_name=self._current_team,
             )
+            # Cooldown: skip next 20 tokens (~100 chars) to avoid duplicate
+            # detections from overlapping windows
+            self._transcript_cooldown = 20
             self._logger.log(attempt)
             if self._event_bus is not None:
                 self._event_bus.publish(InjectionDetected(attempt=attempt))
@@ -172,8 +226,13 @@ class DefensePipeline:
         if self._gemini is not None:
             raw_observations = self._gemini.get_observations()
 
-        # Scan observations for injection residue and log any found
-        for obs in raw_observations:
+        # Reassemble token-level observations into sentences for scanning.
+        # Gemini Live API streams observations token-by-token (e.g., " ignore",
+        # " all", " previous"), so individual tokens miss multi-word patterns.
+        reassembled = _reassemble_tokens(raw_observations)
+
+        # Scan reassembled observations for injection residue and log any found
+        for obs in reassembled:
             result = self._detector.scan_observation(obs)
             if result.is_injection:
                 attempt = InjectionAttempt(
@@ -186,11 +245,14 @@ class DefensePipeline:
                 )
                 self._logger.log(attempt)
 
-        # Create sanitized output bundle
+        # Reassemble transcripts from token fragments for sanitization
+        reassembled_transcripts = _reassemble_tokens(self._transcripts)
+
+        # Create sanitized output bundle using reassembled text
         sanitized = self._sanitizer.create_sanitized_output(
             team_name=event.team_name,
-            observations=raw_observations,
-            transcripts=list(self._transcripts),
+            observations=reassembled,
+            transcripts=reassembled_transcripts,
             attempts=self._logger.get_attempts(),
             duration=event.duration,
             roasts=list(self._roasts),
