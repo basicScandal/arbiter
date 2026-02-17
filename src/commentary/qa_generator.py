@@ -15,6 +15,7 @@ from google.genai import types
 from src.commentary.models import QAQuestion
 from src.commentary.prompts import QA_PROMPT
 from src.defense.models import SanitizedOutput
+from src.resilience.retry import GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
 
@@ -47,24 +48,8 @@ class QAGenerator:
         user_prompt = self._build_user_prompt(sanitized)
 
         try:
-            response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=QA_PROMPT,
-                    max_output_tokens=200,
-                    temperature=0.7,
-                ),
-            )
-
-            raw_text = response.text or ""
-            lines = [line.strip() for line in raw_text.strip().split("\n") if line.strip()]
-
-            questions: list[QAQuestion] = []
-            for line in lines:
-                questions.append(
-                    QAQuestion(text=line, context=sanitized.team_name)
-                )
+            raw_text = await self._call_gemini(user_prompt)
+            questions = self._parse_questions(raw_text, sanitized.team_name)
 
             if not questions:
                 return self._fallback_questions()
@@ -76,6 +61,77 @@ class QAGenerator:
                 "Q&A generation failed for team %s", sanitized.team_name
             )
             return self._fallback_questions()
+
+    @GEMINI_RETRY
+    async def _call_gemini(self, user_prompt: str) -> str:
+        """Call Gemini and return the response text.
+
+        Checks finish_reason to detect truncation from token limits.
+        Retries on 429 rate limits and 5xx server errors.
+        """
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=QA_PROMPT,
+                max_output_tokens=500,
+                temperature=0.7,
+            ),
+        )
+
+        # Detect truncation from token limit
+        if response.candidates:
+            finish = response.candidates[0].finish_reason
+            if finish == "MAX_TOKENS":
+                logger.warning(
+                    "QA response truncated by token limit (finish_reason=MAX_TOKENS)"
+                )
+
+        return response.text or ""
+
+    @staticmethod
+    def _parse_questions(raw_text: str, team_name: str) -> list[QAQuestion]:
+        """Parse raw Gemini output into QAQuestion objects.
+
+        Handles multi-line questions by joining lines that don't look like
+        the start of a new question. A new question starts after a blank
+        line or when the text ends.
+        """
+        raw_text = raw_text.strip()
+        if not raw_text:
+            return []
+
+        # Split into lines and group into questions.
+        # Blank lines separate questions; consecutive non-blank lines
+        # belong to the same question (handles line-wrapped output).
+        questions: list[QAQuestion] = []
+        current_lines: list[str] = []
+
+        for line in raw_text.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                # Blank line = question boundary
+                if current_lines:
+                    questions.append(
+                        QAQuestion(
+                            text=" ".join(current_lines),
+                            context=team_name,
+                        )
+                    )
+                    current_lines = []
+            else:
+                current_lines.append(stripped)
+
+        # Flush the last question
+        if current_lines:
+            questions.append(
+                QAQuestion(
+                    text=" ".join(current_lines),
+                    context=team_name,
+                )
+            )
+
+        return questions
 
     @staticmethod
     def _fallback_questions() -> list[QAQuestion]:
