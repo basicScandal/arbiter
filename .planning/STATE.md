@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 Milestone: v1.1 Reliability & Polish
 Phase: 7 of 10 (Test Infrastructure)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-17 — Roadmap created for v1.1
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-02-17 — Completed 07-01 test infrastructure plan
 
-Progress: [████████████████████░░░░░░░░░░] 63% (19/19 v1.0 plans complete, 0/TBD v1.1 plans)
+Progress: [█████████████████████░░░░░░░░░] 67% (19/19 v1.0 plans complete, 1/2 phase 7 plans)
 
 ## Performance Metrics
 
@@ -27,9 +27,13 @@ Progress: [████████████████████░░░
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 0
+- Plans completed: 1
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 07    | 01   | 10min    | 3     | 4     |
 
 ## Accumulated Context
 
@@ -41,6 +45,9 @@ Recent decisions affecting current work:
 - [v1.1 Roadmap]: Test infrastructure before features — EventCollector and timeout guards are foundation for all E2E tests
 - [v1.1 Roadmap]: Groq fallback + rehearsal combined into one phase — both use proven patterns, Groq is ~50 LOC
 - [v1.1 Roadmap]: Dashboard hardening last — no downstream deps, can parallelize with Phase 8-9 if needed
+- [07-01]: In-place singleton reset over object replacement — handles import-time name bindings in pipeline.py
+- [07-01]: asyncio_mode=auto — eliminates @pytest.mark.asyncio boilerplate across all test files
+- [07-01]: thread timeout method — required for pytest-xdist worker and threaded test compatibility
 
 ### Pending Todos
 
@@ -55,5 +62,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: v1.1 roadmap created. Ready to plan Phase 7.
+Stopped at: Completed 07-01-PLAN.md (test infrastructure foundations)
 Resume file: None
