@@ -22,6 +22,31 @@ from src.commentary.tts_fallback import FallbackChain, MacOSSayFallback, OpenAIT
 
 logger = logging.getLogger(__name__)
 
+# Valid Cartesia emotion literals (from SDK's GenerationRequest schema).
+# Used to validate emotions before sending to avoid Pydantic ValidationError.
+_VALID_EMOTIONS: frozenset[str] = frozenset({
+    "neutral", "happy", "excited", "enthusiastic", "elated", "euphoric",
+    "triumphant", "amazed", "surprised", "flirtatious", "curious", "content",
+    "peaceful", "serene", "calm", "grateful", "affectionate", "trust",
+    "sympathetic", "anticipation", "mysterious", "angry", "mad", "outraged",
+    "frustrated", "agitated", "threatened", "disgusted", "contempt", "envious",
+    "sarcastic", "ironic", "sad", "dejected", "melancholic", "disappointed",
+    "hurt", "guilty", "bored", "tired", "rejected", "nostalgic", "wistful",
+    "apologetic", "hesitant", "insecure", "confused", "resigned", "anxious",
+    "panicked", "alarmed", "scared", "proud", "confident", "distant",
+    "skeptical", "contemplative", "determined",
+})
+
+_DEFAULT_EMOTION = "sarcastic"
+
+
+def _validate_emotion(emotion: str) -> str:
+    """Return the emotion if valid, otherwise fall back to default."""
+    if emotion in _VALID_EMOTIONS:
+        return emotion
+    logger.warning("Invalid Cartesia emotion %r, falling back to %r", emotion, _DEFAULT_EMOTION)
+    return _DEFAULT_EMOTION
+
 
 class TTSEngine:
     """Async TTS engine using Cartesia WebSocket and PyAudio output.
@@ -166,6 +191,7 @@ class TTSEngine:
         is_continuation: bool,
     ) -> None:
         """Send a sentence to Cartesia WebSocket and play audio chunks."""
+        emotion = _validate_emotion(emotion)
         voice_spec = {"id": self._voice_id, "mode": "id"}
         ctx = self._connection.context(
             context_id=context_id,
