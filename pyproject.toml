@@ -40,4 +40,19 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=0.23",
+    "pytest-timeout~=2.4",
+    "pytest-xdist~=3.8",
+    "vcrpy~=8.1",
+    "pytest-recording~=0.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 30
+timeout_method = "thread"
+addopts = "-x --tb=short"
+markers = [
+    "integration: tests requiring full pipeline wiring or external dependencies",
+    "slow: tests taking >5s (real API calls, cassette recording)",
 ]
