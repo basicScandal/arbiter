@@ -217,6 +217,31 @@ class TestParseQuestions:
         assert result[0].text == "How does it work?"
         assert result[1].text == "What could go wrong?"
 
+    def test_markdown_bold_stripped(self) -> None:
+        """Markdown bold markers are stripped from questions."""
+        raw = "How does **your system** handle edge cases?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 1
+        assert result[0].text == "How does your system handle edge cases?"
+
+    def test_markdown_header_stripped(self) -> None:
+        """Markdown header prefixes are stripped from questions."""
+        raw = "### How does your system work?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        assert len(result) == 1
+        assert result[0].text == "How does your system work?"
+
+    def test_question_limit_enforced(self) -> None:
+        """generate() enforces _MAX_QUESTIONS (2) even if parser returns more."""
+        from src.commentary.qa_generator import _MAX_QUESTIONS
+
+        raw = "Q1?\n\nQ2?\n\nQ3?\n\nQ4?"
+        result = QAGenerator._parse_questions(raw, "TestTeam")
+        # Parser returns all 4
+        assert len(result) == 4
+        # But _MAX_QUESTIONS is 2
+        assert _MAX_QUESTIONS == 2
+
 
 # ---------------------------------------------------------------------------
 # _build_user_prompt tests

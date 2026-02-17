@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 from google import genai
 from google.genai import types
@@ -26,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 _GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 _GROQ_MODEL = "llama-3.3-70b-versatile"
+_GROQ_TIMEOUT = 15.0  # seconds -- prevent indefinite hang
+_MAX_QUESTIONS = 2  # enforce prompt contract
 
 
 class QAGenerator:
@@ -57,7 +60,8 @@ class QAGenerator:
         groq_key = os.environ.get("GROQ_API_KEY", "") if groq_api_key is None else groq_api_key
         if groq_key:
             self._groq_client: AsyncOpenAI | None = AsyncOpenAI(
-                api_key=groq_key, base_url=_GROQ_BASE_URL
+                api_key=groq_key, base_url=_GROQ_BASE_URL,
+                timeout=_GROQ_TIMEOUT,
             )
             logger.info("Groq fallback enabled for QA generation")
         else:
@@ -83,7 +87,7 @@ class QAGenerator:
             raw_text = await self._call_gemini(user_prompt)
             questions = self._parse_questions(raw_text, sanitized.team_name)
             if questions:
-                return questions
+                return questions[:_MAX_QUESTIONS]
         except Exception:
             logger.exception(
                 "Gemini Q&A generation failed for team %s", sanitized.team_name
@@ -96,7 +100,9 @@ class QAGenerator:
                 raw_text = await self._call_groq(user_prompt)
                 questions = self._parse_questions(raw_text, sanitized.team_name)
                 if questions:
-                    return questions
+                    return questions[:_MAX_QUESTIONS]
+            except (OSError, ConnectionError, TimeoutError) as exc:
+                logger.warning("Groq Q&A fallback failed (network): %s", exc)
             except Exception:
                 logger.exception("Groq Q&A fallback also failed")
 
@@ -157,18 +163,22 @@ class QAGenerator:
         Multi-line questions (a single question wrapped across lines)
         are joined when intermediate lines don't end with '?'.
         """
-        import re
-
         raw_text = raw_text.strip()
         if not raw_text:
             return []
 
-        # Strip common numbering/bullet prefixes: "1. ", "1) ", "- ", "* "
+        # Strip common numbering/bullet prefixes and markdown formatting
         cleaned_lines: list[str] = []
         for line in raw_text.split("\n"):
             stripped = line.strip()
+            # Strip markdown headers
+            stripped = re.sub(r"^#{1,6}\s+", "", stripped)
+            # Strip numbering: "1. ", "1) "
             stripped = re.sub(r"^\d+[.)]\s+", "", stripped)
+            # Strip bullets: "- ", "* "
             stripped = re.sub(r"^[-*]\s+", "", stripped)
+            # Strip bold/italic markdown
+            stripped = stripped.replace("**", "").replace("__", "")
             cleaned_lines.append(stripped)
 
         # Group lines into questions.
@@ -210,6 +220,11 @@ class QAGenerator:
             )
 
         return questions
+
+    async def close(self) -> None:
+        """Close the Groq client to release connections."""
+        if self._groq_client is not None:
+            await self._groq_client.close()
 
     @staticmethod
     def _fallback_questions() -> list[QAQuestion]:

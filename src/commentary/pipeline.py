@@ -206,6 +206,9 @@ class CommentaryPipeline:
                 else:
                     logger.info("TTS unhealthy -- delivering text-only Q&A")
                     await self._display.push_question(question.text, team_name)
+                    # Delay between questions so audience can read each one
+                    if i < len(questions) - 1:
+                        await asyncio.sleep(8.0)
 
             logger.info("Q&A questions delivered for team: %s", team_name)
 
@@ -213,6 +216,7 @@ class CommentaryPipeline:
             logger.exception("Q&A delivery failed")
 
     async def close(self) -> None:
-        """Shut down TTS engine and display server."""
+        """Shut down TTS engine, QA generator, and display server."""
+        await self._qa_generator.close()
         await self._tts.close()
         await self._display.stop()
