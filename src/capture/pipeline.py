@@ -34,6 +34,7 @@ from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.operator.cli import OperatorCLI
 from src.operator.tui import ArbiterTUI
+from src.operator.web import WebOperator
 from src.providers import create_provider
 from src.providers.base import LLMProvider
 from src.scoring.moe_engine import MoEScoringEngine
@@ -52,7 +53,7 @@ class CapturePipeline:
         config: Capture configuration with device indexes, API keys, etc.
     """
 
-    def __init__(self, config: CaptureConfig, use_tui: bool = True) -> None:
+    def __init__(self, config: CaptureConfig, operator_mode: str = "web") -> None:
         self.event_bus = EventBus()
         self.media_queue: asyncio.Queue = asyncio.Queue(maxsize=config.max_queue_size)
 
@@ -66,7 +67,7 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
-        self._use_tui = use_tui
+        self._operator_mode = operator_mode
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
         )
@@ -120,8 +121,16 @@ class CapturePipeline:
             display=self.commentary._display,
         )
 
-        if use_tui:
-            self.operator: OperatorCLI | ArbiterTUI = ArbiterTUI(
+        if operator_mode == "web":
+            self.operator: OperatorCLI | ArbiterTUI | WebOperator = WebOperator(
+                demo_machine=self.demo_machine,
+                event_bus=self.event_bus,
+                display_server=self.commentary._display,
+                scoring_pipeline=self.scoring,
+                deliberation_pipeline=self.deliberation,
+            )
+        elif operator_mode == "tui":
+            self.operator = ArbiterTUI(
                 demo_machine=self.demo_machine, event_bus=self.event_bus
             )
         else:
@@ -281,7 +290,7 @@ class CapturePipeline:
         # Wire the deliberation pipeline into the event bus
         await self.deliberation.setup(self.event_bus)
 
-        if not self._use_tui:
+        if self._operator_mode == "cli":
             print("=" * 40)
             print("  Arbiter Capture Layer v0.1")
             print("  Type 'help' for commands")

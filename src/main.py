@@ -20,9 +20,15 @@ def main() -> None:
     """Load config from environment, create pipeline, and run."""
     parser = argparse.ArgumentParser(description="Arbiter — Live AI hackathon judge")
     parser.add_argument(
+        "--operator",
+        choices=["web", "cli", "tui"],
+        default="web",
+        help="Operator interface mode (default: web)",
+    )
+    parser.add_argument(
         "--cli",
         action="store_true",
-        help="Use the legacy stdin CLI instead of the TUI dashboard",
+        help="Shorthand for --operator cli",
     )
     args = parser.parse_args()
 
@@ -44,7 +50,8 @@ def main() -> None:
     root.addHandler(file_handler)
 
     config = load_config()
-    pipeline = CapturePipeline(config, use_tui=not args.cli)
+    operator_mode = "cli" if args.cli else args.operator
+    pipeline = CapturePipeline(config, operator_mode=operator_mode)
     asyncio.run(pipeline.run())
 
 

@@ -22,6 +22,7 @@ from openai import AsyncOpenAI
 from src.commentary.models import Commentary
 from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
+from src.resilience.rate_limiter import GeminiRateLimiter
 from src.resilience.retry import GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
@@ -161,17 +162,18 @@ class CommentaryGenerator:
         formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
 
         full_text = ""
-        async for chunk in await self._client.aio.models.generate_content_stream(
-            model=self._model,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=formatted_prompt,
-                max_output_tokens=500,
-                temperature=temp,
-            ),
-        ):
-            if chunk.text:
-                full_text += chunk.text
+        async with GeminiRateLimiter.default().acquire("commentary"):
+            async for chunk in await self._client.aio.models.generate_content_stream(
+                model=self._model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=formatted_prompt,
+                    max_output_tokens=500,
+                    temperature=temp,
+                ),
+            ):
+                if chunk.text:
+                    full_text += chunk.text
         return full_text
 
     async def _call_groq(self, user_prompt: str) -> str:

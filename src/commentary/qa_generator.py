@@ -21,6 +21,7 @@ from openai import AsyncOpenAI
 from src.commentary.models import QAQuestion
 from src.commentary.prompts import QA_PROMPT
 from src.defense.models import SanitizedOutput
+from src.resilience.rate_limiter import GeminiRateLimiter
 from src.resilience.retry import GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
@@ -115,25 +116,26 @@ class QAGenerator:
         Checks finish_reason to detect truncation from token limits.
         Retries on 429 rate limits and 5xx server errors.
         """
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=QA_PROMPT,
-                max_output_tokens=500,
-                temperature=0.7,
-            ),
-        )
+        async with GeminiRateLimiter.default().acquire("qa_generator"):
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=QA_PROMPT,
+                    max_output_tokens=500,
+                    temperature=0.7,
+                ),
+            )
 
-        # Detect truncation from token limit
-        if response.candidates:
-            finish = response.candidates[0].finish_reason
-            if finish == "MAX_TOKENS":
-                logger.warning(
-                    "QA response truncated by token limit (finish_reason=MAX_TOKENS)"
-                )
+            # Detect truncation from token limit
+            if response.candidates:
+                finish = response.candidates[0].finish_reason
+                if finish == "MAX_TOKENS":
+                    logger.warning(
+                        "QA response truncated by token limit (finish_reason=MAX_TOKENS)"
+                    )
 
-        return response.text or ""
+            return response.text or ""
 
     async def _call_groq(self, user_prompt: str) -> str:
         """Call Groq via OpenAI-compatible API and return the response text."""

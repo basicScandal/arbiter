@@ -12,6 +12,7 @@ from google import genai
 from google.genai import types
 
 from src.providers.base import LLMProvider
+from src.resilience.rate_limiter import GeminiRateLimiter
 from src.resilience.retry import GEMINI_RETRY_BACKGROUND
 
 logger = logging.getLogger(__name__)
@@ -85,16 +86,17 @@ class GeminiProvider(LLMProvider):
         Decorated with GEMINI_RETRY_BACKGROUND for 5 retry attempts
         with exponential backoff on network errors.
         """
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                max_output_tokens=max_tokens,
-                temperature=temperature,
-                # Disable thinking for structured output -- thinking tokens
-                # consume max_output_tokens budget, truncating JSON responses
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
-            ),
-        )
-        return response.text or ""
+        async with GeminiRateLimiter.default().acquire("gemini_provider"):
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    max_output_tokens=max_tokens,
+                    temperature=temperature,
+                    # Disable thinking for structured output -- thinking tokens
+                    # consume max_output_tokens budget, truncating JSON responses
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                ),
+            )
+            return response.text or ""

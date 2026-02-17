@@ -80,6 +80,11 @@ class DisplayServer:
 
         self._register_routes()
 
+    @property
+    def app(self) -> FastAPI:
+        """Expose the FastAPI app for external route registration (e.g., WebOperator)."""
+        return self._app
+
     def _register_routes(self) -> None:
         """Register HTTP and WebSocket routes on the FastAPI app."""
 
@@ -94,6 +99,15 @@ class DisplayServer:
                 "/app",
                 StaticFiles(directory=str(react_dist.resolve()), html=True),
                 name="react-app",
+            )
+
+        # Mount operator dashboard (production build)
+        operator_dist = Path(__file__).parent / "../../operator-dashboard/dist"
+        if operator_dist.exists():
+            self._app.mount(
+                "/operator",
+                StaticFiles(directory=str(operator_dist.resolve()), html=True),
+                name="operator-app",
             )
 
         @self._app.websocket("/ws/display")
