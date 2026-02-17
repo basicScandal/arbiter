@@ -8,24 +8,24 @@ export function DeliberationScreen() {
   const narrative = useDisplayStore((s) => s.narrative);
 
   return (
-    <div className="flex flex-col items-center h-full px-12 py-8 gap-6 overflow-auto">
+    <div className="flex flex-col items-center h-full px-16 py-10 gap-8 overflow-auto">
       <motion.h2
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="text-xl text-arbiter-accent tracking-widest uppercase"
+        className="text-3xl text-arbiter-accent tracking-widest uppercase"
       >
         Final Deliberation
       </motion.h2>
 
       {rankings.length > 0 && (
-        <table className="w-full max-w-4xl">
+        <table className="w-full max-w-5xl">
           <thead>
-            <tr className="text-xs text-arbiter-muted uppercase tracking-wider border-b border-arbiter-accent/20">
-              <th className="pb-2 text-center w-16">Rank</th>
-              <th className="pb-2 text-left">Team</th>
-              <th className="pb-2 text-center">Score</th>
-              <th className="pb-2 text-left">Track</th>
-              <th className="pb-2 text-left">Reasoning</th>
+            <tr className="text-base text-arbiter-muted uppercase tracking-wider border-b border-arbiter-accent/20">
+              <th className="pb-3 text-center w-20">Rank</th>
+              <th className="pb-3 text-left">Team</th>
+              <th className="pb-3 text-center">Score</th>
+              <th className="pb-3 text-left">Track</th>
+              <th className="pb-3 text-left">Reasoning</th>
             </tr>
           </thead>
           <tbody>
