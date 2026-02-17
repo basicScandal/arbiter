@@ -72,11 +72,11 @@ Plans:
   2. MoE scoring completes within 15 seconds even when one provider hangs — slow providers are cancelled, partial results are aggregated
   3. Running `python -m arbiter --rehearsal` (or equivalent CLI flag) executes a full demo cycle with synthetic camera/audio and deterministic LLM responses, producing commentary and scores without any real hardware or API calls
   4. An operator can trigger rehearsal mode from the dashboard and watch the full theatrical flow (commentary -> score reveal -> deliberation) play out with mock data
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
+- [ ] 09-01-PLAN.md — GroqProvider scoring fallback + MoE timeout hardening (REL-01, REL-02, REL-03)
+- [ ] 09-02-PLAN.md — Rehearsal mode: synthetic capture, replay provider, CLI + dashboard integration (RHS-01, RHS-02, RHS-03)
 
 ### Phase 10: Dashboard Hardening
 **Goal**: The operator dashboard is reliable under real venue conditions — survives WiFi blips, shows system health, and streams scoring events live
@@ -108,5 +108,5 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 6. Venue Hardening | v1.0 | 3/3 | Complete | 2026-02-16 |
 | 7. Test Infrastructure | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 8. E2E Pipeline Coverage | v1.1 | 2/2 | Complete | 2026-02-17 |
-| 9. Groq Fallback + Rehearsal | v1.1 | 0/TBD | Not started | - |
+| 9. Groq Fallback + Rehearsal | v1.1 | 0/2 | Not started | - |
 | 10. Dashboard Hardening | v1.1 | 0/TBD | Not started | - |
