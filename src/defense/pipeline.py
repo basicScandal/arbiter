@@ -101,6 +101,7 @@ class DefensePipeline:
         self._transcripts: list[str] = []
         self._transcript_buffer: str = ""
         self._transcript_cooldown: int = 0
+        self._logged_medium_in_window: bool = False
         self._pending_roast_tasks: list[asyncio.Task] = []
 
     async def setup(self, event_bus: EventBus) -> None:
@@ -123,6 +124,7 @@ class DefensePipeline:
         self._transcripts.clear()
         self._transcript_buffer = ""
         self._transcript_cooldown = 0
+        self._logged_medium_in_window = False
         self._pending_roast_tasks.clear()
         self._logger.clear()
         logger.info("Defense pipeline active for team: %s", event.team_name)
@@ -160,13 +162,14 @@ class DefensePipeline:
         patterns. We accumulate tokens into a sliding buffer and scan the
         trailing window so patterns spanning multiple tokens are detected.
 
-        After a detection, we set a cooldown counter to skip scanning for
-        a few tokens, avoiding duplicate detections from overlapping windows.
+        Cooldown only triggers after HIGH confidence detections (which fire
+        roast generation). Medium detections are logged but scanning continues
+        so additional patterns can accumulate to reach high confidence.
         """
         self._transcripts.append(event.segment.text)
         self._transcript_buffer += event.segment.text
 
-        # Skip scanning during cooldown after a detection
+        # Skip scanning during cooldown after a high-confidence detection
         if self._transcript_cooldown > 0:
             self._transcript_cooldown -= 1
             return
@@ -175,23 +178,38 @@ class DefensePipeline:
         window = self._transcript_buffer[-200:]
         result = self._detector.scan_verbal(window)
         if result.is_injection:
-            attempt = InjectionAttempt(
-                timestamp=event.timestamp,
-                injection_type="verbal",
-                content=result.matched_text or window.strip()[:200],
-                pattern=",".join(result.matched_patterns),
-                confidence=result.confidence,
-                team_name=self._current_team,
-            )
-            # Cooldown: skip next 20 tokens (~100 chars) to avoid duplicate
-            # detections from overlapping windows
-            self._transcript_cooldown = 20
-            self._logger.log(attempt)
-            if self._event_bus is not None:
-                self._event_bus.publish(InjectionDetected(attempt=attempt))
+            # Only log and fire events on confidence upgrade (avoid duplicates
+            # at the same confidence level from overlapping windows)
             if result.confidence == "high":
+                attempt = InjectionAttempt(
+                    timestamp=event.timestamp,
+                    injection_type="verbal",
+                    content=result.matched_text or window.strip()[:200],
+                    pattern=",".join(result.matched_patterns),
+                    confidence=result.confidence,
+                    team_name=self._current_team,
+                )
+                # Cooldown after high confidence — we got the roast-worthy detection
+                self._transcript_cooldown = 20
+                self._logger.log(attempt)
+                if self._event_bus is not None:
+                    self._event_bus.publish(InjectionDetected(attempt=attempt))
                 task = asyncio.create_task(self._generate_roast(attempt))
                 self._pending_roast_tasks.append(task)
+            elif not self._logged_medium_in_window:
+                # Log first medium detection but keep scanning for more patterns
+                attempt = InjectionAttempt(
+                    timestamp=event.timestamp,
+                    injection_type="verbal",
+                    content=result.matched_text or window.strip()[:200],
+                    pattern=",".join(result.matched_patterns),
+                    confidence=result.confidence,
+                    team_name=self._current_team,
+                )
+                self._logged_medium_in_window = True
+                self._logger.log(attempt)
+                if self._event_bus is not None:
+                    self._event_bus.publish(InjectionDetected(attempt=attempt))
 
     async def _generate_roast(self, attempt: InjectionAttempt) -> None:
         """Generate a roast for a high-confidence injection attempt."""
