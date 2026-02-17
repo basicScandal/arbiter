@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.commentary.models import QAQuestion
-from src.commentary.qa_generator import QAGenerator
+from src.commentary.qa_generator import QAGenerator, _MAX_QUESTIONS
 from src.defense.models import InjectionAttempt, SanitizedOutput
 
 
@@ -232,9 +232,7 @@ class TestParseQuestions:
         assert result[0].text == "How does your system work?"
 
     def test_question_limit_enforced(self) -> None:
-        """generate() enforces _MAX_QUESTIONS (2) even if parser returns more."""
-        from src.commentary.qa_generator import _MAX_QUESTIONS
-
+        """Parser returns all questions; _MAX_QUESTIONS caps at generate() level."""
         raw = "Q1?\n\nQ2?\n\nQ3?\n\nQ4?"
         result = QAGenerator._parse_questions(raw, "TestTeam")
         # Parser returns all 4
@@ -660,3 +658,510 @@ class TestPipelineDelivery:
         # Numbering should be stripped
         assert calls[0].args == ("How did you validate the accuracy claim?", "CyberFalcons")
         assert calls[1].args == ("What's your key rotation strategy?", "CyberFalcons")
+
+
+# ---------------------------------------------------------------------------
+# Constructor logic
+# ---------------------------------------------------------------------------
+
+
+class TestConstructor:
+    """Tests for QAGenerator.__init__ Groq client branching."""
+
+    def test_explicit_groq_key_creates_client(self) -> None:
+        """Passing a non-empty groq_api_key creates the Groq client."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test123")
+        assert gen._groq_client is not None
+
+    def test_empty_string_disables_groq(self) -> None:
+        """Passing groq_api_key='' explicitly disables Groq."""
+        gen = QAGenerator(api_key="fake", groq_api_key="")
+        assert gen._groq_client is None
+
+    def test_none_reads_env_when_set(self) -> None:
+        """groq_api_key=None checks env; client created when key found."""
+        with patch.dict("os.environ", {"GROQ_API_KEY": "gsk_from_env"}):
+            gen = QAGenerator(api_key="fake", groq_api_key=None)
+        assert gen._groq_client is not None
+
+    def test_none_reads_env_when_unset(self) -> None:
+        """groq_api_key=None checks env; no client when key missing."""
+        with patch.dict("os.environ", {}, clear=True):
+            gen = QAGenerator(api_key="fake", groq_api_key=None)
+        assert gen._groq_client is None
+
+    def test_custom_model_passed_through(self) -> None:
+        """Custom model name is stored on the instance."""
+        gen = QAGenerator(api_key="fake", model="gemini-2.0-flash", groq_api_key="")
+        assert gen._model == "gemini-2.0-flash"
+
+    def test_default_model(self) -> None:
+        """Default model is gemini-2.5-flash."""
+        gen = QAGenerator(api_key="fake", groq_api_key="")
+        assert gen._model == "gemini-2.5-flash"
+
+
+# ---------------------------------------------------------------------------
+# _call_groq direct tests
+# ---------------------------------------------------------------------------
+
+
+class TestCallGroq:
+    """Tests for QAGenerator._call_groq internals."""
+
+    @pytest.mark.asyncio
+    async def test_groq_sends_correct_params(self) -> None:
+        """Verify model, system prompt, temperature, and max_tokens are correct."""
+        from src.commentary.prompts import QA_PROMPT
+
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Test question?"
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+
+        mock_create = AsyncMock(return_value=mock_response)
+        gen._groq_client.chat.completions.create = mock_create
+
+        result = await gen._call_groq("user prompt here")
+
+        mock_create.assert_called_once()
+        call_kwargs = mock_create.call_args.kwargs
+        assert call_kwargs["model"] == "llama-3.3-70b-versatile"
+        assert call_kwargs["max_tokens"] == 500
+        assert call_kwargs["temperature"] == 0.7
+        messages = call_kwargs["messages"]
+        assert messages[0] == {"role": "system", "content": QA_PROMPT}
+        assert messages[1] == {"role": "user", "content": "user prompt here"}
+        assert result == "Test question?"
+
+    @pytest.mark.asyncio
+    async def test_groq_empty_choices_returns_empty(self) -> None:
+        """Empty choices list returns empty string."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        mock_response = MagicMock()
+        mock_response.choices = []
+        gen._groq_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        result = await gen._call_groq("prompt")
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_groq_none_content_returns_empty(self) -> None:
+        """None message content returns empty string."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        mock_choice = MagicMock()
+        mock_choice.message.content = None
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        gen._groq_client.chat.completions.create = AsyncMock(return_value=mock_response)
+
+        result = await gen._call_groq("prompt")
+        assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# _call_gemini edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestCallGeminiEdgeCases:
+    """Edge cases for _call_gemini beyond truncation detection."""
+
+    @pytest.mark.asyncio
+    async def test_none_response_text_returns_empty(self) -> None:
+        """response.text being None returns empty string."""
+        gen = QAGenerator(api_key="fake", groq_api_key="")
+        mock_resp = MagicMock()
+        mock_resp.text = None
+        mock_resp.candidates = []
+
+        with patch.object(
+            gen._client.aio.models, "generate_content", return_value=mock_resp
+        ):
+            result = await gen._call_gemini.__wrapped__(gen, "prompt")
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_empty_candidates_no_crash(self) -> None:
+        """Empty candidates list doesn't crash truncation check."""
+        gen = QAGenerator(api_key="fake", groq_api_key="")
+        mock_resp = MagicMock()
+        mock_resp.text = "Some question?"
+        mock_resp.candidates = []
+
+        with patch.object(
+            gen._client.aio.models, "generate_content", return_value=mock_resp
+        ):
+            result = await gen._call_gemini.__wrapped__(gen, "prompt")
+
+        assert result == "Some question?"
+
+
+# ---------------------------------------------------------------------------
+# generate() question limit enforcement (end-to-end)
+# ---------------------------------------------------------------------------
+
+
+class TestQuestionLimitEndToEnd:
+    """Verify _MAX_QUESTIONS is enforced through the full generate() path."""
+
+    @pytest.mark.asyncio
+    async def test_gemini_four_questions_capped_to_two(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Gemini returning 4 questions gets capped to _MAX_QUESTIONS (2)."""
+        gen = QAGenerator(api_key="fake", groq_api_key="")
+        raw = "Q1 question?\n\nQ2 question?\n\nQ3 question?\n\nQ4 question?"
+
+        with patch.object(gen, "_call_gemini", return_value=raw):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == _MAX_QUESTIONS
+        assert "Q1" in questions[0].text
+        assert "Q2" in questions[1].text
+
+    @pytest.mark.asyncio
+    async def test_groq_three_questions_capped_to_two(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Groq fallback returning 3 questions gets capped to _MAX_QUESTIONS (2)."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+        groq_raw = "Q1 from Groq?\n\nQ2 from Groq?\n\nQ3 from Groq?"
+
+        with (
+            patch.object(gen, "_call_gemini", side_effect=RuntimeError("down")),
+            patch.object(gen, "_call_groq", return_value=groq_raw),
+        ):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == _MAX_QUESTIONS
+        assert "Q1" in questions[0].text
+        assert "Q2" in questions[1].text
+
+    @pytest.mark.asyncio
+    async def test_gemini_empty_falls_through_to_groq(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Gemini returning empty string triggers Groq fallback."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        with (
+            patch.object(gen, "_call_gemini", return_value=""),
+            patch.object(gen, "_call_groq", return_value="Groq question?") as mock_groq,
+        ):
+            questions = await gen.generate(sanitized)
+
+        mock_groq.assert_called_once()
+        assert len(questions) == 1
+        assert "Groq" in questions[0].text
+
+
+# ---------------------------------------------------------------------------
+# close() lifecycle
+# ---------------------------------------------------------------------------
+
+
+class TestClose:
+    """Tests for QAGenerator.close() resource cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_close_with_groq_client(self) -> None:
+        """close() calls close on the Groq client when present."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+        gen._groq_client = AsyncMock()
+
+        await gen.close()
+
+        gen._groq_client.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_close_without_groq_client(self) -> None:
+        """close() is a no-op when Groq client is None."""
+        gen = QAGenerator(api_key="fake", groq_api_key="")
+        assert gen._groq_client is None
+
+        # Should not raise
+        await gen.close()
+
+
+# ---------------------------------------------------------------------------
+# Pipeline TTS healthy path
+# ---------------------------------------------------------------------------
+
+
+class TestPipelineTTSHealthy:
+    """Tests for Q&A delivery when TTS is healthy (parallel TTS + display)."""
+
+    @pytest.mark.asyncio
+    async def test_tts_and_display_called_in_parallel(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """When TTS is healthy, speak() and push_question() are both called."""
+        from src.commentary.models import QARequested
+        from src.commentary.pipeline import CommentaryPipeline
+        from src.resilience.health import default_health
+
+        default_health.mark_healthy("cartesia_tts")
+
+        pipeline = CommentaryPipeline.__new__(CommentaryPipeline)
+        pipeline._last_sanitized = sanitized
+        pipeline._qa_generator = QAGenerator(api_key="fake", groq_api_key="")
+        pipeline._tts = MagicMock()
+        pipeline._tts.speak = AsyncMock()
+        pipeline._tts._connected = True
+        pipeline._display = MagicMock()
+        pipeline._display.push_question = AsyncMock()
+
+        with patch.object(
+            pipeline._qa_generator, "_call_gemini", return_value="How does auth work?"
+        ):
+            event = QARequested(team_name="CyberFalcons")
+            await pipeline._on_qa_requested(event)
+
+        # Both TTS and display should have been called
+        pipeline._tts.speak.assert_called_once()
+        pipeline._display.push_question.assert_called_once()
+
+        # Verify TTS received correct params
+        tts_args = pipeline._tts.speak.call_args
+        assert tts_args.args[0] == "How does auth work?"
+        assert tts_args.args[2] == "neutral"  # emotion for Q&A
+        assert tts_args.kwargs["is_continuation"] is False
+
+    @pytest.mark.asyncio
+    async def test_tts_failure_falls_back_to_display_only(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """TTS exception mid-Q&A marks unhealthy and still pushes to display."""
+        from src.commentary.models import QARequested
+        from src.commentary.pipeline import CommentaryPipeline
+        from src.resilience.health import default_health
+
+        default_health.mark_healthy("cartesia_tts")
+
+        pipeline = CommentaryPipeline.__new__(CommentaryPipeline)
+        pipeline._last_sanitized = sanitized
+        pipeline._qa_generator = QAGenerator(api_key="fake", groq_api_key="")
+        pipeline._tts = MagicMock()
+        pipeline._tts.speak = AsyncMock(side_effect=ConnectionError("TTS down"))
+        pipeline._tts._connected = False
+        pipeline._display = MagicMock()
+        pipeline._display.push_question = AsyncMock()
+
+        with patch.object(
+            pipeline._qa_generator, "_call_gemini", return_value="Fallback question?"
+        ):
+            event = QARequested(team_name="CyberFalcons")
+            await pipeline._on_qa_requested(event)
+
+        # Display should still receive the question despite TTS failure
+        pipeline._display.push_question.assert_called()
+        pushed = pipeline._display.push_question.call_args_list[-1].args[0]
+        assert pushed == "Fallback question?"
+
+        # TTS should be marked unhealthy
+        assert not default_health.is_healthy("cartesia_tts")
+
+    @pytest.mark.asyncio
+    async def test_tts_healthy_two_questions_sequential(
+        self, sanitized: SanitizedOutput
+    ) -> None:
+        """Two questions are delivered sequentially (not all at once)."""
+        from src.commentary.models import QARequested
+        from src.commentary.pipeline import CommentaryPipeline
+        from src.resilience.health import default_health
+
+        default_health.mark_healthy("cartesia_tts")
+
+        pipeline = CommentaryPipeline.__new__(CommentaryPipeline)
+        pipeline._last_sanitized = sanitized
+        pipeline._qa_generator = QAGenerator(api_key="fake", groq_api_key="")
+        pipeline._tts = MagicMock()
+        pipeline._tts.speak = AsyncMock()
+        pipeline._tts._connected = True
+        pipeline._display = MagicMock()
+        pipeline._display.push_question = AsyncMock()
+
+        raw = "First question?\n\nSecond question?"
+        with patch.object(pipeline._qa_generator, "_call_gemini", return_value=raw):
+            event = QARequested(team_name="CyberFalcons")
+            await pipeline._on_qa_requested(event)
+
+        # Both questions delivered
+        assert pipeline._tts.speak.call_count == 2
+        assert pipeline._display.push_question.call_count == 2
+
+        # Second call should have is_continuation=True
+        second_tts_call = pipeline._tts.speak.call_args_list[1]
+        assert second_tts_call.kwargs["is_continuation"] is True
+
+
+# ---------------------------------------------------------------------------
+# Pipeline error handling
+# ---------------------------------------------------------------------------
+
+
+class TestPipelineErrorHandling:
+    """Tests for pipeline-level error handling during Q&A."""
+
+    @pytest.mark.asyncio
+    async def test_generator_exception_caught(
+        self, sanitized: SanitizedOutput, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Exception in QA generator is caught and logged, not propagated."""
+        from src.commentary.models import QARequested
+        from src.commentary.pipeline import CommentaryPipeline
+
+        pipeline = CommentaryPipeline.__new__(CommentaryPipeline)
+        pipeline._last_sanitized = sanitized
+        pipeline._qa_generator = MagicMock()
+        pipeline._qa_generator.generate = AsyncMock(
+            side_effect=RuntimeError("catastrophic failure")
+        )
+        pipeline._tts = MagicMock()
+        pipeline._display = MagicMock()
+
+        event = QARequested(team_name="CyberFalcons")
+        with caplog.at_level(logging.ERROR):
+            # Should not raise
+            await pipeline._on_qa_requested(event)
+
+        assert "q&a delivery failed" in caplog.text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Prompt edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestPromptEdgeCases:
+    """Additional edge cases for _build_user_prompt."""
+
+    def test_duration_formatted_as_integer_seconds(self) -> None:
+        """Duration is formatted without decimal places."""
+        sanitized = SanitizedOutput(
+            team_name="TestTeam",
+            observations=["obs1"],
+            transcripts=[],
+            injection_attempts=[],
+            demo_duration=123.456,
+        )
+        prompt = QAGenerator._build_user_prompt(sanitized)
+        assert "### Duration\n123s" in prompt
+        # No decimal point
+        assert "123.456" not in prompt
+
+    def test_injection_content_truncated_at_200_chars(self) -> None:
+        """Long injection content is truncated to 200 characters in the prompt."""
+        long_content = "A" * 500
+        sanitized = SanitizedOutput(
+            team_name="TestTeam",
+            observations=[],
+            transcripts=[],
+            injection_attempts=[
+                InjectionAttempt(
+                    timestamp=0.0,
+                    injection_type="test",
+                    content=long_content,
+                    pattern="test",
+                    confidence="high",
+                    team_name="TestTeam",
+                ),
+            ],
+            demo_duration=60.0,
+        )
+        prompt = QAGenerator._build_user_prompt(sanitized)
+        # Should contain exactly 200 A's, not 500
+        assert "A" * 200 in prompt
+        assert "A" * 201 not in prompt
+
+    def test_no_transcripts_section_when_empty(self) -> None:
+        """Transcript section is omitted when transcripts list is empty."""
+        sanitized = SanitizedOutput(
+            team_name="TestTeam",
+            observations=["obs"],
+            transcripts=[],
+            injection_attempts=[],
+            demo_duration=60.0,
+        )
+        prompt = QAGenerator._build_user_prompt(sanitized)
+        assert "### Transcript Highlights" not in prompt
+
+    def test_no_injection_section_when_empty(self) -> None:
+        """Injection section is omitted when no injection attempts."""
+        sanitized = SanitizedOutput(
+            team_name="TestTeam",
+            observations=["obs"],
+            transcripts=[],
+            injection_attempts=[],
+            demo_duration=60.0,
+        )
+        prompt = QAGenerator._build_user_prompt(sanitized)
+        assert "### Injection Attempts" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# Groq network error handling in generate()
+# ---------------------------------------------------------------------------
+
+
+class TestGroqErrorHandling:
+    """Tests for specific Groq exception handling in generate()."""
+
+    @pytest.mark.asyncio
+    async def test_groq_timeout_falls_to_static(
+        self, sanitized: SanitizedOutput, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Groq TimeoutError is caught as network error and falls to static."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        with (
+            patch.object(gen, "_call_gemini", side_effect=RuntimeError("down")),
+            patch.object(gen, "_call_groq", side_effect=TimeoutError("15s exceeded")),
+            caplog.at_level(logging.WARNING),
+        ):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == 1
+        assert questions[0].context == "fallback"
+        assert "network" in caplog.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_groq_connection_error_falls_to_static(
+        self, sanitized: SanitizedOutput, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Groq ConnectionError is caught as network error."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        with (
+            patch.object(gen, "_call_gemini", side_effect=RuntimeError("down")),
+            patch.object(gen, "_call_groq", side_effect=ConnectionError("refused")),
+            caplog.at_level(logging.WARNING),
+        ):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == 1
+        assert questions[0].context == "fallback"
+
+    @pytest.mark.asyncio
+    async def test_groq_unexpected_error_logged_as_exception(
+        self, sanitized: SanitizedOutput, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Non-network Groq errors are logged at exception level."""
+        gen = QAGenerator(api_key="fake", groq_api_key="gsk_test")
+
+        with (
+            patch.object(gen, "_call_gemini", side_effect=RuntimeError("down")),
+            patch.object(gen, "_call_groq", side_effect=ValueError("unexpected")),
+            caplog.at_level(logging.ERROR),
+        ):
+            questions = await gen.generate(sanitized)
+
+        assert len(questions) == 1
+        assert questions[0].context == "fallback"
+        assert "groq q&a fallback also failed" in caplog.text.lower()
