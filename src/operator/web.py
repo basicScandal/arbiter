@@ -63,6 +63,7 @@ class WebOperator:
         self._quit_signal = asyncio.Event()
         self._operator_connections: list[WebSocket] = []
         self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
+        self._send_lock = asyncio.Lock()
 
     async def run(self) -> None:
         """Main operator loop: register routes, subscribe to events, and wait for quit.
@@ -316,6 +317,8 @@ class WebOperator:
         except TransitionNotAllowed:
             state_id = self._demo_machine.current_state.id
             await self._send_result(ws, False, f"Cannot '{action}' in state '{state_id}'")
+        except Exception:
+            logger.exception("Unhandled exception in command handler for '%s'", action)
 
         # Push updated state to ALL operator clients after command
         await self._broadcast_state()
@@ -328,15 +331,15 @@ class WebOperator:
             success: Whether the command succeeded.
             message: Result message.
         """
-        try:
-            await ws.send_json({
-                "type": "command_result",
-                "success": success,
-                "message": message,
-            })
-        except Exception:
-            # Client may have disconnected
-            pass
+        async with self._send_lock:
+            try:
+                await asyncio.wait_for(ws.send_json({
+                    "type": "command_result",
+                    "success": success,
+                    "message": message,
+                }), timeout=5.0)
+            except Exception:
+                pass
 
     async def _push_state(self, ws: WebSocket) -> None:
         """Push current demo state and health to a specific operator client.
@@ -345,20 +348,19 @@ class WebOperator:
             ws: The WebSocket connection to send to.
         """
         state_data = self._get_state_data()
-        try:
-            await ws.send_json(state_data)
+        async with self._send_lock:
+            try:
+                await asyncio.wait_for(ws.send_json(state_data), timeout=5.0)
 
-            # Also push health so newly connected clients get current status immediately
-            from src.resilience.health import default_health
+                from src.resilience.health import default_health
 
-            health_status = default_health.get_status()
-            await ws.send_json({
-                "type": "health",
-                "services": health_status,
-            })
-        except Exception:
-            # Client may have disconnected
-            pass
+                health_status = default_health.get_status()
+                await asyncio.wait_for(ws.send_json({
+                    "type": "health",
+                    "services": health_status,
+                }), timeout=5.0)
+            except Exception:
+                pass
 
     async def _broadcast_state(self) -> None:
         """Broadcast current demo state to all connected operator clients."""
@@ -392,17 +394,29 @@ class WebOperator:
     async def _broadcast_to_operators(self, message: dict) -> None:
         """Broadcast a message to all connected operator clients.
 
+        Uses a lock to prevent concurrent send_json calls on the same WebSocket
+        from interleaving frames. Sends to all clients concurrently within the
+        lock so a slow client doesn't delay delivery to responsive ones.
+
         Args:
             message: JSON-serializable message dict.
         """
-        disconnected: list[WebSocket] = []
-        for ws in self._operator_connections:
-            try:
-                await ws.send_json(message)
-            except Exception:
-                disconnected.append(ws)
+        if not self._operator_connections:
+            return
 
-        # Clean up disconnected clients
-        for ws in disconnected:
-            if ws in self._operator_connections:
-                self._operator_connections.remove(ws)
+        async def _safe_send(ws: WebSocket) -> WebSocket | None:
+            try:
+                await asyncio.wait_for(ws.send_json(message), timeout=5.0)
+                return None
+            except Exception:
+                return ws
+
+        async with self._send_lock:
+            results = await asyncio.gather(
+                *[_safe_send(ws) for ws in self._operator_connections]
+            )
+
+            # Clean up disconnected/timed-out clients
+            for ws in results:
+                if ws is not None and ws in self._operator_connections:
+                    self._operator_connections.remove(ws)

@@ -97,6 +97,21 @@ def _make_operator(
     return op, machine, b, ds
 
 
+def _drain_connect(ws) -> dict:
+    """Consume the initial state + health messages sent on WebSocket connect.
+
+    _push_state sends a state message followed by a health message on every
+    new connection. Tests must drain both before reading command responses.
+
+    Returns the state message for tests that need to inspect it.
+    """
+    state = ws.receive_json()
+    assert state["type"] == "state"
+    health = ws.receive_json()
+    assert health["type"] == "health"
+    return state
+
+
 def _frame() -> FrameData:
     return FrameData(jpeg_data=b"\xff", width=1, height=1, timestamp=0.0)
 
@@ -123,11 +138,10 @@ def test_connect_receives_initial_state():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        msg = ws.receive_json()
-        assert msg["type"] == "state"
-        assert msg["state"] == "idle"
-        assert msg["team_name"] == ""
-        assert msg["started_at"] is None
+        state = _drain_connect(ws)
+        assert state["state"] == "idle"
+        assert state["team_name"] == ""
+        assert state["started_at"] is None
 
 
 def test_connect_increments_operator_count():
@@ -136,7 +150,7 @@ def test_connect_increments_operator_count():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()  # consume initial state
+        _drain_connect(ws)
         assert len(op._operator_connections) == 1
 
 
@@ -146,7 +160,7 @@ def test_disconnect_removes_client():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
     # After context exit, client is disconnected
     assert len(op._operator_connections) == 0
 
@@ -162,7 +176,7 @@ def test_start_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()  # initial state
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "Alpha", "track": "ROGUE::AGENT"})
 
         result = ws.receive_json()
@@ -185,7 +199,7 @@ def test_start_command_missing_team_name():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": ""})
 
         result = ws.receive_json()
@@ -203,7 +217,7 @@ def test_start_command_sets_track():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "Beta", "track": "SHADOW::VECTOR"})
         _ = ws.receive_json()  # command_result
         _ = ws.receive_json()  # state broadcast
@@ -219,7 +233,7 @@ def test_start_command_sets_track_on_deliberation():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "Gamma", "track": "SENTINEL::MESH"})
         _ = ws.receive_json()
         _ = ws.receive_json()
@@ -233,7 +247,7 @@ def test_start_command_invalid_track_warns():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "Delta", "track": "BOGUS::TRACK"})
 
         # First result is the warning
@@ -258,7 +272,7 @@ def test_start_resets_counters():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "Echo"})
         _ = ws.receive_json()  # result
         _ = ws.receive_json()  # state
@@ -278,7 +292,7 @@ def test_stop_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()  # initial state (capturing)
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "stop"})
 
         result = ws.receive_json()
@@ -296,7 +310,7 @@ def test_stop_from_idle_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "stop"})
 
         result = ws.receive_json()
@@ -312,7 +326,7 @@ def test_stop_includes_duration():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "stop"})
 
         result = ws.receive_json()
@@ -331,7 +345,7 @@ def test_pause_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "pause"})
 
         result = ws.receive_json()
@@ -347,7 +361,7 @@ def test_pause_from_idle_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "pause"})
 
         result = ws.receive_json()
@@ -362,7 +376,7 @@ def test_resume_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "resume"})
 
         result = ws.receive_json()
@@ -378,7 +392,7 @@ def test_resume_from_idle_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "resume"})
 
         result = ws.receive_json()
@@ -398,7 +412,7 @@ def test_reset_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()  # stopped state
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "reset"})
 
         result = ws.receive_json()
@@ -415,7 +429,7 @@ def test_reset_from_idle_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "reset"})
 
         result = ws.receive_json()
@@ -440,7 +454,7 @@ def test_qa_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "qa"})
 
         result = ws.receive_json()
@@ -455,7 +469,7 @@ def test_qa_from_capturing_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "qa"})
 
         result = ws.receive_json()
@@ -469,7 +483,7 @@ def test_qa_from_idle_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "qa"})
 
         result = ws.receive_json()
@@ -491,7 +505,7 @@ def test_deliberate_command_success():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "deliberate"})
 
         result = ws.receive_json()
@@ -510,7 +524,7 @@ def test_quit_command_sets_signal():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "quit"})
 
         result = ws.receive_json()
@@ -530,7 +544,7 @@ def test_unknown_command_returns_error():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "explode"})
 
         result = ws.receive_json()
@@ -544,7 +558,7 @@ def test_empty_action_returns_error():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command"})
 
         result = ws.receive_json()
@@ -562,7 +576,7 @@ def test_state_broadcast_after_start():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "Mike"})
         _ = ws.receive_json()  # command_result
 
@@ -580,7 +594,7 @@ def test_state_includes_track_from_scoring():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "start", "team_name": "November", "track": "ZERO::PROOF"})
         _ = ws.receive_json()  # result
 
@@ -716,10 +730,10 @@ def test_multiple_clients_receive_state():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws1:
-        _ = ws1.receive_json()  # initial state for ws1
+        _drain_connect(ws1)
 
         with client.websocket_connect("/ws/operator") as ws2:
-            _ = ws2.receive_json()  # initial state for ws2
+            _drain_connect(ws2)
 
             assert len(op._operator_connections) == 2
 
@@ -808,7 +822,7 @@ def test_full_demo_lifecycle():
 
     with client.websocket_connect("/ws/operator") as ws:
         # Initial idle state
-        state = ws.receive_json()
+        state = _drain_connect(ws)
         assert state["state"] == "idle"
 
         # Start
@@ -853,7 +867,7 @@ def test_double_start_fails():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
 
         # First start succeeds
         ws.send_json({"type": "command", "action": "start", "team_name": "Tango"})
@@ -875,7 +889,7 @@ def test_stop_from_paused():
     client = TestClient(ds.app)
 
     with client.websocket_connect("/ws/operator") as ws:
-        _ = ws.receive_json()
+        _drain_connect(ws)
         ws.send_json({"type": "command", "action": "stop"})
 
         result = ws.receive_json()
