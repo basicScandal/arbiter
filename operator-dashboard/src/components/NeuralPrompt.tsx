@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOperatorStore } from "../store/operatorStore";
 
@@ -31,7 +31,7 @@ const STATE_ACTIONS: Record<string, ActionButton[]> = {
   stopped: [
     { label: "Q&A", action: "qa", color: "bg-event-commentary/20 text-event-commentary border border-event-commentary/40", hoverGlow: "rgba(255,204,0,0.3)" },
     { label: "DELIBERATE", action: "deliberate", color: "bg-accent-stopped/20 text-accent-stopped border border-accent-stopped/40", hoverGlow: "rgba(102,136,255,0.3)" },
-    { label: "RESET", action: "reset", color: "bg-text-dim/20 text-text-secondary border border-text-dim/40", hoverGlow: "rgba(85,85,112,0.3)" },
+    { label: "NEXT TEAM", action: "reset", color: "bg-accent-capturing/20 text-accent-capturing border border-accent-capturing/40", hoverGlow: "rgba(0,255,136,0.3)" },
   ],
 };
 
@@ -48,6 +48,17 @@ export function NeuralPrompt() {
   const lastCommandResult = useOperatorStore((s) => s.lastCommandResult);
   const [teamName, setTeamName] = useState("");
   const [track, setTrack] = useState(TRACKS[3]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Clear team name and auto-focus input when returning to idle (after reset)
+  const prevState = useRef(demoState);
+  useEffect(() => {
+    if (demoState === "idle" && prevState.current !== "idle") {
+      setTeamName("");
+      setTimeout(() => inputRef.current?.focus(), 300);
+    }
+    prevState.current = demoState;
+  }, [demoState]);
 
   const handleStart = () => {
     if (teamName.trim()) {
@@ -91,6 +102,7 @@ export function NeuralPrompt() {
             {demoState === 'idle' && (
               <>
                 <input
+                  ref={inputRef}
                   type="text"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}

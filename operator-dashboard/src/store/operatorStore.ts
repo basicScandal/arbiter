@@ -71,7 +71,8 @@ export const useOperatorStore = create<OperatorState>((set) => ({
           teamName: msg.team_name,
           track: msg.track,
           startedAt: msg.started_at,
-          // Reset scorecard when new demo starts (prevents stale scores across demos)
+          // Clear stale data on state transitions
+          ...(msg.state === 'idle' && { events: [], lastScorecard: null }),
           ...(msg.state === 'capturing' && { lastScorecard: null }),
         });
         break;

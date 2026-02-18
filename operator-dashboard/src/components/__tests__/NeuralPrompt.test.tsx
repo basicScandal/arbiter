@@ -69,12 +69,12 @@ describe("NeuralPrompt", () => {
       expect(screen.queryByText("PAUSE")).not.toBeInTheDocument();
     });
 
-    it("stopped shows Q&A, DELIBERATE, RESET", () => {
+    it("stopped shows Q&A, DELIBERATE, NEXT TEAM", () => {
       useOperatorStore.setState({ demoState: "stopped" });
       render(<NeuralPrompt />);
       expect(screen.getByText("Q&A")).toBeInTheDocument();
       expect(screen.getByText("DELIBERATE")).toBeInTheDocument();
-      expect(screen.getByText("RESET")).toBeInTheDocument();
+      expect(screen.getByText("NEXT TEAM")).toBeInTheDocument();
       expect(screen.queryByText("START")).not.toBeInTheDocument();
     });
   });
@@ -150,9 +150,9 @@ describe("NeuralPrompt", () => {
       expect(screen.getByText("DELIBERATE")).toBeEnabled();
     });
 
-    it("RESET is enabled", () => {
+    it("NEXT TEAM is enabled", () => {
       render(<NeuralPrompt />);
-      expect(screen.getByText("RESET")).toBeEnabled();
+      expect(screen.getByText("NEXT TEAM")).toBeEnabled();
     });
   });
 
