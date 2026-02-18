@@ -124,6 +124,44 @@ describe("operatorStore", () => {
       useOperatorStore.getState().dispatch(msg);
       expect(useOperatorStore.getState().demoState).toBe("stopped");
     });
+
+    it("resets lastScorecard when demo starts capturing", () => {
+      const store = useOperatorStore.getState();
+
+      // Simulate previous demo scorecard
+      store.dispatch({
+        type: "event",
+        event_type: "scoring_complete",
+        timestamp: Date.now(),
+        data: {
+          scorecard: {
+            team_name: "Previous Team",
+            track: "blue",
+            total_score: 8.5,
+            criteria: [
+              { name: "Innovation", score: 9, weight: 0.5, justification: "Great work" }
+            ],
+            track_bonus: null,
+          },
+        },
+      });
+
+      expect(useOperatorStore.getState().lastScorecard).not.toBeNull();
+      expect(useOperatorStore.getState().lastScorecard?.team_name).toBe("Previous Team");
+
+      // New demo starts
+      store.dispatch({
+        type: "state",
+        state: "capturing",
+        team_name: "New Team",
+        track: "red",
+        started_at: Date.now(),
+      });
+
+      // Scorecard should be reset
+      expect(useOperatorStore.getState().lastScorecard).toBeNull();
+      expect(useOperatorStore.getState().teamName).toBe("New Team");
+    });
   });
 
   describe("dispatch - event message", () => {
