@@ -28,7 +28,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 - [x] **Phase 7: Test Infrastructure** — Timeout guards, EventCollector, singleton reset, parallel test support, VCR cassettes (completed 2026-02-17)
 - [x] **Phase 8: E2E Pipeline Coverage** — Full pipeline chain tests, MoE integration, event wiring regression, multi-level task draining (completed 2026-02-17)
 - [x] **Phase 9: Groq Fallback + Rehearsal Mode** — Groq scoring provider, MoE timeout hardening, synthetic capture, replay provider, CLI rehearsal (completed 2026-02-17)
-- [ ] **Phase 10: Dashboard Hardening** — WebSocket reconnect indicator, health endpoint, scoring event forwarding
+- [x] **Phase 10: Dashboard Hardening** — WebSocket reconnect indicator, health endpoint, scoring event forwarding (completed 2026-02-17)
 
 ## Phase Details
 
@@ -91,7 +91,7 @@ Plans:
 Plans:
 - [x] 10-01-PLAN.md — Backend health endpoint + WS health/scoring push + frontend store/types/hook plumbing
 - [x] 10-02-PLAN.md — ReconnectBanner, ConnectionDot update, HealthPanel, ScorePanel enhancement, App layout
-- [ ] 10-03-PLAN.md — Gap closure: Reset scorecard state when new demo starts
+- [x] 10-03-PLAN.md — Gap closure: Reset scorecard state when new demo starts
 
 ## Progress
 
@@ -110,4 +110,4 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 7. Test Infrastructure | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 8. E2E Pipeline Coverage | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 9. Groq Fallback + Rehearsal | v1.1 | 2/2 | Complete | 2026-02-17 |
-| 10. Dashboard Hardening | v1.1 | 2/3 | In progress | - |
+| 10. Dashboard Hardening | v1.1 | 3/3 | Complete | 2026-02-17 |
