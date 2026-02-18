@@ -39,10 +39,20 @@ const commentaryVariants = {
 };
 
 function formatEventData(eventType: string, data?: Record<string, unknown>): string {
-  if (!data) return "";
+  if (!data) {
+    // Static labels for data-less events
+    if (eventType === "key_frame_detected") return "Key frame captured";
+    if (eventType === "tts_speaking") return "Speaking...";
+    if (eventType === "tts_finished") return "Speech complete";
+    return "";
+  }
   if (eventType === "commentary_delivered" && data.text) {
     const text = String(data.text);
     return text.length > 120 ? text.slice(0, 117) + "..." : text;
+  }
+  if (eventType === "roast_generated" && data.text) {
+    const text = String(data.text);
+    return text.length > 70 ? text.slice(0, 67) + "..." : text;
   }
   if (eventType === "transcript_received" && data.segment) {
     const seg = data.segment as Record<string, unknown>;
@@ -62,11 +72,15 @@ function formatEventData(eventType: string, data?: Record<string, unknown>): str
       return `${nObs} observations, ${nAtk} attacks filtered`;
     }
   }
+  if (eventType === "scoring_complete" && data.scorecard) {
+    const sc = data.scorecard as Record<string, unknown>;
+    return `${sc.team_name}: ${Number(sc.total_score).toFixed(1)}/10`;
+  }
   if (data.team_name) return String(data.team_name);
   return "";
 }
 
-export function EventStream() {
+export function NeuralFeed() {
   const events = useOperatorStore((s) => s.events);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -105,13 +119,35 @@ export function EventStream() {
                     initial="initial"
                     animate="animate"
                     exit="exit"
-                    className="glass-panel-elevated px-3 py-2 my-1"
+                    className="glass-panel-elevated px-3 py-2 my-1 border-l-2"
+                    style={{ borderLeftColor: 'var(--color-event-commentary)' }}
                   >
                     <div className="flex gap-2 items-baseline mb-1">
                       <span className="text-text-dim text-xs">{formatTimestamp(evt.timestamp)}</span>
                       <span className={`${config.color} font-semibold`}>{config.icon} {config.label}</span>
                     </div>
                     <p className="text-text-primary text-sm leading-relaxed">{detail}</p>
+                  </motion.div>
+                );
+              }
+
+              if (evt.event_type === "roast_generated" && detail) {
+                return (
+                  <motion.div
+                    key={evt.id}
+                    custom={opacity}
+                    variants={commentaryVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    className="glass-panel-elevated px-3 py-2 my-1 border-l-2"
+                    style={{ borderLeftColor: 'var(--color-event-roast)' }}
+                  >
+                    <div className="flex gap-2 items-baseline mb-1">
+                      <span className="text-text-dim text-xs">{formatTimestamp(evt.timestamp)}</span>
+                      <span className={`${config.color} font-semibold`}>{config.icon} {config.label}</span>
+                    </div>
+                    <p className="text-event-roast text-sm leading-relaxed italic">{detail}</p>
                   </motion.div>
                 );
               }

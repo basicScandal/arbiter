@@ -5,7 +5,7 @@ import { Header } from "./components/Header";
 import { ReconnectBanner } from "./components/ReconnectBanner";
 import { CommandBar } from "./components/CommandBar";
 import { StatusPanel } from "./panels/StatusPanel";
-import { EventStream } from "./panels/EventStream";
+import { NeuralFeed } from "./panels/NeuralFeed";
 import { CountersPanel } from "./panels/CountersPanel";
 import { DefensePanel } from "./panels/DefensePanel";
 import { HealthPanel } from "./panels/HealthPanel";
@@ -37,7 +37,7 @@ export default function App() {
             <StatusPanel />
           </motion.div>
           <motion.div className="flex-1 flex flex-col" {...panelEntrance(0.12)}>
-            <EventStream />
+            <NeuralFeed />
           </motion.div>
         </div>
         <div className="flex flex-col gap-4">
