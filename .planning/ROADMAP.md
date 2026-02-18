@@ -86,11 +86,12 @@ Plans:
   1. When the WebSocket connection drops, the dashboard shows a visible "reconnecting" indicator and automatically reconnects without operator intervention
   2. The operator can see per-component health status (TTS, Gemini, scoring providers) on the dashboard at a glance
   3. When a demo finishes scoring, the scoring result appears on the operator dashboard in real-time without manual refresh
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Backend health endpoint + WS health/scoring push + frontend store/types/hook plumbing
-- [ ] 10-02-PLAN.md — ReconnectBanner, ConnectionDot update, HealthPanel, ScorePanel enhancement, App layout
+- [x] 10-01-PLAN.md — Backend health endpoint + WS health/scoring push + frontend store/types/hook plumbing
+- [x] 10-02-PLAN.md — ReconnectBanner, ConnectionDot update, HealthPanel, ScorePanel enhancement, App layout
+- [ ] 10-03-PLAN.md — Gap closure: Reset scorecard state when new demo starts
 
 ## Progress
 
@@ -109,4 +110,4 @@ Phases execute in numeric order: 7 -> 8 -> 9 -> 10
 | 7. Test Infrastructure | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 8. E2E Pipeline Coverage | v1.1 | 2/2 | Complete | 2026-02-17 |
 | 9. Groq Fallback + Rehearsal | v1.1 | 2/2 | Complete | 2026-02-17 |
-| 10. Dashboard Hardening | v1.1 | 0/TBD | Not started | - |
+| 10. Dashboard Hardening | v1.1 | 2/3 | In progress | - |
