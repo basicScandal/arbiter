@@ -24,24 +24,15 @@ Arbiter must produce fair, defensible scores that hold up alongside human judge 
 - ✓ Q&A question generation from structured observations — v1.0
 - ✓ Per-demo scoring notes with per-criterion breakdown and justification — v1.0
 
+- ✓ E2E integration tests across full pipeline (capture → defense → commentary → scoring → deliberation) — v1.1
+- ✓ Rehearsal/dry-run mode for testing without live camera — v1.1
+- ✓ Groq fallback for scoring pipeline (not just commentary) — v1.1
+- ✓ MoE ensemble scoring tested end-to-end with real multi-provider flow — v1.1
+- ✓ Operator web dashboard hardening (reconnect, health status, live scoring) — v1.1
+
 ### Active
 
-- [ ] E2E integration tests across full pipeline (capture → defense → commentary → scoring → deliberation)
-- [ ] Rehearsal/dry-run mode for testing without live camera
-- [ ] Groq fallback for scoring pipeline (not just commentary)
-- [ ] MoE ensemble scoring tested end-to-end with real multi-provider flow
-- [ ] Operator web dashboard hardening (reconnect, shortcuts, status indicators)
-
-## Current Milestone: v1.1 Reliability & Polish
-
-**Goal:** Harden the system for live event reliability — full test coverage, rehearsal mode, fallback coverage, MoE ensemble e2e, and operator dashboard polish.
-
-**Target features:**
-- E2E integration tests across the full pipeline
-- Rehearsal/dry-run mode against recorded or synthetic demos
-- Groq fallback for scoring (extending the commentary pattern)
-- MoE multi-provider scoring wired and tested end-to-end
-- Operator dashboard polish (WebSocket reconnect, keyboard shortcuts, status)
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -55,10 +46,11 @@ Arbiter must produce fair, defensible scores that hold up alongside human judge 
 
 ## Context
 
-Shipped v1.0 with 6,141 LOC Python across 113 files.
-Tech stack: Python 3.13, Gemini 2.0/2.5 Flash, Cartesia TTS, OpenCV, PyAudio, FastAPI, React + Vite (operator dashboard).
-Architecture: Event-driven async pipeline with 4 isolated Gemini clients (defense, commentary, scoring, deliberation).
-Built in 2 days (2026-02-15 → 2026-02-16), 19 plans across 6 phases.
+Shipped v1.1 with ~18K LOC Python + ~2.4K LOC TypeScript.
+Tech stack: Python 3.13, Gemini 2.0/2.5 Flash, Cartesia TTS, OpenCV, PyAudio, FastAPI, React + Vite + Zustand (operator dashboard), Groq (scoring fallback).
+Architecture: Event-driven async pipeline with 4 isolated Gemini clients (defense, commentary, scoring, deliberation) + MoE scoring engine with timeout hardening.
+Test suite: 371 parallel backend tests (pytest-xdist, 16 workers), 99 frontend tests (Vitest).
+Built in 3 days total (v1.0: 2026-02-15→16, v1.1: 2026-02-17), 28 plans across 10 phases.
 
 - **Event:** NEBULA:FOG 2026 hackathon, March 2026
 - **Audience:** Security researchers, hackers, builders — technically sophisticated and adversarial
@@ -91,6 +83,10 @@ Built in 2 days (2026-02-15 → 2026-02-16), 19 plans across 6 phases.
 | Textual TUI → React web dashboard | Rich operator interface with keybindings and visual feedback | ✓ Good — replaced TUI with web dashboard post-v1.0 |
 | Groq fallback for commentary | Gemini rate-limited at scale; Groq provides fast fallback | ✓ Good — transparent failover, no quality loss |
 | Detached asyncio tasks for display/reveals | Score reveals and display pushes must not block event bus | ✓ Good — consistent pattern across scoring and deliberation |
+| Groq scoring via OpenAI-compatible SDK | No separate groq dependency, JSON mode for reliable output | ✓ Good — base_url override, response_format enforcement |
+| asyncio.wait for MoE timeout | Partial results when providers are slow, 15s timeout | ✓ Good — replaces gather, cancels slow providers cleanly |
+| connectionState tri-state | Distinguish initial connect from reconnect (prevents banner flash) | ✓ Good — 'connecting'→'connected'→'reconnecting' |
+| ReplayProvider for rehearsal | Canned scoring with realistic varied scores for full pipeline testing | ✓ Good — validates MoE path without API keys |
 
 ---
-*Last updated: 2026-02-17 after v1.1 milestone start*
+*Last updated: 2026-02-17 after v1.1 milestone complete*
