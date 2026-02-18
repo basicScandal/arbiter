@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 Milestone: v1.1 Reliability & Polish
 Phase: 10 of 10 (Dashboard Hardening)
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: v1.1 milestone complete
-Last activity: 2026-02-17 — Completed 10-02 Dashboard UI components (ReconnectBanner, HealthPanel, ScorePanel, App layout)
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: v1.1 milestone complete (including gap closures)
+Last activity: 2026-02-18 — Completed 10-03 Scorecard reset on demo start (gap closure)
 
-Progress: [██████████████████████████████] 100% (19/19 v1.0 plans complete, 8/8 v1.1 plans)
+Progress: [██████████████████████████████] 100% (19/19 v1.0 plans complete, 9/9 v1.1 plans)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: [███████████████████████
 - Timeline: 2 days (2026-02-15 -> 2026-02-16)
 
 **v1.1:**
-- Plans completed: 8
+- Plans completed: 9
 - Phases: 4 (Phases 7-10)
 - Requirements: 19
 
@@ -41,6 +41,7 @@ Progress: [███████████████████████
 | 09    | 02   | 6min     | 2     | 6     |
 | 10    | 01   | 3min     | 2     | 5     |
 | 10    | 02   | 2min     | 2     | 8     |
+| 10    | 03   | 1min     | 1     | 2     |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Recent decisions affecting current work:
 - [10-02]: HealthPanel uses underscore-to-space replacement for service names for readability
 - [10-02]: ScorePanel criterion justifications as title tooltip -- compact panel, information preserved
 - [10-02]: HealthPanel placed between DefensePanel and ScorePanel for logical visual flow
+- [10-03]: Conditional spread pattern for scorecard reset -- only clears when state is 'capturing', preserves for other transitions
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17
-Stopped at: Completed 10-02-PLAN.md (Dashboard UI components -- ReconnectBanner, HealthPanel, ScorePanel, App layout). v1.1 milestone complete.
+Last session: 2026-02-18
+Stopped at: Completed 10-03-PLAN.md (Scorecard reset on demo start -- gap closure). v1.1 milestone complete including all gap closures.
 Resume file: None
