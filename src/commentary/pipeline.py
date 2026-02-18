@@ -116,8 +116,13 @@ class CommentaryPipeline:
             logger.warning("TTS engine connection failed -- TTS will be unavailable", exc_info=True)
             default_health.mark_unhealthy("cartesia_tts")
 
-        # Start display server
-        await self._display.start()
+        # Start display server -- degrade gracefully on failure
+        try:
+            await self._display.start()
+            default_health.mark_healthy("display_server")
+        except RuntimeError:
+            logger.exception("Display server failed to start -- display will be unavailable")
+            default_health.mark_unhealthy("display_server")
 
         logger.info("Commentary pipeline armed")
 
