@@ -3,11 +3,10 @@ import { useOperatorSocket } from "./hooks/useOperatorSocket";
 import { useStateTheme } from "./hooks/useStateTheme";
 import { Header } from "./components/Header";
 import { ReconnectBanner } from "./components/ReconnectBanner";
-import { CommandBar } from "./components/CommandBar";
-import { StatusPanel } from "./panels/StatusPanel";
+import { NeuralPrompt } from "./components/NeuralPrompt";
 import { NeuralFeed } from "./panels/NeuralFeed";
-import { CountersPanel } from "./panels/CountersPanel";
-import { DefensePanel } from "./panels/DefensePanel";
+import { DefenseStrip } from "./panels/DefenseStrip";
+import { VitalsPanel } from "./panels/VitalsPanel";
 import { HealthPanel } from "./panels/HealthPanel";
 import { ScorePanel } from "./panels/ScorePanel";
 
@@ -31,26 +30,25 @@ export default function App() {
       >
         <Header />
       </motion.div>
-      <main className="flex-1 grid grid-cols-3 gap-4 p-4 overflow-hidden">
-        <div className="col-span-2 flex flex-col gap-4">
-          <motion.div {...panelEntrance(0.05)}>
-            <StatusPanel />
-          </motion.div>
-          <motion.div className="flex-1 flex flex-col" {...panelEntrance(0.12)}>
+      <main className="flex-1 flex gap-4 p-4 overflow-hidden">
+        {/* Left column — Neural Feed + Defense Strip */}
+        <div className="flex-[2] flex flex-col gap-3">
+          <motion.div className="flex-1 flex flex-col" {...panelEntrance(0.05)}>
             <NeuralFeed />
           </motion.div>
+          <motion.div {...panelEntrance(0.12)}>
+            <DefenseStrip />
+          </motion.div>
         </div>
-        <div className="flex flex-col gap-4">
-          <motion.div {...panelEntrance(0.18)}>
-            <CountersPanel />
+        {/* Right column — Vitals sidebar */}
+        <div className="w-80 flex flex-col gap-3">
+          <motion.div className="flex-1 flex flex-col" {...panelEntrance(0.08)}>
+            <VitalsPanel />
           </motion.div>
-          <motion.div {...panelEntrance(0.24)}>
-            <DefensePanel />
-          </motion.div>
-          <motion.div {...panelEntrance(0.30)}>
+          <motion.div {...panelEntrance(0.16)}>
             <HealthPanel />
           </motion.div>
-          <motion.div {...panelEntrance(0.36)}>
+          <motion.div {...panelEntrance(0.22)}>
             <ScorePanel />
           </motion.div>
         </div>
@@ -58,9 +56,9 @@ export default function App() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35, duration: 0.3 }}
+        transition={{ delay: 0.25, duration: 0.3 }}
       >
-        <CommandBar />
+        <NeuralPrompt />
       </motion.div>
     </div>
   );

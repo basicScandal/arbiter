@@ -35,7 +35,14 @@ const STATE_ACTIONS: Record<string, ActionButton[]> = {
   ],
 };
 
-export function CommandBar() {
+const SHORTCUT_HINTS: Record<string, string> = {
+  idle: "enter start",
+  capturing: "ctrl+x stop  |  ctrl+p pause",
+  paused: "ctrl+r resume  |  ctrl+x stop",
+  stopped: "ctrl+q qa  |  ctrl+d deliberate",
+};
+
+export function NeuralPrompt() {
   const demoState = useOperatorStore((s) => s.demoState);
   const sendCommand = useOperatorStore((s) => s.sendCommand);
   const lastCommandResult = useOperatorStore((s) => s.lastCommandResult);
@@ -120,6 +127,9 @@ export function CommandBar() {
             ))}
           </motion.div>
         </AnimatePresence>
+      </div>
+      <div className="text-text-dim/50 text-[10px] mt-1.5 tracking-wider">
+        {SHORTCUT_HINTS[demoState] ?? ""}
       </div>
     </div>
   );
