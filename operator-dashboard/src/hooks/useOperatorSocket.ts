@@ -32,7 +32,11 @@ export function useOperatorSocket() {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       // In dev, Vite proxy can be unreliable for WS — connect to backend directly
       const host = import.meta.env.DEV ? "localhost:8080" : window.location.host;
-      const url = `${protocol}//${host}/ws/operator`;
+      // Pass operator token from URL params if present (e.g. ?token=secret)
+      const pageParams = new URLSearchParams(window.location.search);
+      const token = pageParams.get("token") || "";
+      const wsParams = token ? `?token=${encodeURIComponent(token)}` : "";
+      const url = `${protocol}//${host}/ws/operator${wsParams}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 

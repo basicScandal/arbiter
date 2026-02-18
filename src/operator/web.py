@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from typing import TYPE_CHECKING
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect, WebSocketException, Query, status
 from statemachine.exceptions import TransitionNotAllowed
 
 from src.capture.demo_machine import DemoMachine
@@ -104,7 +105,15 @@ class WebOperator:
             }
 
         @app.websocket("/ws/operator")
-        async def operator_ws(ws: WebSocket) -> None:
+        async def operator_ws(ws: WebSocket, token: str = Query(default="")) -> None:
+            required_token = os.environ.get("OPERATOR_TOKEN", "")
+            if required_token and token != required_token:
+                logger.warning(
+                    "Operator WebSocket rejected: invalid token (origin: %s)",
+                    ws.headers.get("origin", "unknown"),
+                )
+                await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+                return
             await ws.accept()
             self._operator_connections.append(ws)
             logger.info("Operator client connected (%d active)", len(self._operator_connections))

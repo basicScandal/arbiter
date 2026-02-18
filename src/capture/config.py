@@ -38,6 +38,10 @@ class CaptureConfig(BaseModel):
     groq_api_key: str = ""
     moe_scoring_enabled: bool = False
     commentary_enrichment_enabled: bool = False
+    # Shared secret for operator WebSocket authentication.
+    # When set, clients must pass ?token=<value> on the WS upgrade URL.
+    # When empty, all connections are allowed (dev mode).
+    operator_token: str = ""
 
 
 def load_config() -> CaptureConfig:
@@ -74,4 +78,5 @@ def load_config() -> CaptureConfig:
         groq_api_key=os.getenv("GROQ_API_KEY", ""),
         moe_scoring_enabled=os.getenv("MOE_SCORING_ENABLED", "").lower() in ("true", "1", "yes"),
         commentary_enrichment_enabled=os.getenv("COMMENTARY_ENRICHMENT_ENABLED", "").lower() in ("true", "1", "yes"),
+        operator_token=os.getenv("OPERATOR_TOKEN", ""),
     )
