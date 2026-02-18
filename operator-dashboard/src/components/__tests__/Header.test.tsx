@@ -12,56 +12,56 @@ describe("Header", () => {
   });
 
   it("renders ARBITER title", () => {
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     expect(screen.getByText("ARBITER")).toBeInTheDocument();
   });
 
   it("shows STANDBY label when idle", () => {
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
   });
 
   it("shows CAPTURING label when capturing", () => {
     useOperatorStore.setState({ demoState: "capturing" });
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     expect(screen.getByText("CAPTURING")).toBeInTheDocument();
   });
 
   it("shows PAUSED label when paused", () => {
     useOperatorStore.setState({ demoState: "paused" });
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     expect(screen.getByText("PAUSED")).toBeInTheDocument();
   });
 
   it("shows ANALYSIS COMPLETE label when stopped", () => {
     useOperatorStore.setState({ demoState: "stopped" });
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     expect(screen.getByText("ANALYSIS COMPLETE")).toBeInTheDocument();
   });
 
   it("renders StateIndicator for idle", () => {
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     const indicator = document.querySelector('div[title="State: idle"]');
     expect(indicator).toBeInTheDocument();
   });
 
   it("renders StateIndicator for capturing", () => {
     useOperatorStore.setState({ demoState: "capturing" });
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     const indicator = document.querySelector('div[title="State: capturing"]');
     expect(indicator).toBeInTheDocument();
   });
 
   it("renders StateIndicator for paused", () => {
     useOperatorStore.setState({ demoState: "paused" });
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     const indicator = document.querySelector('div[title="State: paused"]');
     expect(indicator).toBeInTheDocument();
   });
 
   it("renders StateIndicator for stopped", () => {
     useOperatorStore.setState({ demoState: "stopped" });
-    render(<Header />);
+    render(<Header muted={true} onToggleMute={() => {}} />);
     const indicator = document.querySelector('div[title="State: stopped"]');
     expect(indicator).toBeInTheDocument();
   });

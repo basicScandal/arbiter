@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useOperatorStore } from "../store/operatorStore";
 import { StateIndicator } from "../components/StateIndicator";
+import { Sparkline } from "../components/Sparkline";
 import { useStateTheme } from "../hooks/useStateTheme";
 
 function CounterBar({ label, value, color, barColor, maxValue }: {
@@ -43,8 +44,23 @@ function CounterBar({ label, value, color, barColor, maxValue }: {
 export function VitalsPanel() {
   const { demoState, teamName, track, startedAt } = useOperatorStore();
   const counters = useOperatorStore((s) => s.counters);
+  const events = useOperatorStore((s) => s.events);
   const theme = useStateTheme();
   const [elapsed, setElapsed] = useState(0);
+
+  // Derive sparkline data: events per 5-second bucket, last 30 buckets
+  const sparklineData = useMemo(() => {
+    if (events.length === 0) return [];
+    const now = events[0]?.timestamp ?? Date.now() / 1000;
+    const bucketSize = 5;
+    const buckets = new Array(30).fill(0);
+    for (const evt of events) {
+      const age = now - evt.timestamp;
+      const idx = 29 - Math.floor(age / bucketSize);
+      if (idx >= 0 && idx < 30) buckets[idx]++;
+    }
+    return buckets;
+  }, [events]);
 
   useEffect(() => {
     if (demoState === "capturing" && startedAt !== null) {
@@ -130,6 +146,12 @@ export function VitalsPanel() {
             }}
           />
         </div>
+      </div>
+
+      {/* Event rate sparkline */}
+      <div className="flex-1 flex flex-col justify-end">
+        <div className="text-text-dim text-[10px] tracking-wider mb-1">EVENT RATE</div>
+        <Sparkline data={sparklineData} width={260} height={28} />
       </div>
     </div>
   );

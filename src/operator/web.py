@@ -74,7 +74,10 @@ class WebOperator:
         self._counter_task = asyncio.create_task(self._push_counters_loop())
 
         logger.info("WebOperator started, waiting for commands via WebSocket")
-        await self._quit_signal.wait()
+        try:
+            await self._quit_signal.wait()
+        except asyncio.CancelledError:
+            pass
         logger.info("WebOperator shutting down")
 
         # Cancel counter task on shutdown

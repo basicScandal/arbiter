@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useOperatorSocket } from "./hooks/useOperatorSocket";
 import { useStateTheme } from "./hooks/useStateTheme";
+import { useAudioFeedback } from "./hooks/useAudioFeedback";
 import { Header } from "./components/Header";
 import { ReconnectBanner } from "./components/ReconnectBanner";
 import { NeuralPrompt } from "./components/NeuralPrompt";
@@ -20,6 +22,9 @@ export default function App() {
   useOperatorSocket();
   useStateTheme();
 
+  const [muted, setMuted] = useState(true);
+  useAudioFeedback(muted);
+
   return (
     <div className="flex flex-col h-screen bg-void font-mono">
       <ReconnectBanner />
@@ -28,7 +33,7 @@ export default function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Header />
+        <Header muted={muted} onToggleMute={() => setMuted((m) => !m)} />
       </motion.div>
       <main className="flex-1 flex gap-4 p-4 overflow-hidden">
         {/* Left column — Neural Feed + Defense Strip */}

@@ -3,7 +3,12 @@ import { ConnectionDot } from "./ConnectionDot";
 import { StateIndicator } from "./StateIndicator";
 import { useStateTheme } from "../hooks/useStateTheme";
 
-export function Header() {
+interface HeaderProps {
+  muted: boolean;
+  onToggleMute: () => void;
+}
+
+export function Header({ muted, onToggleMute }: HeaderProps) {
   const demoState = useOperatorStore((s) => s.demoState);
   const theme = useStateTheme();
 
@@ -22,6 +27,13 @@ export function Header() {
             {theme.label}
           </span>
         </div>
+        <button
+          onClick={onToggleMute}
+          className="text-text-dim hover:text-text-primary transition-colors text-sm"
+          title={muted ? "Unmute sounds" : "Mute sounds"}
+        >
+          {muted ? "\uD83D\uDD07" : "\uD83D\uDD0A"}
+        </button>
       </div>
     </header>
   );
