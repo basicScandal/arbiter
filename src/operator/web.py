@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,11 @@ if TYPE_CHECKING:
     from src.scoring.pipeline import ScoringPipeline
 
 logger = logging.getLogger(__name__)
+
+# Default 10 minutes, configurable via environment variable (seconds)
+MAX_DEMO_DURATION = float(os.environ.get("MAX_DEMO_DURATION", "600"))
+# Warning fires at 90% of max duration
+_WARNING_RATIO = 0.9
 
 
 class WebOperator:
@@ -64,6 +70,7 @@ class WebOperator:
         self._operator_connections: list[WebSocket] = []
         self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
         self._send_lock = asyncio.Lock()
+        self._demo_timer_task: asyncio.Task | None = None
 
     async def run(self) -> None:
         """Main operator loop: register routes, subscribe to events, and wait for quit.
@@ -81,7 +88,8 @@ class WebOperator:
             pass
         logger.info("WebOperator shutting down")
 
-        # Cancel counter task on shutdown
+        # Cancel background tasks on shutdown
+        self._cancel_demo_timer()
         if self._counter_task and not self._counter_task.done():
             self._counter_task.cancel()
             try:
@@ -205,6 +213,69 @@ class WebOperator:
                 "services": health_status,
             })
 
+    def _start_demo_timer(self) -> None:
+        """Start a background timer that warns operators as demo approaches max duration."""
+        self._cancel_demo_timer()
+        self._demo_timer_task = asyncio.create_task(self._demo_timer_loop())
+
+    def _cancel_demo_timer(self) -> None:
+        """Cancel the running demo timer if any."""
+        if self._demo_timer_task and not self._demo_timer_task.done():
+            self._demo_timer_task.cancel()
+        self._demo_timer_task = None
+
+    async def _demo_timer_loop(self) -> None:
+        """Background loop that sends time warnings to operator clients.
+
+        At 90% of MAX_DEMO_DURATION, sends a warning alert.
+        At 100%, sends a critical overtime alert.
+        """
+        warning_sent = False
+        overtime_sent = False
+        warning_threshold = MAX_DEMO_DURATION * _WARNING_RATIO
+
+        try:
+            while True:
+                await asyncio.sleep(5.0)
+                session = self._demo_machine.current_session
+                if session is None or session.started_at is None:
+                    return
+
+                elapsed = time.time() - session.started_at
+                remaining = MAX_DEMO_DURATION - elapsed
+
+                if elapsed >= warning_threshold and not warning_sent:
+                    warning_sent = True
+                    await self._broadcast_to_operators({
+                        "type": "demo_timer",
+                        "level": "warning",
+                        "message": f"Demo approaching time limit ({int(remaining)}s remaining)",
+                        "elapsed": round(elapsed, 1),
+                        "max_duration": MAX_DEMO_DURATION,
+                    })
+                    logger.warning(
+                        "Demo timer warning: %.0fs elapsed, %.0fs remaining (max %.0fs)",
+                        elapsed, remaining, MAX_DEMO_DURATION,
+                    )
+
+                if elapsed >= MAX_DEMO_DURATION and not overtime_sent:
+                    overtime_sent = True
+                    await self._broadcast_to_operators({
+                        "type": "demo_timer",
+                        "level": "critical",
+                        "message": "Demo has exceeded maximum duration",
+                        "elapsed": round(elapsed, 1),
+                        "max_duration": MAX_DEMO_DURATION,
+                    })
+                    logger.warning(
+                        "Demo timer critical: demo exceeded max duration of %.0fs",
+                        MAX_DEMO_DURATION,
+                    )
+                    return
+
+        except asyncio.CancelledError:
+            pass
+
     async def _handle_command(self, data: dict, ws: WebSocket) -> None:
         """Handle a command from the operator client.
 
@@ -241,10 +312,12 @@ class WebOperator:
                 self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
 
                 self._demo_machine.send("start_demo", team_name=team_name)
+                self._start_demo_timer()
                 await self._send_result(ws, True, f"Demo started for {team_name}")
                 logger.info("Operator started demo for team: %s", team_name)
 
             elif action == "stop":
+                self._cancel_demo_timer()
                 session = self._demo_machine.current_session
                 self._demo_machine.send("stop_demo")
                 duration = 0.0
@@ -269,6 +342,7 @@ class WebOperator:
                 logger.info("Operator resumed demo for team: %s", team)
 
             elif action == "reset":
+                self._cancel_demo_timer()
                 self._demo_machine.send("reset")
                 await self._send_result(ws, True, "Ready for next demo.")
                 logger.info("Operator reset demo machine")
