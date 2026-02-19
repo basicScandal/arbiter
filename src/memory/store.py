@@ -10,10 +10,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 from pathlib import Path
 
 from src.memory.models import DemoMemory
+from src.utils import sanitize_team_name
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +29,6 @@ class MemoryStore:
         self._dir = Path(observations_dir)
         self._dir.mkdir(parents=True, exist_ok=True)
 
-    @staticmethod
-    def _sanitize_team_name(team_name: str) -> str:
-        """Sanitize a team name for filesystem use.
-
-        Replaces spaces with underscores, strips non-alphanumeric characters
-        except underscores and hyphens, and lowercases the result.
-        """
-        name = team_name.replace(" ", "_")
-        name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
-        return name.lower()
-
     async def save(self, memory: DemoMemory) -> Path:
         """Save a demo memory as a pretty-printed JSON file.
 
@@ -49,7 +38,7 @@ class MemoryStore:
         Returns:
             The Path of the saved JSON file.
         """
-        sanitized = self._sanitize_team_name(memory.team_name)
+        sanitized = sanitize_team_name(memory.team_name)
         path = self._dir / f"{sanitized}.json"
         data = json.dumps(memory.model_dump(), indent=2, default=str)
         await asyncio.to_thread(path.write_text, data)
@@ -65,7 +54,7 @@ class MemoryStore:
         Returns:
             The DemoMemory if found, None otherwise.
         """
-        sanitized = self._sanitize_team_name(team_name)
+        sanitized = sanitize_team_name(team_name)
         path = self._dir / f"{sanitized}.json"
         if not path.exists():
             return None

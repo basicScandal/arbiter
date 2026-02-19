@@ -12,45 +12,19 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import time
 
-from anthropic import (
-    APIConnectionError,
-    APITimeoutError,
-    AsyncAnthropic,
-    InternalServerError,
-    RateLimitError,
-)
+from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
-)
 
 from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
-from src.resilience.retry import DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
+from src.resilience.retry import CLAUDE_RETRY, DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
 from src.scoring.models import DemoScorecard
+from src.utils import sanitize_team_name, strip_markdown_fences
 
 logger = logging.getLogger(__name__)
-
-_RETRYABLE_ANTHROPIC = (
-    ConnectionError, TimeoutError, OSError,
-    APIConnectionError, APITimeoutError, InternalServerError, RateLimitError,
-)
-
-_CLAUDE_DELIBERATION_RETRY = retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential_jitter(initial=2, max=20, jitter=2),
-    retry=retry_if_exception_type(_RETRYABLE_ANTHROPIC),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True,
-)
 
 _DELIBERATION_JSON_SCHEMA = """\
 Respond with ONLY a JSON object matching this exact schema:
@@ -205,7 +179,7 @@ class DeliberationEngine:
         )
         return DeliberationResult.model_validate_json(response.text)
 
-    @_CLAUDE_DELIBERATION_RETRY
+    @CLAUDE_RETRY
     async def _call_claude(self, prompt: str) -> DeliberationResult:
         """Call Claude for deliberation as Gemini fallback.
 
@@ -224,14 +198,7 @@ class DeliberationEngine:
             messages=[{"role": "user", "content": full_prompt}],
         )
         raw_text = message.content[0].text if message.content else ""
-
-        # Strip markdown code fences if present
-        text = raw_text.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            lines = [line for line in lines if not line.strip().startswith("```")]
-            text = "\n".join(lines)
-
+        text = strip_markdown_fences(raw_text)
         return DeliberationResult.model_validate_json(text)
 
     @staticmethod
@@ -256,10 +223,7 @@ class DeliberationEngine:
         # Build score lookup using sanitized names for reliable matching
         score_lookup: dict[str, DemoScorecard] = {}
         for sc in scorecards:
-            sanitized = re.sub(
-                r"[^a-z0-9_-]", "", sc.team_name.replace(" ", "_").lower()
-            )
-            score_lookup[sanitized] = sc
+            score_lookup[sanitize_team_name(sc.team_name)] = sc
 
         sections: list[str] = []
         sections.append(
@@ -269,10 +233,7 @@ class DeliberationEngine:
 
         for memory in memories:
             # Match memory to scorecard via sanitized name
-            sanitized_name = re.sub(
-                r"[^a-z0-9_-]", "", memory.team_name.replace(" ", "_").lower()
-            )
-            scorecard = score_lookup.get(sanitized_name)
+            scorecard = score_lookup.get(sanitize_team_name(memory.team_name))
             total_score = scorecard.total_score if scorecard else 0.0
 
             # Cap observations at 5 and transcripts at 3 (Pitfall 1 avoidance)

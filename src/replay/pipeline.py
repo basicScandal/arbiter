@@ -6,7 +6,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import time
 from pathlib import Path
 
@@ -35,6 +34,7 @@ from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.scoring.engine import ScoringEngine
 from src.scoring.models import DemoScorecard
 from src.scoring.store import ScoreStore
+from src.utils import sanitize_team_name
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ class ReplayPipeline:
 
     def _has_cached_results(self, team_name: str) -> bool:
         """Check if score and memory files already exist for this team."""
-        sanitized = re.sub(r"[^a-zA-Z0-9_\-]", "", team_name.replace(" ", "_")).lower()
+        sanitized = sanitize_team_name(team_name)
         score_path = SCORES_DIR / f"{sanitized}.json"
         memory_path = OBSERVATIONS_DIR / f"{sanitized}.json"
         return score_path.exists() and memory_path.exists()
