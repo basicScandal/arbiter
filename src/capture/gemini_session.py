@@ -23,6 +23,32 @@ from src.capture.models import MediaChunk, TranscriptReceived, TranscriptSegment
 logger = logging.getLogger(__name__)
 
 
+class _Backoff:
+    """Simple exponential backoff tracker with reset on success.
+
+    Args:
+        initial: Starting delay in seconds.
+        maximum: Cap on delay in seconds.
+        multiplier: Factor to increase delay on each failure.
+    """
+
+    def __init__(self, initial: float = 1.0, maximum: float = 30.0, multiplier: float = 2.0) -> None:
+        self._initial = initial
+        self._maximum = maximum
+        self._multiplier = multiplier
+        self._current = initial
+
+    def next_delay(self) -> float:
+        """Return current delay and advance to the next one."""
+        delay = self._current
+        self._current = min(self._current * self._multiplier, self._maximum)
+        return delay
+
+    def reset(self) -> None:
+        """Reset delay to initial value (call on successful connection)."""
+        self._current = self._initial
+
+
 class GeminiSession:
     """Manages a Gemini Live API session for real-time demo observation.
 
@@ -56,6 +82,10 @@ class GeminiSession:
         self._resumption_handle: str | None = None
         self._stop_event = asyncio.Event()
         self._observations: list[str] = []
+        # Backoff for receive-loop errors (transient mid-session hiccups)
+        self._receive_backoff = _Backoff(initial=1.0, maximum=30.0)
+        # Backoff for connection-level errors (full reconnect)
+        self._connect_backoff = _Backoff(initial=2.0, maximum=30.0)
 
     def _build_config(self) -> types.LiveConnectConfig:
         """Build the LiveConnectConfig with compression, resumption, and transcription.
@@ -197,11 +227,11 @@ class GeminiSession:
             except Exception:
                 if self._stop_event.is_set():
                     break
+                delay = self._receive_backoff.next_delay()
                 logger.exception(
-                    "Error in receive loop, will attempt reconnect"
+                    "Error in receive loop, retrying in %.1fs", delay,
                 )
-                # Brief pause before reconnect attempt
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(delay)
 
     async def run(self) -> None:
         """Main entry point: connect to Gemini and run send/receive loops.
@@ -225,6 +255,9 @@ class GeminiSession:
                 ) as session:
                     self._session = session
                     logger.info("Gemini Live API session established")
+                    # Connection succeeded — reset both backoffs
+                    self._connect_backoff.reset()
+                    self._receive_backoff.reset()
 
                     async with asyncio.TaskGroup() as tg:
                         tg.create_task(self._send_loop())
@@ -233,15 +266,16 @@ class GeminiSession:
             except Exception as exc:
                 if self._stop_event.is_set():
                     break
+                delay = self._connect_backoff.next_delay()
                 logger.error(
                     "Gemini session error: %s: %s",
                     type(exc).__name__,
                     exc,
                 )
                 logger.info(
-                    "Reconnecting with resumption handle in 2 seconds..."
+                    "Reconnecting with resumption handle in %.1fs...", delay,
                 )
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(delay)
             finally:
                 self._session = None
 
