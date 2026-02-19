@@ -1,24 +1,62 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useOperatorStore } from "../store/operatorStore";
 
+const PHASE_CONFIG = {
+  sanitizing: { label: "SANITIZING OBSERVATIONS", step: 1 },
+  scoring: { label: "SCORING DEMO", step: 2 },
+  revealing: { label: "FINALIZING VERDICT", step: 3 },
+} as const;
+
+function JudgmentProgress({ phase }: { phase: 'sanitizing' | 'scoring' | 'revealing' }) {
+  const config = PHASE_CONFIG[phase];
+  return (
+    <motion.div
+      key={phase}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.3 }}
+      className="text-center py-8 space-y-3"
+    >
+      <div className="text-sm font-bold tracking-wider" style={{ color: 'var(--accent)' }}>
+        <span>{config.label}</span>
+        <motion.span
+          animate={{ opacity: [1, 0.2, 1] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          ...
+        </motion.span>
+      </div>
+      <div className="flex justify-center items-center gap-1.5">
+        {[1, 2, 3].map((s) => (
+          <div
+            key={s}
+            className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
+            style={{
+              backgroundColor: s <= config.step
+                ? 'var(--accent)'
+                : 'rgba(var(--accent-rgb), 0.2)',
+            }}
+          />
+        ))}
+        <span className="text-text-dim text-xs ml-1.5">{config.step}/3</span>
+      </div>
+    </motion.div>
+  );
+}
+
 export function ScorePanel() {
   const lastScorecard = useOperatorStore((s) => s.lastScorecard);
+  const scoringPhase = useOperatorStore((s) => s.scoringPhase);
+
+  const showJudgment = !lastScorecard && scoringPhase && scoringPhase !== 'idle'
+    && (scoringPhase === 'sanitizing' || scoringPhase === 'scoring' || scoringPhase === 'revealing');
 
   return (
     <div className="glass-panel p-4 animate-border-glow">
       <h2 className="section-label mb-3">SCORE</h2>
       <AnimatePresence mode="wait">
-        {!lastScorecard ? (
-          <motion.div
-            key="awaiting"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-text-dim text-center py-8 text-sm"
-          >
-            Awaiting judgment...
-          </motion.div>
-        ) : (
+        {lastScorecard ? (
           <motion.div
             key={`score-${lastScorecard.team_name}`}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -91,6 +129,18 @@ export function ScorePanel() {
                 </motion.div>
               )}
             </div>
+          </motion.div>
+        ) : showJudgment ? (
+          <JudgmentProgress phase={scoringPhase as 'sanitizing' | 'scoring' | 'revealing'} />
+        ) : (
+          <motion.div
+            key="awaiting"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-text-dim text-center py-8 text-sm"
+          >
+            Awaiting judgment...
           </motion.div>
         )}
       </AnimatePresence>

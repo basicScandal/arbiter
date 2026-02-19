@@ -24,6 +24,7 @@ export interface OperatorState {
   events: EventEntry[];
   lastCommandResult: { success: boolean; message: string; } | null;
   health: Record<string, boolean>;
+  scoringPhase: 'idle' | 'sanitizing' | 'scoring' | 'revealing' | null;
   lastScorecard: {
     team_name: string;
     track: string;
@@ -56,6 +57,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   events: [],
   lastCommandResult: null,
   health: {},
+  scoringPhase: null,
   lastScorecard: null,
   sendCommand: () => {},
 
@@ -72,8 +74,9 @@ export const useOperatorStore = create<OperatorState>((set) => ({
           track: msg.track,
           startedAt: msg.started_at,
           // Clear stale data on state transitions
-          ...(msg.state === 'idle' && { events: [], lastScorecard: null }),
-          ...(msg.state === 'capturing' && { lastScorecard: null }),
+          ...(msg.state === 'idle' && { events: [], lastScorecard: null, scoringPhase: null }),
+          ...(msg.state === 'capturing' && { lastScorecard: null, scoringPhase: null }),
+          ...(msg.state === 'stopped' && { scoringPhase: 'sanitizing' as const }),
         });
         break;
 
@@ -89,9 +92,17 @@ export const useOperatorStore = create<OperatorState>((set) => ({
             ...state.events,
           ].slice(0, 200),
         }));
+        // Advance scoring phase based on pipeline events
+        if (msg.event_type === 'observation_verified') {
+          set({ scoringPhase: 'scoring' });
+        }
         // Extract scorecard from scoring_complete events
-        if (msg.event_type === 'scoring_complete' && msg.data?.scorecard) {
-          set({ lastScorecard: msg.data.scorecard as OperatorState['lastScorecard'] });
+        if (msg.event_type === 'scoring_complete') {
+          if (msg.data?.scorecard) {
+            set({ scoringPhase: 'revealing', lastScorecard: msg.data.scorecard as OperatorState['lastScorecard'] });
+          } else {
+            set({ scoringPhase: 'revealing' });
+          }
         }
         break;
       }

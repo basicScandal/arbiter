@@ -33,6 +33,11 @@ const TONES = {
   stateChange: () => playTone(660, 0.1, 0.06),
   injection: () => playTone(220, 0.3, 0.1),
   commentary: () => playTone(880, 0.08, 0.05),
+  judgmentStart: () => {
+    // Subtle ascending two-tone: signals "judgment has begun"
+    playTone(392, 0.15, 0.07);  // G4
+    setTimeout(() => playTone(494, 0.2, 0.08), 160);  // B4
+  },
   score: () => {
     playTone(523, 0.15, 0.08);
     setTimeout(() => playTone(659, 0.15, 0.08), 150);
@@ -67,6 +72,7 @@ export function useAudioFeedback(muted: boolean) {
       if (state.events.length > prevEventCount.current && state.events.length > 0) {
         const latest = state.events[0];
         if (latest.event_type === "injection_detected") TONES.injection();
+        else if (latest.event_type === "observation_verified") TONES.judgmentStart();
         else if (latest.event_type === "commentary_delivered") TONES.commentary();
         else if (latest.event_type === "scoring_complete") TONES.score();
       }
