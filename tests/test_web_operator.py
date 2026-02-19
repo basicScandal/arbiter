@@ -975,3 +975,76 @@ async def test_counter_push_format():
     assert msg["transcripts"] == 3
     assert msg["attacks"] == 1
     assert msg["clean"] == 7
+
+
+# ---------------------------------------------------------------------------
+# 18. WebSocket token authentication
+# ---------------------------------------------------------------------------
+
+
+def test_token_auth_allows_valid_token():
+    """Connection with correct token is accepted."""
+    op, machine, bus, ds = _make_operator()
+    client = TestClient(ds.app)
+
+    with patch.dict("os.environ", {"OPERATOR_TOKEN": "hunter2"}):
+        with client.websocket_connect("/ws/operator?token=hunter2") as ws:
+            state = _drain_connect(ws)
+            assert state["state"] == "idle"
+            assert len(op._operator_connections) == 1
+
+
+def test_token_auth_rejects_invalid_token():
+    """Connection with wrong token is rejected with policy violation."""
+    op, machine, bus, ds = _make_operator()
+    client = TestClient(ds.app)
+
+    with patch.dict("os.environ", {"OPERATOR_TOKEN": "hunter2"}):
+        with pytest.raises(Exception):
+            with client.websocket_connect("/ws/operator?token=wrong") as ws:
+                ws.receive_json()
+
+
+def test_token_auth_rejects_missing_token():
+    """Connection without token is rejected when token is configured."""
+    op, machine, bus, ds = _make_operator()
+    client = TestClient(ds.app)
+
+    with patch.dict("os.environ", {"OPERATOR_TOKEN": "hunter2"}):
+        with pytest.raises(Exception):
+            with client.websocket_connect("/ws/operator") as ws:
+                ws.receive_json()
+
+
+def test_no_token_configured_allows_all():
+    """When OPERATOR_TOKEN is not set, all connections are allowed."""
+    op, machine, bus, ds = _make_operator()
+    client = TestClient(ds.app)
+
+    with patch.dict("os.environ", {}, clear=False):
+        # Ensure OPERATOR_TOKEN is not set
+        import os
+        os.environ.pop("OPERATOR_TOKEN", None)
+
+        with client.websocket_connect("/ws/operator") as ws:
+            state = _drain_connect(ws)
+            assert state["state"] == "idle"
+
+        with client.websocket_connect("/ws/operator?token=anything") as ws:
+            state = _drain_connect(ws)
+            assert state["state"] == "idle"
+
+
+def test_token_auth_commands_work_after_auth():
+    """Authenticated connection can send commands normally."""
+    op, machine, bus, ds = _make_operator()
+    client = TestClient(ds.app)
+
+    with patch.dict("os.environ", {"OPERATOR_TOKEN": "s3cret"}):
+        with client.websocket_connect("/ws/operator?token=s3cret") as ws:
+            _drain_connect(ws)
+            ws.send_json({"type": "command", "action": "start", "team_name": "AuthTeam"})
+
+            result = ws.receive_json()
+            assert result["type"] == "command_result"
+            assert result["success"] is True
