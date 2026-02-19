@@ -125,16 +125,20 @@ class DisplayServer:
 
         Kills any stale process holding the port before binding, and registers
         an atexit handler to ensure the socket is released on unclean exit.
+
+        Raises:
+            RuntimeError: If the port is still in use after cleanup or uvicorn
+                fails to bind. Callers should catch this and mark health as
+                unhealthy rather than crashing the pipeline.
         """
         self._free_port(self._port)
 
-        # Pre-validate: if port is still occupied after cleanup, skip uvicorn
+        # Pre-validate: if port is still occupied after cleanup, fail loudly
         if not self._port_is_free(self._port):
-            logger.error(
-                "Display server cannot start — port %d still in use after cleanup",
-                self._port,
+            raise RuntimeError(
+                f"Display server cannot start — port {self._port} is already in use. "
+                f"Check for other processes with: lsof -i :{self._port}"
             )
-            return
 
         config = uvicorn.Config(
             app=self._app,
@@ -152,13 +156,15 @@ class DisplayServer:
                 break
 
         if not self._server.started:
-            logger.error("Display server failed to start on port %d", self._port)
             self._server.should_exit = True
             if self._serve_task and not self._serve_task.done():
                 self._serve_task.cancel()
             self._serve_task = None
             self._server = None
-            return
+            raise RuntimeError(
+                f"Display server failed to start on port {self._port}. "
+                f"Check for port conflicts or firewall rules."
+            )
 
         # Register atexit so ctrl+c / crashes still release the port
         atexit.register(self._force_shutdown)
