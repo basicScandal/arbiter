@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -43,7 +43,7 @@ class TestScoringCircuitBreaker:
             patch.object(engine, "_call_gemini", new=gemini_mock),
             patch.object(engine, "_call_claude", new=claude_mock),
         ):
-            result = await engine.score(sanitized, "ROGUE::AGENT")
+            await engine.score(sanitized, "ROGUE::AGENT")
 
         gemini_mock.assert_not_called()
 

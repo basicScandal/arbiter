@@ -14,14 +14,12 @@ import asyncio
 import logging
 
 import pytest
-from statemachine.exceptions import TransitionNotAllowed
 
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import (
     CaptureEvent,
     DemoStarted,
-    DemoStopped,
     KeyFrameDetected,
     FrameData,
     TranscriptReceived,
@@ -86,7 +84,7 @@ def _attempt() -> InjectionAttempt:
 async def test_all_widgets_mount():
     """All six custom widgets plus Footer compose correctly."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         assert app.query_one(ArbiterHeader)
         assert app.query_one(EventLog)
@@ -106,7 +104,7 @@ async def test_bus_event_bridge():
     """CaptureEvent published on bus arrives as BusEvent in the app."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         bus.publish(DemoStarted(team_name="BridgeTeam"))
         await asyncio.sleep(SLEEP)
@@ -125,7 +123,7 @@ async def test_full_lifecycle():
     """start -> events -> stop -> reset cycle works end-to-end."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         header = app.query_one(ArbiterHeader)
         sidebar = app.query_one(StatusSidebar)
@@ -166,7 +164,7 @@ async def test_full_lifecycle():
 @pytest.mark.asyncio
 async def test_command_start():
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="Alpha"))
         await asyncio.sleep(SLEEP)
@@ -177,7 +175,7 @@ async def test_command_start():
 @pytest.mark.asyncio
 async def test_command_stop():
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="Alpha"))
         await asyncio.sleep(SLEEP)
@@ -189,7 +187,7 @@ async def test_command_stop():
 @pytest.mark.asyncio
 async def test_command_pause_resume():
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="Alpha"))
         await asyncio.sleep(SLEEP)
@@ -216,7 +214,7 @@ async def test_command_qa_requires_stopped():
 
     bus.subscribe("qa_requested", capture)
 
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         # qa from idle — should warn, not publish
         app.post_message(CommandSubmitted(command="qa", args=""))
@@ -248,7 +246,7 @@ async def test_command_deliberate():
 
     bus.subscribe("deliberation_requested", capture)
 
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="deliberate", args=""))
         await asyncio.sleep(SLEEP)
@@ -259,7 +257,7 @@ async def test_command_deliberate():
 async def test_command_status():
     """status command writes state to event log without error."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="status", args=""))
         await asyncio.sleep(SLEEP)
@@ -271,7 +269,7 @@ async def test_command_status():
 async def test_command_help():
     """help command writes help text without error."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="help", args=""))
         await asyncio.sleep(SLEEP)
@@ -282,7 +280,7 @@ async def test_command_help():
 async def test_command_quit():
     """quit command exits the app."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="quit", args=""))
         await asyncio.sleep(SLEEP)
@@ -298,7 +296,7 @@ async def test_command_quit():
 async def test_transition_not_allowed_stop_from_idle():
     """Stopping from idle shows error, doesn't crash."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="stop", args=""))
         await asyncio.sleep(SLEEP)
@@ -309,7 +307,7 @@ async def test_transition_not_allowed_stop_from_idle():
 async def test_transition_not_allowed_start_while_capturing():
     """Starting while already capturing shows error."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="A"))
         await asyncio.sleep(SLEEP)
@@ -323,7 +321,7 @@ async def test_transition_not_allowed_start_while_capturing():
 async def test_unknown_command():
     """Unknown command shows error text, doesn't crash."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="foobar", args=""))
         await asyncio.sleep(SLEEP)
@@ -333,7 +331,7 @@ async def test_unknown_command():
 async def test_start_missing_team_name():
     """start with no args shows usage hint, doesn't transition."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args=""))
         await asyncio.sleep(SLEEP)
@@ -350,7 +348,7 @@ async def test_sidebar_counters():
     """Sidebar frame/transcript/attack counts increment from bus events."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         sidebar = app.query_one(StatusSidebar)
 
@@ -380,7 +378,7 @@ async def test_defense_injection_count():
     """Defense panel injection_count increments from InjectionDetected."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         defense = app.query_one(DefensePanel)
 
@@ -395,7 +393,7 @@ async def test_defense_clean_count():
     """Defense panel clean_count updates from ObservationVerified."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         defense = app.query_one(DefensePanel)
 
@@ -416,7 +414,7 @@ async def test_defense_last_roast():
     """Defense panel last_roast updates from RoastGenerated."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         defense = app.query_one(DefensePanel)
 
@@ -435,7 +433,7 @@ async def test_header_state_transitions():
     """Header cycles: IDLE -> CAPTURING -> PAUSED -> CAPTURING -> STOPPED."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         header = app.query_one(ArbiterHeader)
 
@@ -468,7 +466,7 @@ async def test_sparkline_increment():
     """increment_event_count tracks events per second for sparkline."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         sidebar = app.query_one(StatusSidebar)
 
@@ -490,7 +488,7 @@ async def test_sparkline_increment():
 async def test_shortcut_prefill_start():
     """Ctrl+S prefills command input with 'start '."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.action_prefill_start()
         await asyncio.sleep(SLEEP)
@@ -502,7 +500,7 @@ async def test_shortcut_prefill_start():
 async def test_shortcut_stop():
     """Ctrl+X sends stop command."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="ShortcutTeam"))
         await asyncio.sleep(SLEEP)
@@ -515,7 +513,7 @@ async def test_shortcut_stop():
 async def test_shortcut_pause_resume():
     """Ctrl+P pauses, Ctrl+O resumes."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="T"))
         await asyncio.sleep(SLEEP)
@@ -533,7 +531,7 @@ async def test_shortcut_pause_resume():
 async def test_shortcut_reset():
     """Ctrl+R sends reset command."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="start", args="T"))
         await asyncio.sleep(SLEEP)
@@ -553,7 +551,7 @@ async def test_shortcut_reset():
 async def test_log_record_routing():
     """LogRecord message is handled by on_log_record without crash."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(LogRecord("Test log line", "yellow"))
         await asyncio.sleep(SLEEP)
@@ -564,7 +562,7 @@ async def test_log_record_routing():
 async def test_tui_log_handler_installs():
     """_install_log_handler adds handler that posts LogRecord messages."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         # The TUI installs a handler on mount; verify root logger has it
         root = logging.getLogger()
@@ -583,7 +581,7 @@ async def test_rapid_events():
     """Publishing many events rapidly doesn't crash the TUI."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         for i in range(20):
             bus.publish(KeyFrameDetected(frame=_frame()))
@@ -611,7 +609,7 @@ async def test_reset_clears_all_counters():
     """Reset command zeros all sidebar and defense counters."""
     bus = EventBus()
     app = _make_app(bus)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         # Start and accumulate counters
         app.post_message(CommandSubmitted(command="start", args="T"))
@@ -644,7 +642,7 @@ async def test_reset_clears_all_counters():
 async def test_command_exit_alias():
     """'exit' command works same as 'quit'."""
     app = _make_app()
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="exit", args=""))
         await asyncio.sleep(SLEEP)
@@ -655,7 +653,7 @@ async def test_qa_without_bus():
     """qa command with no event bus shows warning, doesn't crash."""
     machine = DemoMachine()
     app = ArbiterTUI(demo_machine=machine, event_bus=None)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="qa", args=""))
         await asyncio.sleep(SLEEP)
@@ -666,7 +664,7 @@ async def test_deliberate_without_bus():
     """deliberate command with no event bus shows warning."""
     machine = DemoMachine()
     app = ArbiterTUI(demo_machine=machine, event_bus=None)
-    async with app.run_test(size=(120, 36)) as pilot:
+    async with app.run_test(size=(120, 36)) as _pilot:
         await asyncio.sleep(SLEEP)
         app.post_message(CommandSubmitted(command="deliberate", args=""))
         await asyncio.sleep(SLEEP)

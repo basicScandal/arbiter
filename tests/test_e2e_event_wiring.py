@@ -45,7 +45,6 @@ from src.defense.pipeline import DefensePipeline
 from src.memory.models import DeliberationRequested
 from src.memory.pipeline import DeliberationPipeline
 from src.scoring.pipeline import ScoringPipeline
-from tests.helpers.event_collector import EventCollector
 
 
 # ---------------------------------------------------------------------------

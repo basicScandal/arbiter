@@ -6,7 +6,6 @@ event types.
 
 from __future__ import annotations
 
-import pytest
 
 from src.memory.models import (
     DeliberationComplete,

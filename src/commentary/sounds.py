@@ -50,7 +50,6 @@ def generate_stop_tone() -> bytes:
     """Low descending tone for demo stop (~300ms)."""
     sr = _SAMPLE_RATE
     duration = int(sr * 0.3)
-    t = np.arange(duration, dtype=np.float32) / sr
 
     # Descending sweep from 440Hz to 220Hz
     freq = np.linspace(440, 220, duration)
@@ -65,7 +64,6 @@ def generate_injection_alert() -> bytes:
     """Short warning "whoop" for injection detection (~350ms)."""
     sr = _SAMPLE_RATE
     duration = int(sr * 0.35)
-    t = np.arange(duration, dtype=np.float32) / sr
 
     # Quick ascending sweep 300Hz → 800Hz
     freq = np.linspace(300, 800, duration)
@@ -80,7 +78,6 @@ def generate_score_reveal() -> bytes:
     """Dramatic rising sweep for score reveals (~1.2s)."""
     sr = _SAMPLE_RATE
     duration = int(sr * 1.2)
-    t = np.arange(duration, dtype=np.float32) / sr
 
     # Slow rising sweep with harmonics
     freq = np.linspace(200, 600, duration)

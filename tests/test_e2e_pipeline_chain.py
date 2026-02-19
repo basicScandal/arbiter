@@ -18,14 +18,11 @@ import pytest
 from src.capture.event_bus import EventBus
 from src.capture.models import DemoStarted, DemoStopped
 from src.commentary.display_server import DisplayServer
-from src.commentary.models import CommentaryDelivered
-from src.defense.models import ObservationVerified, SanitizedOutput
 from src.defense.pipeline import DefensePipeline
 from src.commentary.pipeline import CommentaryPipeline
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
 from src.memory.pipeline import DeliberationPipeline
-from tests.helpers.event_collector import EventCollector
 
 
 # ---------------------------------------------------------------------------

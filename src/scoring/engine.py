@@ -136,10 +136,8 @@ class ScoringEngine:
         prompt = self._build_prompt(sanitized, track, criteria, track_criteria)
 
         # Primary: Gemini (skip if circuit breaker is tripped)
-        gemini_skipped = False
         if self._circuit_breaker and not self._circuit_breaker.available:
             logger.info("Gemini circuit breaker open -- skipping Gemini for %s", sanitized.team_name)
-            gemini_skipped = True
         else:
             try:
                 raw_text = await self._call_gemini(prompt)

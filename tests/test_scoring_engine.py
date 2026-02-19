@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import json
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.defense.models import InjectionAttempt, SanitizedOutput
-from src.scoring.engine import SCORING_SYSTEM_PROMPT, ScoringEngine
-from src.scoring.models import CriterionScore, DemoScorecard
+from src.scoring.engine import ScoringEngine
 from src.resilience.retry import DailyQuotaExhausted
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 

@@ -175,5 +175,5 @@ class TestDirectoryCreation:
 
     def test_creates_missing_directory(self, tmp_path):
         new_dir = tmp_path / "nested" / "observations"
-        store = MemoryStore(observations_dir=str(new_dir))
+        MemoryStore(observations_dir=str(new_dir))
         assert new_dir.exists()

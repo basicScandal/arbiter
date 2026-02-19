@@ -12,10 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock
 import pytest
 
 from src.defense.models import SanitizedOutput
-from src.scoring.aggregator import DEFAULT_CALIBRATION, ScoreAggregator
-from src.scoring.engine import ScoringEngine
+from src.scoring.aggregator import ScoreAggregator
 from src.scoring.moe_engine import MoEScoringEngine
-from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
 
 # ---------------------------------------------------------------------------

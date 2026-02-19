@@ -7,13 +7,11 @@ delivery through CommentaryPipeline._on_qa_requested.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.commentary.models import QAQuestion
 from src.commentary.qa_generator import QAGenerator, _MAX_QUESTIONS
 from src.defense.models import InjectionAttempt, SanitizedOutput
 

@@ -12,7 +12,6 @@ blocking the event loop.
 from __future__ import annotations
 
 import asyncio
-import base64
 import io
 import logging
 
@@ -90,9 +89,6 @@ class CameraCapture:
         buf = io.BytesIO()
         img.save(buf, format="JPEG")
         jpeg_bytes = buf.getvalue()
-
-        # Base64 encode for Gemini API
-        b64_data = base64.b64encode(jpeg_bytes).decode("utf-8")
 
         import time
 
