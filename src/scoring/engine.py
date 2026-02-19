@@ -32,7 +32,8 @@ from tenacity import (
 )
 
 from src.defense.models import SanitizedOutput
-from src.resilience.retry import GEMINI_RETRY_BACKGROUND
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
+from src.resilience.retry import DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
 from src.scoring.models import CriterionScore, DemoScorecard, RubricCriterion, TrackCriteria
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
@@ -89,10 +90,12 @@ class ScoringEngine:
         api_key: str,
         model: str = "gemini-2.5-flash",
         anthropic_api_key: str | None = None,
+        circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
         # SEPARATE client instance -- not shared with CommentaryGenerator
         self._client = genai.Client(api_key=api_key)
         self._model = model
+        self._circuit_breaker = circuit_breaker
 
         # Claude fallback client
         claude_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
@@ -132,18 +135,30 @@ class ScoringEngine:
 
         prompt = self._build_prompt(sanitized, track, criteria, track_criteria)
 
-        # Primary: Gemini
-        try:
-            raw_text = await self._call_gemini(prompt)
-            return self._parse_and_validate(
-                raw_text, sanitized.team_name, track, criteria, track_criteria
-            )
-        except Exception:
-            logger.warning(
-                "Gemini scoring failed for team %s, trying Claude fallback",
-                sanitized.team_name,
-                exc_info=True,
-            )
+        # Primary: Gemini (skip if circuit breaker is tripped)
+        gemini_skipped = False
+        if self._circuit_breaker and not self._circuit_breaker.available:
+            logger.info("Gemini circuit breaker open -- skipping Gemini for %s", sanitized.team_name)
+            gemini_skipped = True
+        else:
+            try:
+                raw_text = await self._call_gemini(prompt)
+                return self._parse_and_validate(
+                    raw_text, sanitized.team_name, track, criteria, track_criteria
+                )
+            except DailyQuotaExhausted:
+                if self._circuit_breaker:
+                    self._circuit_breaker.trip()
+                logger.warning(
+                    "Gemini scoring failed (daily quota) for team %s, trying Claude fallback",
+                    sanitized.team_name,
+                )
+            except Exception:
+                logger.warning(
+                    "Gemini scoring failed for team %s, trying Claude fallback",
+                    sanitized.team_name,
+                    exc_info=True,
+                )
 
         # Fallback: Claude
         if self._claude_client is not None:
