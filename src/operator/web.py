@@ -22,6 +22,7 @@ from src.capture.models import CaptureEvent
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import QARequested
 from src.memory.models import DeliberationRequested
+from src.operator.audit import log_command
 from src.operator.cli import VALID_TRACKS
 
 if TYPE_CHECKING:
@@ -222,6 +223,7 @@ class WebOperator:
             ws: The WebSocket connection that sent the command.
         """
         action = data.get("action", "")
+        state_before = self._demo_machine.current_state.id
 
         try:
             if action == "start":
@@ -252,6 +254,7 @@ class WebOperator:
                 self._demo_machine.send("start_demo", team_name=team_name)
                 await self._send_result(ws, True, f"Demo started for {team_name}")
                 logger.info("Operator started demo for team: %s", team_name)
+                log_command("start", success=True, team_name=team_name, track=track or "", state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "stop":
                 session = self._demo_machine.current_session
@@ -262,6 +265,7 @@ class WebOperator:
                 team = session.team_name if session else "Unknown"
                 await self._send_result(ws, True, f"Demo stopped for team: {team} (duration: {duration:.1f}s)")
                 logger.info("Operator stopped demo for team: %s (%.1fs)", team, duration)
+                log_command("stop", success=True, team_name=team, state_before=state_before, state_after=self._demo_machine.current_state.id, detail=f"duration={duration:.1f}s")
 
             elif action == "pause":
                 session = self._demo_machine.current_session
@@ -269,6 +273,7 @@ class WebOperator:
                 team = session.team_name if session else "Unknown"
                 await self._send_result(ws, True, f"Demo paused for team: {team}")
                 logger.info("Operator paused demo for team: %s", team)
+                log_command("pause", success=True, team_name=team, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "resume":
                 session = self._demo_machine.current_session
@@ -276,11 +281,13 @@ class WebOperator:
                 team = session.team_name if session else "Unknown"
                 await self._send_result(ws, True, f"Demo resumed for team: {team}")
                 logger.info("Operator resumed demo for team: %s", team)
+                log_command("resume", success=True, team_name=team, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "reset":
                 self._demo_machine.send("reset")
                 await self._send_result(ws, True, "Ready for next demo.")
                 logger.info("Operator reset demo machine")
+                log_command("reset", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "qa":
                 state_id = self._demo_machine.current_state.id
@@ -293,11 +300,13 @@ class WebOperator:
                 self._event_bus.publish(QARequested(team_name=team_name))
                 await self._send_result(ws, True, f"Q&A mode activated for team: {team_name}")
                 logger.info("Operator triggered Q&A for team: %s", team_name)
+                log_command("qa", success=True, team_name=team_name, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "deliberate":
                 self._event_bus.publish(DeliberationRequested())
                 await self._send_result(ws, True, "Deliberation triggered. Processing all demos...")
                 logger.info("Operator triggered end-of-event deliberation")
+                log_command("deliberate", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "rehearsal":
                 from src.rehearsal import RehearsalPipeline
@@ -314,6 +323,7 @@ class WebOperator:
 
                 asyncio.create_task(_run_rehearsal())
                 logger.info("Operator triggered rehearsal mode from dashboard")
+                log_command("rehearsal", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
             elif action == "quit":
                 await self._send_result(ws, True, "Shutting down")
@@ -321,11 +331,13 @@ class WebOperator:
 
             else:
                 await self._send_result(ws, False, f"Unknown command: '{action}'")
+                log_command(action, success=False, state_before=state_before, state_after=state_before, detail="unknown command")
                 return
 
         except TransitionNotAllowed:
             state_id = self._demo_machine.current_state.id
             await self._send_result(ws, False, f"Cannot '{action}' in state '{state_id}'")
+            log_command(action, success=False, state_before=state_before, state_after=state_id, detail=f"transition not allowed from '{state_before}'")
         except Exception:
             logger.exception("Unhandled exception in command handler for '%s'", action)
 
