@@ -23,8 +23,9 @@ from openai import AsyncOpenAI
 from src.commentary.models import Commentary
 from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.rate_limiter import GeminiRateLimiter
-from src.resilience.retry import GEMINI_RETRY
+from src.resilience.retry import DailyQuotaExhausted, GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +99,13 @@ class CommentaryGenerator:
         api_key: str,
         model: str = "gemini-2.5-flash",
         groq_api_key: str | None = None,
+        circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         self._demo_count = 0
         self._demo_history: list[dict[str, str]] = []
+        self._circuit_breaker = circuit_breaker
 
         # Groq fallback via OpenAI-compatible SDK
         groq_key = os.environ.get("GROQ_API_KEY", "") if groq_api_key is None else groq_api_key
@@ -132,12 +135,19 @@ class CommentaryGenerator:
         self._demo_count += 1
         user_prompt = self._build_user_prompt(sanitized, demo_number=self._demo_count)
 
-        # Primary: Gemini
+        # Primary: Gemini (skip if circuit breaker is tripped)
         full_text = ""
-        try:
-            full_text = await self._stream_gemini(user_prompt)
-        except Exception:
-            logger.exception("Gemini commentary failed for team %s", sanitized.team_name)
+        if self._circuit_breaker and not self._circuit_breaker.available:
+            logger.info("Gemini circuit breaker open -- skipping Gemini commentary for %s", sanitized.team_name)
+        else:
+            try:
+                full_text = await self._stream_gemini(user_prompt)
+            except DailyQuotaExhausted:
+                if self._circuit_breaker:
+                    self._circuit_breaker.trip()
+                logger.warning("Gemini commentary failed (daily quota) for team %s", sanitized.team_name)
+            except Exception:
+                logger.exception("Gemini commentary failed for team %s", sanitized.team_name)
 
         # Fallback: Groq
         if not full_text.strip() and self._groq_client is not None:

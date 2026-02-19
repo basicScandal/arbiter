@@ -34,7 +34,8 @@ from tenacity import (
 )
 
 from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
-from src.resilience.retry import GEMINI_RETRY_BACKGROUND
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
+from src.resilience.retry import DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
 from src.scoring.models import DemoScorecard
 
 logger = logging.getLogger(__name__)
@@ -111,10 +112,12 @@ class DeliberationEngine:
         api_key: str,
         model: str = "gemini-2.5-flash",
         anthropic_api_key: str | None = None,
+        circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
         # SEPARATE client instance -- not shared with CommentaryGenerator or ScoringEngine
         self._client = genai.Client(api_key=api_key)
         self._model = model
+        self._circuit_breaker = circuit_breaker
 
         # Claude fallback client
         claude_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
@@ -153,12 +156,19 @@ class DeliberationEngine:
 
         prompt = self._build_deliberation_prompt(memories, scorecards)
 
-        # Primary: Gemini
-        try:
-            result = await self._call_gemini(prompt)
-        except Exception:
-            logger.warning("Gemini deliberation failed, trying Claude fallback", exc_info=True)
-            result = None
+        # Primary: Gemini (skip if circuit breaker is tripped)
+        result = None
+        if self._circuit_breaker and not self._circuit_breaker.available:
+            logger.info("Gemini circuit breaker open -- skipping Gemini for deliberation")
+        else:
+            try:
+                result = await self._call_gemini(prompt)
+            except DailyQuotaExhausted:
+                if self._circuit_breaker:
+                    self._circuit_breaker.trip()
+                logger.warning("Gemini deliberation failed (daily quota), trying Claude fallback")
+            except Exception:
+                logger.warning("Gemini deliberation failed, trying Claude fallback", exc_info=True)
 
         # Fallback: Claude
         if result is None and self._claude_client is not None:
