@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-import pytest
 
-from src.replay.config import OBSERVATIONS_DIR, SCORES_DIR
 
 
 class TestHasCachedResults:

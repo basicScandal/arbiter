@@ -27,7 +27,7 @@ from src.commentary.sounds import SoundEffects
 from src.commentary.tts_engine import TTSEngine
 from src.defense.models import InjectionDetected, ObservationVerified, SanitizedOutput
 from src.providers.base import LLMProvider
-from src.resilience.health import ServiceHealth, default_health
+from src.resilience.health import default_health
 
 logger = logging.getLogger(__name__)
 

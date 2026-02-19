@@ -6,7 +6,6 @@ and track criteria configuration.
 
 from __future__ import annotations
 
-import pytest
 
 from src.scoring.rubric import EXTENDED_CRITERIA, GENERAL_CRITERIA, TRACK_CRITERIA
 

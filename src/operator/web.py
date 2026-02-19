@@ -13,7 +13,7 @@ import os
 import time
 from typing import TYPE_CHECKING
 
-from fastapi import WebSocket, WebSocketDisconnect, WebSocketException, Query, status
+from fastapi import WebSocket, WebSocketDisconnect, Query, status
 from statemachine.exceptions import TransitionNotAllowed
 
 from src.capture.demo_machine import DemoMachine

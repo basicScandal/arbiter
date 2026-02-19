@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -20,7 +19,6 @@ from src.memory.models import (
     DeliberationComplete,
     DeliberationRequested,
     DeliberationResult,
-    DemoMemory,
     TeamRanking,
 )
 from src.memory.pipeline import DeliberationPipeline

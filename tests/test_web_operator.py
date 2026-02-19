@@ -10,26 +10,20 @@ and EventBus. Follows patterns from test_tui.py.
 
 from __future__ import annotations
 
-import asyncio
-import time
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from statemachine.exceptions import TransitionNotAllowed
 
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import (
-    CaptureEvent,
-    DemoSession,
     KeyFrameDetected,
     FrameData,
     TranscriptReceived,
     TranscriptSegment,
 )
-from src.commentary.display_server import DisplayServer
 from src.defense.models import (
     InjectionAttempt,
     InjectionDetected,
@@ -680,7 +674,6 @@ async def test_event_broadcast_includes_type():
 
     # Track broadcast calls
     broadcast_messages = []
-    original_broadcast = op._broadcast_to_operators
 
     async def capture_broadcast(msg):
         broadcast_messages.append(msg)
@@ -913,7 +906,6 @@ async def test_broadcast_handles_disconnected_client():
     broken_ws = MagicMock()
     broken_ws.send_json = MagicMock(side_effect=Exception("broken"))
     # Make it an async mock
-    import asyncio
 
     async def broken_send(msg):
         raise Exception("broken")

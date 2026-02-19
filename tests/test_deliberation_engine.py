@@ -16,7 +16,6 @@ import pytest
 from src.memory.deliberation_engine import (
     DELIBERATION_SYSTEM_PROMPT,
     DeliberationEngine,
-    _DELIBERATION_JSON_SCHEMA,
 )
 from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
 from src.scoring.models import CriterionScore, DemoScorecard

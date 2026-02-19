@@ -13,7 +13,6 @@ import pytest
 from src.capture.event_bus import EventBus
 import src.capture.event_bus as event_bus_module
 import src.resilience.health as health_module
-from src.resilience.health import ServiceHealth
 from src.resilience.rate_limiter import GeminiRateLimiter
 from tests.helpers.event_collector import EventCollector
 

@@ -23,7 +23,6 @@ from src.commentary.enricher import CommentaryEnricher
 from src.commentary.models import Commentary
 from src.defense.models import SanitizedOutput
 from src.providers.factory import create_provider
-from src.scoring.aggregator import ScoreAggregator
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.models import DemoScorecard
 
