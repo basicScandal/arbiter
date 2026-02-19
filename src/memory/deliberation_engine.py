@@ -1,25 +1,80 @@
-"""Deliberation engine with dedicated Gemini client for comparative analysis.
+"""Deliberation engine with Gemini primary and Claude fallback.
 
 Creates its own genai.Client instance separate from the commentary and scoring
-clients (isolation pattern). Uses Gemini structured output (response_schema)
-with Pydantic models for guaranteed schema compliance. Python sorts final
-rankings by ScoreStore total_score -- never trusts LLM rank assignments.
+clients (isolation pattern). Falls back to Claude (Anthropic API) when Gemini
+is unavailable due to rate limits or daily quota exhaustion. Uses Gemini
+structured output (response_schema) with Pydantic models for guaranteed schema
+compliance; Claude receives the JSON schema in the prompt instead. Python sorts
+final rankings by ScoreStore total_score -- never trusts LLM rank assignments.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import re
 import time
 
+from anthropic import (
+    APIConnectionError,
+    APITimeoutError,
+    AsyncAnthropic,
+    InternalServerError,
+    RateLimitError,
+)
 from google import genai
 from google.genai import types
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
 from src.resilience.retry import GEMINI_RETRY_BACKGROUND
 from src.scoring.models import DemoScorecard
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_ANTHROPIC = (
+    ConnectionError, TimeoutError, OSError,
+    APIConnectionError, APITimeoutError, InternalServerError, RateLimitError,
+)
+
+_CLAUDE_DELIBERATION_RETRY = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=2, max=20, jitter=2),
+    retry=retry_if_exception_type(_RETRYABLE_ANTHROPIC),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+
+_DELIBERATION_JSON_SCHEMA = """\
+Respond with ONLY a JSON object matching this exact schema:
+```json
+{
+  "rankings": [
+    {
+      "rank": 1,
+      "team_name": "<team name>",
+      "track": "<track>",
+      "total_score": <score>,
+      "strengths": ["<strength 1>", "<strength 2>"],
+      "weaknesses": ["<weakness 1>"],
+      "cross_references": ["<comparison to other team>"],
+      "reasoning": "<evidence-based justification>"
+    }
+  ],
+  "overall_narrative": "<2-3 paragraph event summary in Arbiter's voice>",
+  "notable_themes": ["<theme 1>", "<theme 2>"],
+  "deliberated_at": 0.0
+}
+```
+Include one ranking entry per team. Do NOT include any text outside the JSON object.\
+"""
 
 DELIBERATION_SYSTEM_PROMPT = """\
 You are Arbiter's deliberation engine for NEBULA:FOG 2026 security hackathon.
@@ -44,26 +99,42 @@ class DeliberationEngine:
     """Dedicated deliberation LLM -- architecturally isolated from other clients.
 
     Creates its own genai.Client instance (per isolation pattern from scoring).
+    Falls back to Claude (Anthropic API) when Gemini is unavailable.
     Uses Gemini structured output (response_schema=DeliberationResult) for
-    guaranteed schema compliance. Python sorts rankings by authoritative
-    ScoreStore scores -- never trusts LLM ordering.
+    guaranteed schema compliance; Claude receives the JSON schema in the prompt.
+    Python sorts rankings by authoritative ScoreStore scores -- never trusts
+    LLM ordering.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gemini-2.5-flash",
+        anthropic_api_key: str | None = None,
+    ) -> None:
         # SEPARATE client instance -- not shared with CommentaryGenerator or ScoringEngine
         self._client = genai.Client(api_key=api_key)
         self._model = model
+
+        # Claude fallback client
+        claude_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        if claude_key:
+            self._claude_client: AsyncAnthropic | None = AsyncAnthropic(api_key=claude_key)
+            logger.info("Claude fallback enabled for deliberation")
+        else:
+            self._claude_client = None
 
     async def deliberate(
         self,
         memories: list[DemoMemory],
         scorecards: list[DemoScorecard],
     ) -> DeliberationResult:
-        """Perform comparative deliberation across all demos.
+        """Perform comparative deliberation, trying Gemini then Claude fallback.
 
         Constructs a comprehensive prompt from stored observations and
-        scorecards, gets structured LLM analysis via Gemini response_schema,
-        then applies Python-authoritative ranking based on ScoreStore scores.
+        scorecards, gets structured LLM analysis via Gemini response_schema
+        (or Claude with schema-in-prompt fallback), then applies
+        Python-authoritative ranking based on ScoreStore scores.
 
         Args:
             memories: All stored demo observations from MemoryStore.load_all().
@@ -75,19 +146,30 @@ class DeliberationEngine:
 
         Raises:
             ValueError: If no memories are provided.
-            Exception: Any Gemini API or parsing error is re-raised (deliberation
-                is operator-triggered, not automatic -- let errors propagate).
+            Exception: If both providers fail, the last error is re-raised.
         """
         if not memories:
             raise ValueError("No demo observations available for deliberation")
 
         prompt = self._build_deliberation_prompt(memories, scorecards)
 
+        # Primary: Gemini
         try:
             result = await self._call_gemini(prompt)
         except Exception:
-            logger.exception("Deliberation failed")
-            raise
+            logger.warning("Gemini deliberation failed, trying Claude fallback", exc_info=True)
+            result = None
+
+        # Fallback: Claude
+        if result is None and self._claude_client is not None:
+            try:
+                result = await self._call_claude(prompt)
+                logger.info("Claude fallback completed deliberation")
+            except Exception:
+                logger.exception("Claude deliberation fallback also failed")
+
+        if result is None:
+            raise RuntimeError("All deliberation providers failed")
 
         result = self._apply_authoritative_ranking(result, scorecards, memories)
         result.deliberated_at = time.time()
@@ -97,8 +179,9 @@ class DeliberationEngine:
     async def _call_gemini(self, prompt: str) -> DeliberationResult:
         """Call Gemini for deliberation with retry on transient errors.
 
-        Retries up to 5 times with exponential backoff + jitter on network
-        errors. Non-retryable errors propagate to deliberate() which re-raises.
+        Retries up to 5 times with exponential backoff + jitter on
+        per-minute rate limits. Daily quota exhaustion raises immediately
+        (no retry) so the caller can fall back to Claude.
         """
         response = await self._client.aio.models.generate_content(
             model=self._model,
@@ -112,6 +195,35 @@ class DeliberationEngine:
             ),
         )
         return DeliberationResult.model_validate_json(response.text)
+
+    @_CLAUDE_DELIBERATION_RETRY
+    async def _call_claude(self, prompt: str) -> DeliberationResult:
+        """Call Claude for deliberation as Gemini fallback.
+
+        Uses the same prompt with an appended JSON schema instruction,
+        since Claude doesn't support response_schema natively. Parses
+        the response with Pydantic for validation.
+        """
+        assert self._claude_client is not None
+        full_prompt = prompt + "\n\n" + _DELIBERATION_JSON_SCHEMA
+
+        message = await self._claude_client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=4000,
+            temperature=0.4,
+            system=DELIBERATION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": full_prompt}],
+        )
+        raw_text = message.content[0].text if message.content else ""
+
+        # Strip markdown code fences if present
+        text = raw_text.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = [line for line in lines if not line.strip().startswith("```")]
+            text = "\n".join(lines)
+
+        return DeliberationResult.model_validate_json(text)
 
     @staticmethod
     def _build_deliberation_prompt(
