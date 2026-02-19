@@ -31,6 +31,10 @@ from src.resilience.health import ServiceHealth, default_health
 
 logger = logging.getLogger(__name__)
 
+# Max seconds to wait for streaming commentary before giving up.
+# Partial sentences delivered before timeout are still kept.
+_COMMENTARY_TIMEOUT = 30
+
 # Pre-written injection quips for zero-latency real-time reactions.
 # {type} is replaced with the injection type (e.g. "prompt_injection").
 _INJECTION_QUIPS: list[str] = [
@@ -174,10 +178,16 @@ class CommentaryPipeline:
         spoken the moment it's detected in the LLM stream, while the model
         is still generating the next sentence. Falls back to batch mode
         when enrichment is enabled (enricher needs full text).
+
+        CRITICAL: Always publishes CommentaryDelivered on completion or
+        failure. The scoring pipeline waits for this event to trigger the
+        theatrical score reveal — if we don't publish it, scores hang forever.
         """
+        team_name = event.output.team_name
+        full_text = ""
+
         try:
             self._last_sanitized = event.output
-            team_name = event.output.team_name
 
             # Clear display before new commentary
             await self._display.clear()
@@ -187,30 +197,47 @@ class CommentaryPipeline:
             # Always stream for minimum latency — speak each sentence the
             # moment it's detected in the LLM stream. Enrichment is skipped
             # in streaming mode because latency reduction > text polish.
+            # Timeout prevents indefinite hangs from stalled LLM streams.
+            # Both timeouts and mid-stream crashes are caught here so that
+            # partial sentences are preserved in full_text.
             sentences: list[str] = []
-            async for sentence, emotion, i in self._generator.stream_sentences(event.output):
-                sentences.append(sentence)
-                await self._deliver_sentence(
-                    sentence, team_name, context_id,
-                    emotion, is_continuation=(i > 0),
+            try:
+                async with asyncio.timeout(_COMMENTARY_TIMEOUT):
+                    async for sentence, emotion, i in self._generator.stream_sentences(event.output):
+                        sentences.append(sentence)
+                        await self._deliver_sentence(
+                            sentence, team_name, context_id,
+                            emotion, is_continuation=(i > 0),
+                        )
+            except TimeoutError:
+                logger.warning(
+                    "Commentary generation timed out after %ds for team: %s "
+                    "(delivered %d sentences before timeout)",
+                    _COMMENTARY_TIMEOUT, team_name, len(sentences),
+                )
+            except Exception:
+                logger.exception(
+                    "Commentary streaming failed for team: %s "
+                    "(delivered %d sentences before failure)",
+                    team_name, len(sentences),
                 )
             full_text = " ".join(sentences)
-
-            # Publish delivery event
-            if self._event_bus is not None:
-                self._event_bus.publish(
-                    CommentaryDelivered(
-                        team_name=team_name,
-                        commentary_text=full_text,
-                    )
-                )
 
             logger.info("Commentary delivered for team: %s", team_name)
 
         except Exception:
             logger.exception(
-                "Commentary delivery failed for team: %s",
-                event.output.team_name,
+                "Commentary delivery failed for team: %s", team_name,
+            )
+
+        # ALWAYS publish — scoring pipeline depends on this event to
+        # trigger the theatrical score reveal. Without it, scores hang.
+        if self._event_bus is not None:
+            self._event_bus.publish(
+                CommentaryDelivered(
+                    team_name=team_name,
+                    commentary_text=full_text or "(commentary unavailable)",
+                )
             )
 
     async def _on_qa_requested(self, event: QARequested) -> None:

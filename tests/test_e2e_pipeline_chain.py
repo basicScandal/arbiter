@@ -261,3 +261,118 @@ async def test_pipeline_chain_handles_empty_observations_gracefully(
     assert obs_event.output.team_name == "TestTeam"
     # Empty observations after reassembly
     assert obs_event.output.observations == []
+
+
+# ---------------------------------------------------------------------------
+# Commentary failure: scoring must still receive commentary_delivered
+# ---------------------------------------------------------------------------
+
+
+async def _failing_stream_sentences(sanitized_output):
+    """Async generator that raises mid-stream."""
+    yield ("First sentence.", "sarcastic", 0)
+    raise RuntimeError("LLM connection lost")
+
+
+@pytest.mark.timeout(15)
+async def test_commentary_failure_still_publishes_delivered(
+    event_bus, event_collector,
+):
+    """When commentary generation crashes, commentary_delivered must still fire.
+
+    This is the critical fix for issue #4: without the fallback event, the
+    scoring pipeline never reveals scores because it waits on commentary_delivered.
+    """
+    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = _make_mock_display()
+
+    defense, commentary, scoring, deliberation = await _setup_full_pipeline(
+        event_bus, mock_gemini, mock_display,
+    )
+
+    # Replace the stream generator with one that crashes
+    commentary._generator.stream_sentences = _failing_stream_sentences
+
+    with patch("src.scoring.pipeline.asyncio.sleep", new_callable=AsyncMock):
+        event_bus.publish(DemoStarted(team_name="TestTeam"))
+        await asyncio.sleep(0)
+
+        event_bus.publish(DemoStopped(team_name="TestTeam", duration=180.0))
+
+        # commentary_delivered MUST still fire despite the crash
+        delivered = await event_collector.wait_for("commentary_delivered", timeout=5.0)
+
+    assert delivered.team_name == "TestTeam"
+    # Partial text from the one sentence before the crash
+    assert "First sentence." in delivered.commentary_text
+
+
+@pytest.mark.timeout(15)
+async def test_commentary_failure_still_triggers_score_reveal(
+    event_bus, event_collector,
+):
+    """Full chain: commentary crash -> fallback delivered -> score reveal fires.
+
+    End-to-end proof that the fix unblocks the scoring pipeline.
+    """
+    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = _make_mock_display()
+
+    defense, commentary, scoring, deliberation = await _setup_full_pipeline(
+        event_bus, mock_gemini, mock_display,
+    )
+
+    # Replace the stream generator with one that crashes
+    commentary._generator.stream_sentences = _failing_stream_sentences
+
+    with patch("src.scoring.pipeline.asyncio.sleep", new_callable=AsyncMock):
+        event_bus.publish(DemoStarted(team_name="TestTeam"))
+        await asyncio.sleep(0)
+
+        event_bus.publish(DemoStopped(team_name="TestTeam", duration=180.0))
+
+        # The full chain must complete: commentary_delivered -> score_revealed
+        await event_collector.wait_for("commentary_delivered", timeout=5.0)
+        await event_collector.wait_for("scoring_complete", timeout=5.0)
+        await event_collector.wait_for("score_revealed", timeout=10.0)
+
+    types = [e.event_type for e in event_collector.events]
+    assert types.index("commentary_delivered") < types.index("score_revealed")
+
+
+async def _slow_stream_sentences(sanitized_output):
+    """Async generator that hangs forever after first sentence."""
+    yield ("Opening line.", "confident", 0)
+    await asyncio.sleep(3600)  # simulate indefinite hang
+
+
+@pytest.mark.timeout(15)
+async def test_commentary_timeout_still_publishes_delivered(
+    event_bus, event_collector,
+):
+    """When commentary generation hangs, the timeout fires and delivers partial text."""
+    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = _make_mock_display()
+
+    defense, commentary, scoring, deliberation = await _setup_full_pipeline(
+        event_bus, mock_gemini, mock_display,
+    )
+
+    # Replace the stream generator with one that hangs
+    commentary._generator.stream_sentences = _slow_stream_sentences
+
+    with (
+        patch("src.scoring.pipeline.asyncio.sleep", new_callable=AsyncMock),
+        patch("src.commentary.pipeline._COMMENTARY_TIMEOUT", 1),
+    ):
+        event_bus.publish(DemoStarted(team_name="TestTeam"))
+        await asyncio.sleep(0)
+
+        event_bus.publish(DemoStopped(team_name="TestTeam", duration=180.0))
+
+        # commentary_delivered fires after the timeout
+        delivered = await event_collector.wait_for("commentary_delivered", timeout=5.0)
+
+    assert delivered.team_name == "TestTeam"
+    # Got the partial sentence before the hang
+    assert "Opening line." in delivered.commentary_text
