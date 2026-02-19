@@ -1,19 +1,35 @@
-"""Scoring engine with dedicated Gemini client for architectural isolation.
+"""Scoring engine with Gemini primary and Claude fallback.
 
 Creates its own genai.Client instance separate from the commentary P-LLM
-(SCORE-03 isolation requirement). Uses structured scoring prompts with
-calibration anchors. Python computes weighted totals -- never trusts LLM
-arithmetic.
+(SCORE-03 isolation requirement). Falls back to Claude (Anthropic API)
+when Gemini is unavailable due to rate limits or daily quota exhaustion.
+Uses structured scoring prompts with calibration anchors. Python computes
+weighted totals -- never trusts LLM arithmetic.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 
+from anthropic import (
+    APIConnectionError,
+    APITimeoutError,
+    AsyncAnthropic,
+    InternalServerError,
+    RateLimitError,
+)
 from google import genai
 from google.genai import types
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from src.defense.models import SanitizedOutput
 from src.resilience.retry import GEMINI_RETRY_BACKGROUND
@@ -21,6 +37,19 @@ from src.scoring.models import CriterionScore, DemoScorecard, RubricCriterion, T
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_ANTHROPIC = (
+    ConnectionError, TimeoutError, OSError,
+    APIConnectionError, APITimeoutError, InternalServerError, RateLimitError,
+)
+
+_CLAUDE_SCORING_RETRY = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=2, max=20, jitter=2),
+    retry=retry_if_exception_type(_RETRYABLE_ANTHROPIC),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
 
 SCORING_SYSTEM_PROMPT = """\
 You are a scoring engine for NEBULA:FOG 2026 security hackathon.
@@ -50,14 +79,28 @@ class ScoringEngine:
     """Dedicated scoring LLM -- architecturally isolated from commentary P-LLM.
 
     Creates its own genai.Client instance (SCORE-03 isolation requirement).
+    Falls back to Claude (Anthropic API) when Gemini is unavailable.
     Uses structured scoring prompt with calibration anchors.
     Python computes weighted totals -- never trusts LLM arithmetic.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gemini-2.5-flash",
+        anthropic_api_key: str | None = None,
+    ) -> None:
         # SEPARATE client instance -- not shared with CommentaryGenerator
         self._client = genai.Client(api_key=api_key)
         self._model = model
+
+        # Claude fallback client
+        claude_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        if claude_key:
+            self._claude_client: AsyncAnthropic | None = AsyncAnthropic(api_key=claude_key)
+            logger.info("Claude fallback enabled for scoring")
+        else:
+            self._claude_client = None
 
     async def score(
         self,
@@ -66,7 +109,7 @@ class ScoringEngine:
         criteria: list[RubricCriterion] | None = None,
         track_criteria: dict[str, TrackCriteria] | None = None,
     ) -> DemoScorecard:
-        """Score a demo against the rubric using the dedicated Gemini client.
+        """Score a demo against the rubric, trying Gemini then Claude fallback.
 
         Args:
             sanitized: Clean observations and transcripts from the defense
@@ -79,8 +122,8 @@ class ScoringEngine:
 
         Returns:
             A DemoScorecard with per-criterion breakdowns and Python-computed
-            weighted total. On any error, returns a fallback scorecard with
-            5.0 across all criteria.
+            weighted total. On any error from both providers, returns a
+            fallback scorecard with 5.0 across all criteria.
         """
         if criteria is None:
             criteria = GENERAL_CRITERIA
@@ -89,26 +132,52 @@ class ScoringEngine:
 
         prompt = self._build_prompt(sanitized, track, criteria, track_criteria)
 
+        # Primary: Gemini
         try:
             raw_text = await self._call_gemini(prompt)
             return self._parse_and_validate(
                 raw_text, sanitized.team_name, track, criteria, track_criteria
             )
         except Exception:
-            logger.exception(
-                "Scoring failed for team %s, returning fallback scorecard",
+            logger.warning(
+                "Gemini scoring failed for team %s, trying Claude fallback",
                 sanitized.team_name,
+                exc_info=True,
             )
-            return self._fallback_scorecard(
-                sanitized.team_name, track, criteria
-            )
+
+        # Fallback: Claude
+        if self._claude_client is not None:
+            try:
+                raw_text = await self._call_claude(prompt)
+                scorecard = self._parse_and_validate(
+                    raw_text, sanitized.team_name, track, criteria, track_criteria
+                )
+                logger.info(
+                    "Claude fallback scored team %s: %.1f",
+                    sanitized.team_name, scorecard.total_score,
+                )
+                return scorecard
+            except Exception:
+                logger.exception(
+                    "Claude fallback also failed for team %s",
+                    sanitized.team_name,
+                )
+
+        logger.error(
+            "All scoring providers failed for team %s, returning fallback scorecard",
+            sanitized.team_name,
+        )
+        return self._fallback_scorecard(
+            sanitized.team_name, track, criteria
+        )
 
     @GEMINI_RETRY_BACKGROUND
     async def _call_gemini(self, prompt: str) -> str:
         """Call Gemini for scoring with retry on transient errors.
 
-        Retries up to 5 times with exponential backoff + jitter on network
-        errors. Non-retryable errors propagate to score() fallback logic.
+        Retries up to 5 times with exponential backoff + jitter on
+        per-minute rate limits. Daily quota exhaustion raises immediately
+        (no retry) so the caller can fall back to Claude.
         """
         response = await self._client.aio.models.generate_content(
             model=self._model,
@@ -121,6 +190,25 @@ class ScoringEngine:
             ),
         )
         return response.text or ""
+
+    @_CLAUDE_SCORING_RETRY
+    async def _call_claude(self, prompt: str) -> str:
+        """Call Claude for scoring as Gemini fallback.
+
+        Uses the same prompt and expects the same JSON output format.
+        Retries up to 3 times on transient network/rate-limit errors.
+        """
+        assert self._claude_client is not None
+        message = await self._claude_client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1500,
+            temperature=0.3,
+            system=SCORING_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        if message.content and len(message.content) > 0:
+            return message.content[0].text
+        return ""
 
     @staticmethod
     def _build_prompt(
