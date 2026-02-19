@@ -9,10 +9,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 from pathlib import Path
 
 from src.scoring.models import DemoScorecard
+from src.utils import sanitize_team_name
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +28,6 @@ class ScoreStore:
         self._scores_dir = Path(scores_dir)
         self._scores_dir.mkdir(parents=True, exist_ok=True)
 
-    @staticmethod
-    def _sanitize_team_name(team_name: str) -> str:
-        """Sanitize a team name for filesystem use.
-
-        Replaces spaces with underscores, strips non-alphanumeric characters
-        except underscores and hyphens, and lowercases the result.
-        """
-        name = team_name.replace(" ", "_")
-        name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
-        return name.lower()
-
     async def save(self, scorecard: DemoScorecard) -> Path:
         """Save a scorecard as a pretty-printed JSON file.
 
@@ -48,7 +37,7 @@ class ScoreStore:
         Returns:
             The Path of the saved JSON file.
         """
-        sanitized = self._sanitize_team_name(scorecard.team_name)
+        sanitized = sanitize_team_name(scorecard.team_name)
         path = self._scores_dir / f"{sanitized}.json"
         data = json.dumps(scorecard.model_dump(), indent=2, default=str)
         await asyncio.to_thread(path.write_text, data)
@@ -64,7 +53,7 @@ class ScoreStore:
         Returns:
             The DemoScorecard if found, None otherwise.
         """
-        sanitized = self._sanitize_team_name(team_name)
+        sanitized = sanitize_team_name(team_name)
         path = self._scores_dir / f"{sanitized}.json"
         if not path.exists():
             return None

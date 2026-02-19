@@ -1,17 +1,16 @@
-"""Shared tenacity retry decorator configs for Gemini API calls.
+"""Shared tenacity retry decorator configs for Gemini and Anthropic API calls.
 
-Two configs are provided:
+Gemini configs:
 - GEMINI_RETRY: 3 attempts for interactive paths (commentary generation)
 - GEMINI_RETRY_BACKGROUND: 5 attempts for background paths (scoring, deliberation)
 
-Both use exponential backoff with jitter and retry on:
-- Network-level exceptions (ConnectionError, TimeoutError, OSError)
-- Gemini 429 rate-limit errors (ClientError with code 429, per-minute only)
-- Gemini 5xx server errors (ServerError)
+Anthropic (Claude) configs:
+- CLAUDE_RETRY: 3 attempts for interactive paths (scoring, deliberation fallback)
+- CLAUDE_RETRY_BACKGROUND: 5 attempts for background paths (video analysis)
 
-Daily quota exhaustion (PerDay quotaId) is NOT retried -- raises
-DailyQuotaExhausted immediately so callers can fall back to another provider.
-Auth errors and ValueError are NOT retried.
+Both families use exponential backoff with jitter. Daily quota exhaustion
+(PerDay quotaId) raises DailyQuotaExhausted immediately so callers can
+fall back to another provider.
 """
 
 from __future__ import annotations
@@ -104,4 +103,51 @@ GEMINI_RETRY_BACKGROUND = retry(
 
 Used on scoring and deliberation where reliability matters more than
 latency. Retries on network errors, 429 rate limits, and 5xx server errors.
+"""
+
+
+# ---------------------------------------------------------------------------
+# Anthropic (Claude) retry configs
+# ---------------------------------------------------------------------------
+
+# Lazy import to avoid hard dependency when Anthropic SDK isn't used
+def _anthropic_retryable() -> tuple:
+    """Return exception types worth retrying for Anthropic API calls."""
+    from anthropic import (
+        APIConnectionError,
+        APITimeoutError,
+        InternalServerError,
+        RateLimitError,
+    )
+    return (
+        ConnectionError, TimeoutError, OSError,
+        APIConnectionError, APITimeoutError, InternalServerError, RateLimitError,
+    )
+
+
+# Materialise once at import time (Anthropic SDK is always installed)
+RETRYABLE_ANTHROPIC = _anthropic_retryable()
+
+CLAUDE_RETRY = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(initial=2, max=20, jitter=2),
+    retry=retry_if_exception_type(RETRYABLE_ANTHROPIC),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+"""Retry decorator for interactive Claude calls (3 attempts).
+
+Used on scoring and deliberation Claude fallback paths.
+"""
+
+CLAUDE_RETRY_BACKGROUND = retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential_jitter(initial=2, max=30, jitter=3),
+    retry=retry_if_exception_type(RETRYABLE_ANTHROPIC),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+"""Retry decorator for background Claude calls (5 attempts).
+
+Used on video analysis where reliability matters more than latency.
 """

@@ -13,6 +13,7 @@ import pytest
 
 from src.memory.models import DemoMemory
 from src.memory.store import MemoryStore
+from src.utils import sanitize_team_name
 
 
 # ---------------------------------------------------------------------------
@@ -51,25 +52,25 @@ def memory() -> DemoMemory:
 
 
 class TestSanitizeTeamName:
-    """Tests for MemoryStore._sanitize_team_name."""
+    """Tests for sanitize_team_name (shared utility)."""
 
     def test_spaces_to_underscores(self):
-        assert MemoryStore._sanitize_team_name("Cyber Falcons") == "cyber_falcons"
+        assert sanitize_team_name("Cyber Falcons") == "cyber_falcons"
 
     def test_special_chars_stripped(self):
-        assert MemoryStore._sanitize_team_name("Team@#$%!") == "team"
+        assert sanitize_team_name("Team@#$%!") == "team"
 
     def test_hyphens_preserved(self):
-        assert MemoryStore._sanitize_team_name("Night-Owls") == "night-owls"
+        assert sanitize_team_name("Night-Owls") == "night-owls"
 
     def test_mixed_case_lowered(self):
-        assert MemoryStore._sanitize_team_name("CyberPunk Raccoons") == "cyberpunk_raccoons"
+        assert sanitize_team_name("CyberPunk Raccoons") == "cyberpunk_raccoons"
 
     def test_empty_string(self):
-        assert MemoryStore._sanitize_team_name("") == ""
+        assert sanitize_team_name("") == ""
 
     def test_unicode_stripped(self):
-        result = MemoryStore._sanitize_team_name("Team 🦊 Fox")
+        result = sanitize_team_name("Team 🦊 Fox")
         assert result == "team__fox"
 
 

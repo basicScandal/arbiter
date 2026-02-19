@@ -14,43 +14,18 @@ import logging
 import os
 import time
 
-from anthropic import (
-    APIConnectionError,
-    APITimeoutError,
-    AsyncAnthropic,
-    InternalServerError,
-    RateLimitError,
-)
+from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential_jitter,
-)
 
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
-from src.resilience.retry import DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
+from src.resilience.retry import CLAUDE_RETRY, DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
 from src.scoring.models import CriterionScore, DemoScorecard, RubricCriterion, TrackCriteria
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
+from src.utils import strip_markdown_fences
 
 logger = logging.getLogger(__name__)
-
-_RETRYABLE_ANTHROPIC = (
-    ConnectionError, TimeoutError, OSError,
-    APIConnectionError, APITimeoutError, InternalServerError, RateLimitError,
-)
-
-_CLAUDE_SCORING_RETRY = retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential_jitter(initial=2, max=20, jitter=2),
-    retry=retry_if_exception_type(_RETRYABLE_ANTHROPIC),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True,
-)
 
 SCORING_SYSTEM_PROMPT = """\
 You are a scoring engine for NEBULA:FOG 2026 security hackathon.
@@ -204,7 +179,7 @@ class ScoringEngine:
         )
         return response.text or ""
 
-    @_CLAUDE_SCORING_RETRY
+    @CLAUDE_RETRY
     async def _call_claude(self, prompt: str) -> str:
         """Call Claude for scoring as Gemini fallback.
 
@@ -326,14 +301,7 @@ class ScoringEngine:
         Raises:
             ValueError: If JSON parsing fails or required fields are missing.
         """
-        # Strip markdown code fences if present
-        text = raw_text.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            # Remove first and last fence lines
-            lines = [l for l in lines if not l.strip().startswith("```")]
-            text = "\n".join(lines)
-
+        text = strip_markdown_fences(raw_text)
         data = json.loads(text)
 
         # Build a weight lookup from rubric criteria
