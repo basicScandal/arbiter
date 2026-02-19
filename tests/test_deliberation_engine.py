@@ -1,17 +1,23 @@
 """Test suite for the deliberation engine, prompt building, and ranking.
 
 Tests the DeliberationEngine including prompt construction, authoritative
-Python-side ranking with tiebreakers, and the deliberate() entry point.
+Python-side ranking with tiebreakers, the deliberate() entry point, and
+Claude fallback when Gemini is unavailable.
 """
 
 from __future__ import annotations
 
+import json
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.memory.deliberation_engine import DELIBERATION_SYSTEM_PROMPT, DeliberationEngine
+from src.memory.deliberation_engine import (
+    DELIBERATION_SYSTEM_PROMPT,
+    DeliberationEngine,
+    _DELIBERATION_JSON_SCHEMA,
+)
 from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
 from src.scoring.models import CriterionScore, DemoScorecard
 
@@ -103,6 +109,20 @@ class TestConstructor:
     def test_custom_model(self):
         engine = DeliberationEngine(api_key="test-key", model="gemini-2.0-flash")
         assert engine._model == "gemini-2.0-flash"
+
+    def test_claude_client_enabled_with_key(self):
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        assert engine._claude_client is not None
+
+    def test_claude_client_disabled_without_key(self):
+        with patch.dict("os.environ", {}, clear=True):
+            engine = DeliberationEngine(api_key="test-key", anthropic_api_key="")
+            assert engine._claude_client is None
+
+    def test_claude_client_reads_env_var(self):
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-ant-env"}):
+            engine = DeliberationEngine(api_key="test-key")
+            assert engine._claude_client is not None
 
 
 # ---------------------------------------------------------------------------
@@ -423,12 +443,13 @@ class TestDeliberate:
             await engine.deliberate(memories=[], scorecards=[])
 
     @pytest.mark.asyncio
-    async def test_gemini_failure_propagates(self):
-        """Unlike scoring (which falls back), deliberation is operator-triggered so errors propagate."""
-        engine = DeliberationEngine(api_key="test-key")
+    async def test_gemini_failure_without_claude_raises_runtime_error(self):
+        """When Gemini fails and no Claude client is available, RuntimeError is raised."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="")
+        engine._claude_client = None  # explicitly disable
 
         with patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("API down"))):
-            with pytest.raises(Exception, match="API down"):
+            with pytest.raises(RuntimeError, match="All deliberation providers failed"):
                 await engine.deliberate(
                     memories=[_make_memory()],
                     scorecards=[_make_scorecard()],
@@ -461,3 +482,188 @@ class TestDeliberate:
         assert result.rankings[0].rank == 1
         assert result.rankings[1].team_name == "Low"
         assert result.rankings[1].rank == 2
+
+
+# ---------------------------------------------------------------------------
+# Claude fallback
+# ---------------------------------------------------------------------------
+
+
+def _make_claude_response_json(
+    team_name: str = "CyberFalcons",
+    track: str = "ROGUE::AGENT",
+    total_score: float = 7.1,
+) -> str:
+    """Build a valid DeliberationResult JSON string as Claude would return."""
+    return json.dumps({
+        "rankings": [{
+            "rank": 1,
+            "team_name": team_name,
+            "track": track,
+            "total_score": total_score,
+            "strengths": ["Strong execution"],
+            "weaknesses": ["Limited scope"],
+            "cross_references": ["Better than other teams"],
+            "reasoning": "Solid work overall",
+        }],
+        "overall_narrative": "An impressive competition.",
+        "notable_themes": ["AI tooling"],
+        "deliberated_at": 0.0,
+    })
+
+
+def _mock_claude_message(text: str) -> MagicMock:
+    """Create a mock Anthropic message response."""
+    content_block = MagicMock()
+    content_block.text = text
+    message = MagicMock()
+    message.content = [content_block]
+    return message
+
+
+class TestClaudeFallback:
+    """Tests for Claude fallback in deliberation."""
+
+    @pytest.mark.asyncio
+    async def test_gemini_fail_claude_succeeds(self):
+        """When Gemini fails, Claude fallback produces a valid result."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        mock_result = _make_deliberation_result(rankings=[
+            _make_ranking(team_name="CyberFalcons", total_score=7.1),
+        ])
+
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("quota"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(return_value=mock_result)),
+        ):
+            result = await engine.deliberate(
+                memories=[_make_memory()],
+                scorecards=[_make_scorecard()],
+            )
+
+        assert isinstance(result, DeliberationResult)
+        assert result.rankings[0].team_name == "CyberFalcons"
+
+    @pytest.mark.asyncio
+    async def test_both_providers_fail_raises_runtime_error(self):
+        """When both Gemini and Claude fail, RuntimeError is raised."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("quota"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(side_effect=Exception("Claude down"))),
+        ):
+            with pytest.raises(RuntimeError, match="All deliberation providers failed"):
+                await engine.deliberate(
+                    memories=[_make_memory()],
+                    scorecards=[_make_scorecard()],
+                )
+
+    @pytest.mark.asyncio
+    async def test_gemini_success_skips_claude(self):
+        """When Gemini succeeds, Claude is never called."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        mock_result = _make_deliberation_result()
+
+        claude_mock = AsyncMock()
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(return_value=mock_result)),
+            patch.object(engine, "_call_claude", new=claude_mock),
+        ):
+            await engine.deliberate(
+                memories=[_make_memory()],
+                scorecards=[_make_scorecard()],
+            )
+
+        claude_mock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_claude_applies_authoritative_ranking(self):
+        """Rankings from Claude fallback still get Python-sorted."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        # Claude returns wrong order
+        mock_result = _make_deliberation_result(rankings=[
+            _make_ranking(team_name="Low", rank=1, total_score=5.0),
+            _make_ranking(team_name="High", rank=2, total_score=9.0),
+        ])
+
+        scorecards = [
+            _make_scorecard(team_name="Low", total_score=5.0),
+            _make_scorecard(team_name="High", total_score=9.0),
+        ]
+
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("quota"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(return_value=mock_result)),
+        ):
+            result = await engine.deliberate(
+                memories=[_make_memory(team_name="Low"), _make_memory(team_name="High")],
+                scorecards=scorecards,
+            )
+
+        assert result.rankings[0].team_name == "High"
+        assert result.rankings[0].rank == 1
+
+    @pytest.mark.asyncio
+    async def test_call_claude_parses_valid_json(self):
+        """_call_claude should parse valid JSON into a DeliberationResult."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        response_json = _make_claude_response_json()
+        mock_message = _mock_claude_message(response_json)
+
+        with patch.object(engine._claude_client.messages, "create", new=AsyncMock(return_value=mock_message)):
+            result = await engine._call_claude("test prompt")
+
+        assert isinstance(result, DeliberationResult)
+        assert result.rankings[0].team_name == "CyberFalcons"
+
+    @pytest.mark.asyncio
+    async def test_call_claude_strips_markdown_fences(self):
+        """_call_claude should strip ```json fences before parsing."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        response_json = _make_claude_response_json()
+        fenced = f"```json\n{response_json}\n```"
+        mock_message = _mock_claude_message(fenced)
+
+        with patch.object(engine._claude_client.messages, "create", new=AsyncMock(return_value=mock_message)):
+            result = await engine._call_claude("test prompt")
+
+        assert isinstance(result, DeliberationResult)
+        assert result.rankings[0].team_name == "CyberFalcons"
+
+    @pytest.mark.asyncio
+    async def test_call_claude_includes_json_schema_in_prompt(self):
+        """_call_claude should append the JSON schema to the prompt."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        response_json = _make_claude_response_json()
+        mock_message = _mock_claude_message(response_json)
+
+        create_mock = AsyncMock(return_value=mock_message)
+        with patch.object(engine._claude_client.messages, "create", new=create_mock):
+            await engine._call_claude("my deliberation prompt")
+
+        # Verify the prompt sent to Claude includes the JSON schema
+        call_kwargs = create_mock.call_args[1]
+        user_content = call_kwargs["messages"][0]["content"]
+        assert "my deliberation prompt" in user_content
+        assert "rankings" in user_content  # from _DELIBERATION_JSON_SCHEMA
+
+    @pytest.mark.asyncio
+    async def test_call_claude_uses_system_prompt(self):
+        """_call_claude should use DELIBERATION_SYSTEM_PROMPT as the system message."""
+        engine = DeliberationEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+
+        response_json = _make_claude_response_json()
+        mock_message = _mock_claude_message(response_json)
+
+        create_mock = AsyncMock(return_value=mock_message)
+        with patch.object(engine._claude_client.messages, "create", new=create_mock):
+            await engine._call_claude("test prompt")
+
+        call_kwargs = create_mock.call_args[1]
+        assert call_kwargs["system"] == DELIBERATION_SYSTEM_PROMPT
