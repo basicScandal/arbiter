@@ -2,7 +2,7 @@
 
 Tests the ScoringEngine including prompt construction, LLM JSON response
 parsing, weighted total computation (Python-side), score clamping,
-fallback scorecard generation, and track bonus handling.
+fallback scorecard generation, track bonus handling, and Claude fallback.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import pytest
 from src.defense.models import InjectionAttempt, SanitizedOutput
 from src.scoring.engine import SCORING_SYSTEM_PROMPT, ScoringEngine
 from src.scoring.models import CriterionScore, DemoScorecard
+from src.resilience.retry import DailyQuotaExhausted
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
 
@@ -91,6 +92,20 @@ class TestConstructor:
     def test_custom_model(self):
         engine = ScoringEngine(api_key="test-key", model="gemini-2.0-flash")
         assert engine._model == "gemini-2.0-flash"
+
+    def test_claude_fallback_enabled_with_key(self):
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        assert engine._claude_client is not None
+
+    def test_claude_fallback_disabled_without_key(self):
+        with patch.dict("os.environ", {}, clear=True):
+            engine = ScoringEngine(api_key="test-key", anthropic_api_key="")
+            assert engine._claude_client is None
+
+    def test_claude_fallback_reads_env(self):
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-ant-env"}):
+            engine = ScoringEngine(api_key="test-key")
+            assert engine._claude_client is not None
 
 
 # ---------------------------------------------------------------------------
@@ -352,8 +367,10 @@ class TestScore:
         assert scorecard.total_score > 0
 
     @pytest.mark.asyncio
-    async def test_gemini_failure_returns_fallback(self, sanitized):
-        engine = ScoringEngine(api_key="test-key")
+    async def test_gemini_failure_no_claude_returns_fallback(self, sanitized):
+        """When Gemini fails and no Claude client is available, return fallback."""
+        with patch.dict("os.environ", {}, clear=True):
+            engine = ScoringEngine(api_key="test-key", anthropic_api_key="")
         with patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("API down"))):
             scorecard = await engine.score(sanitized, "ROGUE::AGENT")
 
@@ -363,7 +380,8 @@ class TestScore:
 
     @pytest.mark.asyncio
     async def test_bad_json_returns_fallback(self, sanitized):
-        engine = ScoringEngine(api_key="test-key")
+        with patch.dict("os.environ", {}, clear=True):
+            engine = ScoringEngine(api_key="test-key", anthropic_api_key="")
         with patch.object(engine, "_call_gemini", new=AsyncMock(return_value="invalid json {")):
             scorecard = await engine.score(sanitized, "ROGUE::AGENT")
 
@@ -382,3 +400,109 @@ class TestScore:
             scorecard = await engine.score(sanitized, "ROGUE::AGENT")
 
         assert scorecard.scored_at >= before
+
+
+# ---------------------------------------------------------------------------
+# Claude fallback
+# ---------------------------------------------------------------------------
+
+
+class TestClaudeFallback:
+    """Tests for Claude scoring fallback when Gemini fails."""
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_claude_on_gemini_failure(self, sanitized):
+        """When Gemini fails, Claude should score the demo."""
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        claude_response = _make_gemini_json({
+            "Technical Execution": 7.5,
+            "Innovation": 6.0,
+            "Demo Quality": 8.0,
+        })
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("Gemini quota"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(return_value=claude_response)),
+        ):
+            scorecard = await engine.score(sanitized, "ROGUE::AGENT")
+
+        expected = round(7.5 * 0.40 + 6.0 * 0.30 + 8.0 * 0.30, 1)
+        assert scorecard.total_score == expected
+        assert scorecard.team_name == "CyberFalcons"
+
+    @pytest.mark.asyncio
+    async def test_falls_back_on_daily_quota_exhausted(self, sanitized):
+        """DailyQuotaExhausted from Gemini should trigger Claude fallback."""
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        claude_response = _make_gemini_json({
+            "Technical Execution": 8.0,
+            "Innovation": 7.0,
+            "Demo Quality": 7.0,
+        })
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=DailyQuotaExhausted("daily limit"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(return_value=claude_response)),
+        ):
+            scorecard = await engine.score(sanitized, "ROGUE::AGENT")
+
+        assert scorecard.total_score != 5.0
+        assert len(scorecard.criteria) == 3
+
+    @pytest.mark.asyncio
+    async def test_both_providers_fail_returns_fallback(self, sanitized):
+        """When both Gemini and Claude fail, return the 5.0 fallback."""
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("Gemini down"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(side_effect=Exception("Claude down"))),
+        ):
+            scorecard = await engine.score(sanitized, "ROGUE::AGENT")
+
+        assert scorecard.total_score == 5.0
+
+    @pytest.mark.asyncio
+    async def test_claude_bad_json_returns_fallback(self, sanitized):
+        """When Gemini fails and Claude returns bad JSON, return fallback."""
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("Gemini down"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(return_value="not valid json")),
+        ):
+            scorecard = await engine.score(sanitized, "ROGUE::AGENT")
+
+        assert scorecard.total_score == 5.0
+
+    @pytest.mark.asyncio
+    async def test_gemini_success_skips_claude(self, sanitized):
+        """When Gemini succeeds, Claude should not be called."""
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        gemini_response = _make_gemini_json({
+            "Technical Execution": 9.0,
+            "Innovation": 8.0,
+            "Demo Quality": 8.5,
+        })
+        claude_mock = AsyncMock()
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(return_value=gemini_response)),
+            patch.object(engine, "_call_claude", new=claude_mock),
+        ):
+            scorecard = await engine.score(sanitized, "ROGUE::AGENT")
+
+        claude_mock.assert_not_called()
+        assert scorecard.total_score > 5.0
+
+    @pytest.mark.asyncio
+    async def test_claude_fallback_with_track_bonus(self, sanitized):
+        """Claude fallback should handle track bonuses correctly."""
+        engine = ScoringEngine(api_key="test-key", anthropic_api_key="sk-ant-test")
+        claude_response = _make_gemini_json(
+            {"Technical Execution": 8.0, "Innovation": 7.0, "Demo Quality": 7.0},
+            track_bonus={"name": "Attack Effectiveness", "score": 9.0, "justification": "Novel"},
+        )
+        with (
+            patch.object(engine, "_call_gemini", new=AsyncMock(side_effect=Exception("quota"))),
+            patch.object(engine, "_call_claude", new=AsyncMock(return_value=claude_response)),
+        ):
+            scorecard = await engine.score(sanitized, "SHADOW::VECTOR")
+
+        assert scorecard.track_bonus is not None
+        assert scorecard.track_bonus.score == 9.0

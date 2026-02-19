@@ -6,9 +6,11 @@ Two configs are provided:
 
 Both use exponential backoff with jitter and retry on:
 - Network-level exceptions (ConnectionError, TimeoutError, OSError)
-- Gemini 429 rate-limit errors (ClientError with code 429)
+- Gemini 429 rate-limit errors (ClientError with code 429, per-minute only)
 - Gemini 5xx server errors (ServerError)
 
+Daily quota exhaustion (PerDay quotaId) is NOT retried -- raises
+DailyQuotaExhausted immediately so callers can fall back to another provider.
 Auth errors and ValueError are NOT retried.
 """
 
@@ -32,8 +34,24 @@ logger = logging.getLogger(__name__)
 _RETRYABLE_NETWORK = (ConnectionError, TimeoutError, OSError)
 
 
+class DailyQuotaExhausted(Exception):
+    """Raised when a Gemini 429 is due to daily quota, not per-minute rate limit.
+
+    Retrying is futile -- callers should fall back to another provider.
+    """
+
+
+def _is_daily_quota(error: ClientError) -> bool:
+    """Check if a 429 error is a daily quota limit (not per-minute)."""
+    msg = str(error)
+    return "PerDay" in msg or "per_day" in msg.lower()
+
+
 class _retry_if_rate_limited(retry_base):
-    """Retry on Gemini 429 rate-limit or 5xx server errors."""
+    """Retry on Gemini 429 per-minute rate-limit or 5xx server errors.
+
+    Daily quota 429s raise DailyQuotaExhausted immediately (no retry).
+    """
 
     def __call__(self, retry_state: object) -> bool:
         exc = getattr(retry_state, "outcome", None)
@@ -41,7 +59,12 @@ class _retry_if_rate_limited(retry_base):
             return False
         error = exc.exception()
         if isinstance(error, ClientError) and getattr(error, "code", 0) == 429:
-            # Parse server-suggested delay if present (e.g. "retry in 9.8s")
+            if _is_daily_quota(error):
+                logger.warning(
+                    "Gemini daily quota exhausted -- skipping retries"
+                )
+                raise DailyQuotaExhausted(str(error)) from error
+            # Per-minute rate limit -- worth retrying
             msg = str(error)
             match = re.search(r"retry in ([\d.]+)s", msg, re.IGNORECASE)
             if match:
