@@ -190,7 +190,7 @@ class DeliberationEngine:
                 system_instruction=DELIBERATION_SYSTEM_PROMPT,
                 response_mime_type="application/json",
                 response_schema=DeliberationResult,
-                max_output_tokens=4000,
+                max_output_tokens=16000,
                 temperature=0.4,
             ),
         )
@@ -209,7 +209,7 @@ class DeliberationEngine:
 
         message = await self._claude_client.messages.create(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=4000,
+            max_tokens=16000,
             temperature=0.4,
             system=DELIBERATION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": full_prompt}],
