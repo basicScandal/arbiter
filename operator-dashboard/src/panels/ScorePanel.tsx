@@ -49,8 +49,7 @@ export function ScorePanel() {
   const lastScorecard = useOperatorStore((s) => s.lastScorecard);
   const scoringPhase = useOperatorStore((s) => s.scoringPhase);
 
-  const showJudgment = !lastScorecard && scoringPhase && scoringPhase !== 'idle'
-    && (scoringPhase === 'sanitizing' || scoringPhase === 'scoring' || scoringPhase === 'revealing');
+  const showJudgment = !lastScorecard && scoringPhase !== null;
 
   return (
     <div className="glass-panel p-4 animate-border-glow">
