@@ -41,4 +41,12 @@ export interface HealthMessage {
   services: Record<string, boolean>;
 }
 
-export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage | HealthMessage;
+export interface DemoTimerMessage {
+  type: 'demo_timer';
+  level: 'warning' | 'critical';
+  message: string;
+  elapsed: number;
+  max_duration: number;
+}
+
+export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage | HealthMessage | DemoTimerMessage;

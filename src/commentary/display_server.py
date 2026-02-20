@@ -34,6 +34,7 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         self.active: list[WebSocket] = []
+        self._broadcast_lock = asyncio.Lock()
 
     async def connect(self, ws: WebSocket) -> None:
         """Accept and register a new WebSocket connection."""
@@ -50,16 +51,18 @@ class ConnectionManager:
     async def broadcast(self, message: dict) -> None:
         """Send a JSON message to all connected clients.
 
-        Silently removes clients that have disconnected.
+        Uses a lock to prevent concurrent broadcasts from interleaving
+        WebSocket frames. Silently removes clients that have disconnected.
         """
-        disconnected: list[WebSocket] = []
-        for ws in self.active:
-            try:
-                await ws.send_json(message)
-            except Exception:
-                disconnected.append(ws)
-        for ws in disconnected:
-            self.disconnect(ws)
+        async with self._broadcast_lock:
+            disconnected: list[WebSocket] = []
+            for ws in self.active:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    disconnected.append(ws)
+            for ws in disconnected:
+                self.disconnect(ws)
 
 
 class DisplayServer:

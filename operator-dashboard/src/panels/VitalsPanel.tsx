@@ -68,7 +68,9 @@ export function VitalsPanel() {
         setElapsed(Date.now() - startedAt * 1000);
       }, 100);
       return () => clearInterval(interval);
-    } else {
+    }
+    // Reset to 0 only on idle (new demo cycle), not on pause/stopped
+    if (demoState === "idle") {
       setElapsed(0);
     }
   }, [demoState, startedAt]);
@@ -104,7 +106,7 @@ export function VitalsPanel() {
           {teamName || "\u2014"} / {track || "\u2014"}
         </div>
         <div className="text-text-primary font-mono text-3xl font-bold">
-          {demoState === "capturing" ? formatElapsed(elapsed) : "00:00"}
+          {demoState === "idle" ? "00:00" : formatElapsed(elapsed)}
         </div>
       </div>
 

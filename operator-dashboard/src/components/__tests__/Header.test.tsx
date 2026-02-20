@@ -8,6 +8,8 @@ describe("Header", () => {
     useOperatorStore.setState({
       connected: true,
       demoState: "idle",
+      scoringPhase: null,
+      demoTimer: null,
     });
   });
 
@@ -33,10 +35,10 @@ describe("Header", () => {
     expect(screen.getByText("PAUSED")).toBeInTheDocument();
   });
 
-  it("shows ANALYSIS COMPLETE label when stopped", () => {
+  it("shows JUDGING label when stopped", () => {
     useOperatorStore.setState({ demoState: "stopped" });
     render(<Header muted={true} onToggleMute={() => {}} />);
-    expect(screen.getByText("ANALYSIS COMPLETE")).toBeInTheDocument();
+    expect(screen.getByText("JUDGING")).toBeInTheDocument();
   });
 
   it("renders StateIndicator for idle", () => {

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useOperatorSocket } from "./hooks/useOperatorSocket";
+import { useOperatorStore } from "./store/operatorStore";
 import { useStateTheme } from "./hooks/useStateTheme";
 import { useAudioFeedback } from "./hooks/useAudioFeedback";
 import { Header } from "./components/Header";
@@ -18,6 +19,31 @@ const panelEntrance = (delay: number) => ({
   transition: { delay, duration: 0.4, ease: "easeOut" as const },
 });
 
+function DemoTimerBanner() {
+  const demoTimer = useOperatorStore((s) => s.demoTimer);
+  const isCritical = demoTimer?.level === "critical";
+
+  return (
+    <AnimatePresence>
+      {demoTimer && (
+        <motion.div
+          initial={{ opacity: 0, y: -40 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -40 }}
+          transition={{ duration: 0.3 }}
+          className={`fixed top-0 inset-x-0 z-40 text-white text-center py-2 font-mono text-sm tracking-widest ${
+            isCritical
+              ? "bg-red-600/90 animate-pulse"
+              : "bg-yellow-600/90"
+          }`}
+        >
+          {demoTimer.message}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function App() {
   useOperatorSocket();
   useStateTheme();
@@ -28,6 +54,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-void font-mono">
       <ReconnectBanner />
+      <DemoTimerBanner />
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

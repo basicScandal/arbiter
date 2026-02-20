@@ -124,19 +124,23 @@ export const useDisplayStore = create<DisplayState>((set) => ({
         break;
 
       case "deliberation_ranking":
-        set((state) => ({
-          activeScreen: "deliberation",
-          rankings: [
-            ...state.rankings,
-            {
-              rank: msg.rank,
-              teamName: msg.team_name,
-              totalScore: msg.total_score,
-              track: msg.track,
-              reasoning: msg.reasoning,
-            },
-          ],
-        }));
+        set((state) => {
+          // Reset rankings when rank 1 arrives (start of new deliberation run)
+          const base = msg.rank === 1 ? [] : state.rankings;
+          return {
+            activeScreen: "deliberation",
+            rankings: [
+              ...base,
+              {
+                rank: msg.rank,
+                teamName: msg.team_name,
+                totalScore: msg.total_score,
+                track: msg.track,
+                reasoning: msg.reasoning,
+              },
+            ],
+          };
+        });
         break;
 
       case "deliberation_narrative":

@@ -24,7 +24,8 @@ export interface OperatorState {
   events: EventEntry[];
   lastCommandResult: { success: boolean; message: string; } | null;
   health: Record<string, boolean>;
-  scoringPhase: 'idle' | 'sanitizing' | 'scoring' | 'revealing' | null;
+  demoTimer: { level: 'warning' | 'critical'; message: string; elapsed: number } | null;
+  scoringPhase: 'sanitizing' | 'scoring' | 'revealing' | null;
   lastScorecard: {
     team_name: string;
     track: string;
@@ -57,6 +58,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   events: [],
   lastCommandResult: null,
   health: {},
+  demoTimer: null,
   scoringPhase: null,
   lastScorecard: null,
   sendCommand: () => {},
@@ -68,16 +70,17 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   dispatch: (msg) => {
     switch (msg.type) {
       case 'state':
-        set({
+        set((state) => ({
           demoState: msg.state,
           teamName: msg.team_name,
           track: msg.track,
           startedAt: msg.started_at,
           // Clear stale data on state transitions
-          ...(msg.state === 'idle' && { events: [], lastScorecard: null, scoringPhase: null }),
-          ...(msg.state === 'capturing' && { lastScorecard: null, scoringPhase: null }),
-          ...(msg.state === 'stopped' && { scoringPhase: 'sanitizing' as const }),
-        });
+          ...(msg.state === 'idle' && { events: [], lastScorecard: null, scoringPhase: null, demoTimer: null }),
+          ...(msg.state === 'capturing' && { lastScorecard: null, scoringPhase: null, demoTimer: null }),
+          // Only set scoringPhase to 'sanitizing' if not already in a scoring phase
+          ...(msg.state === 'stopped' && state.scoringPhase === null && { scoringPhase: 'sanitizing' as const }),
+        }));
         break;
 
       case 'event': {
@@ -125,6 +128,10 @@ export const useOperatorStore = create<OperatorState>((set) => ({
       case 'command_result':
         set({ lastCommandResult: { success: msg.success, message: msg.message } });
         setTimeout(() => set({ lastCommandResult: null }), 3000);
+        break;
+
+      case 'demo_timer':
+        set({ demoTimer: { level: msg.level, message: msg.message, elapsed: msg.elapsed } });
         break;
     }
   },

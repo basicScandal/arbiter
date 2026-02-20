@@ -24,6 +24,7 @@ from src.commentary.models import QARequested
 from src.memory.models import DeliberationRequested
 from src.operator.audit import log_command
 from src.operator.cli import VALID_TRACKS
+from src.resilience.metrics import default_metrics
 
 if TYPE_CHECKING:
     from src.memory.pipeline import DeliberationPipeline
@@ -68,7 +69,7 @@ class WebOperator:
         self._deliberation_pipeline = deliberation_pipeline
 
         self._quit_signal = asyncio.Event()
-        self._operator_connections: list[WebSocket] = []
+        self._operator_connections: set[WebSocket] = set()
         self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
         self._send_lock = asyncio.Lock()
         self._demo_timer_task: asyncio.Task | None = None
@@ -112,6 +113,18 @@ class WebOperator:
                 "services": status,
             }
 
+        @app.get("/api/metrics")
+        async def metrics_endpoint(format: str = Query("json", alias="format")):
+            from src.resilience.metrics import default_metrics
+
+            if format.lower() == "prometheus":
+                from fastapi.responses import PlainTextResponse
+                return PlainTextResponse(
+                    default_metrics.prometheus_text(),
+                    media_type="text/plain; charset=utf-8",
+                )
+            return default_metrics.snapshot()
+
         @app.websocket("/ws/operator")
         async def operator_ws(ws: WebSocket, token: str = Query(default="")) -> None:
             required_token = os.environ.get("OPERATOR_TOKEN", "")
@@ -123,7 +136,7 @@ class WebOperator:
                 await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
                 return
             await ws.accept()
-            self._operator_connections.append(ws)
+            self._operator_connections.add(ws)
             logger.info("Operator client connected (%d active)", len(self._operator_connections))
 
             # Push current state on connect
@@ -134,8 +147,7 @@ class WebOperator:
                     data = await ws.receive_json()
                     await self._handle_command(data, ws)
             except WebSocketDisconnect:
-                if ws in self._operator_connections:
-                    self._operator_connections.remove(ws)
+                self._operator_connections.discard(ws)
                 logger.info("Operator client disconnected (%d active)", len(self._operator_connections))
 
     def _subscribe_events(self) -> None:
@@ -248,7 +260,7 @@ class WebOperator:
                 await asyncio.sleep(5.0)
                 session = self._demo_machine.current_session
                 if session is None or session.started_at is None:
-                    return
+                    continue
 
                 elapsed = time.time() - session.started_at
                 remaining = MAX_DEMO_DURATION - elapsed
@@ -293,6 +305,7 @@ class WebOperator:
             ws: The WebSocket connection that sent the command.
         """
         action = data.get("action", "")
+        default_metrics.inc("operator_commands_total")
         state_before = self._demo_machine.current_state.id
 
         try:
@@ -413,6 +426,7 @@ class WebOperator:
             log_command(action, success=False, state_before=state_before, state_after=state_id, detail=f"transition not allowed from '{state_before}'")
         except Exception:
             logger.exception("Unhandled exception in command handler for '%s'", action)
+            await self._send_result(ws, False, f"Internal error processing '{action}'")
 
         # Push updated state to ALL operator clients after command
         await self._broadcast_state()
@@ -512,5 +526,5 @@ class WebOperator:
 
             # Clean up disconnected/timed-out clients
             for ws in results:
-                if ws is not None and ws in self._operator_connections:
-                    self._operator_connections.remove(ws)
+                if ws is not None:
+                    self._operator_connections.discard(ws)

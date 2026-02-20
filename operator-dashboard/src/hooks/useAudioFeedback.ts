@@ -51,7 +51,7 @@ const TONES = {
  */
 export function useAudioFeedback(muted: boolean) {
   const prevState = useRef<string>("idle");
-  const prevEventCount = useRef<number>(0);
+  const prevTopEventId = useRef<number>(-1);
 
   useEffect(() => {
     if (muted) return;
@@ -68,15 +68,15 @@ export function useAudioFeedback(muted: boolean) {
         else TONES.stateChange();
       }
 
-      // New event tones
-      if (state.events.length > prevEventCount.current && state.events.length > 0) {
+      // New event tones — track by event ID, not array length (buffer is capped at 200)
+      if (state.events.length > 0 && state.events[0].id !== prevTopEventId.current) {
         const latest = state.events[0];
+        prevTopEventId.current = latest.id;
         if (latest.event_type === "injection_detected") TONES.injection();
         else if (latest.event_type === "observation_verified") TONES.judgmentStart();
         else if (latest.event_type === "commentary_delivered") TONES.commentary();
         else if (latest.event_type === "scoring_complete") TONES.score();
       }
-      prevEventCount.current = state.events.length;
     });
 
     return unsub;
