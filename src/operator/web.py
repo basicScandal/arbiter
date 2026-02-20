@@ -78,6 +78,7 @@ class WebOperator:
         self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
         self._send_lock = asyncio.Lock()
         self._demo_timer_task: asyncio.Task | None = None
+        self._scoring_phase: str | None = None
 
     async def run(self) -> None:
         """Main operator loop: register routes, subscribe to events, and wait for quit.
@@ -164,9 +165,26 @@ class WebOperator:
 
             try:
                 while True:
-                    data = await ws.receive_json()
-                    await self._handle_command(data, ws)
+                    # Wait for a command or pong; send ping after 10s of silence
+                    try:
+                        data = await asyncio.wait_for(ws.receive_json(), timeout=10.0)
+                        if data.get("type") != "pong":
+                            await self._handle_command(data, ws)
+                    except asyncio.TimeoutError:
+                        # No message received — send ping to probe the connection
+                        try:
+                            await ws.send_json({"type": "ping"})
+                        except Exception:
+                            break
+                        # Wait for any response with a 15-second deadline
+                        try:
+                            await asyncio.wait_for(ws.receive_json(), timeout=15.0)
+                        except asyncio.TimeoutError:
+                            logger.info("Operator client heartbeat timeout, closing")
+                            break
             except WebSocketDisconnect:
+                pass
+            finally:
                 self._operator_connections.discard(ws)
                 logger.info("Operator client disconnected (%d active)", len(self._operator_connections))
 
@@ -250,6 +268,16 @@ class WebOperator:
             }
 
         await self._broadcast_to_operators(event_data)
+
+        # Push authoritative scoring phase based on pipeline events
+        if event.event_type == "demo_stopped":
+            await self._push_scoring_phase("sanitizing")
+        elif event.event_type == "observation_verified":
+            await self._push_scoring_phase("scoring")
+        elif event.event_type == "scoring_complete":
+            await self._push_scoring_phase("revealing")
+        elif event.event_type == "demo_started":
+            await self._push_scoring_phase(None)
 
     async def _push_counters_loop(self) -> None:
         """Background task that pushes counter and health updates to operator clients every second."""
@@ -450,6 +478,7 @@ class WebOperator:
                     logger.warning("Failed to push intermission leaderboard", exc_info=True)
 
                 await self._send_result(ws, True, "Ready for next demo.")
+                await self._push_scoring_phase(None)
                 logger.info("Operator reset demo machine")
                 log_command("reset", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
@@ -527,6 +556,15 @@ class WebOperator:
             except Exception:
                 pass
 
+    async def _push_scoring_phase(self, phase: str | None) -> None:
+        """Broadcast a scoring_phase message to all operator clients.
+
+        Args:
+            phase: The new phase value, or None to clear.
+        """
+        self._scoring_phase = phase
+        await self._broadcast_to_operators({"type": "scoring_phase", "phase": phase})
+
     async def _push_state(self, ws: WebSocket) -> None:
         """Push current demo state and health to a specific operator client.
 
@@ -544,6 +582,12 @@ class WebOperator:
                 await asyncio.wait_for(ws.send_json({
                     "type": "health",
                     "services": health_status,
+                }), timeout=5.0)
+
+                # Send current scoring phase so reconnecting clients restore the right phase
+                await asyncio.wait_for(ws.send_json({
+                    "type": "scoring_phase",
+                    "phase": self._scoring_phase,
                 }), timeout=5.0)
             except Exception:
                 pass

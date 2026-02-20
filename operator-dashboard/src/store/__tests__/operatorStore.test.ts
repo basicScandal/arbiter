@@ -17,6 +17,8 @@ describe("operatorStore", () => {
       lastCommandResult: null,
       health: {},
       lastScorecard: null,
+      scoringPhase: null,
+      demoTimer: null,
     });
   });
 
@@ -272,6 +274,145 @@ describe("operatorStore", () => {
       });
       expect(useOperatorStore.getState().counters.frames).toBe(20);
       expect(useOperatorStore.getState().counters.transcripts).toBe(10);
+    });
+  });
+
+  describe("dispatch - scoring_phase message", () => {
+    it("sets scoringPhase to sanitizing", () => {
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "sanitizing",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("sanitizing");
+    });
+
+    it("sets scoringPhase to scoring", () => {
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "scoring",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("scoring");
+    });
+
+    it("sets scoringPhase to revealing", () => {
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "revealing",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("revealing");
+    });
+
+    it("clears scoringPhase with null", () => {
+      // First set a phase
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "sanitizing",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("sanitizing");
+
+      // Then clear it
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: null,
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBeNull();
+    });
+
+    it("overrides previous scoringPhase with new phase", () => {
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "sanitizing",
+      });
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "scoring",
+      });
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "revealing",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("revealing");
+    });
+  });
+
+  describe("dispatch - state resets scoringPhase on transitions", () => {
+    it("resets scoringPhase to null on idle state", () => {
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "revealing",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("revealing");
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "idle",
+        team_name: "",
+        track: "",
+        started_at: null,
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBeNull();
+    });
+
+    it("resets scoringPhase to null on capturing state", () => {
+      useOperatorStore.getState().dispatch({
+        type: "scoring_phase",
+        phase: "sanitizing",
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBe("sanitizing");
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "capturing",
+        team_name: "Team A",
+        track: "ROGUE::AGENT",
+        started_at: Date.now(),
+      });
+      expect(useOperatorStore.getState().scoringPhase).toBeNull();
+    });
+
+    it("does NOT infer scoringPhase from stopped state — relies on server push", () => {
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "stopped",
+        team_name: "Team B",
+        track: "ROGUE::AGENT",
+        started_at: null,
+      });
+      // scoringPhase stays null; server will push it explicitly
+      expect(useOperatorStore.getState().scoringPhase).toBeNull();
+    });
+  });
+
+  describe("dispatch - scoring_complete extracts scorecard only", () => {
+    it("extracts scorecard from scoring_complete without setting scoringPhase", () => {
+      const scorecard = {
+        team_name: "TestTeam",
+        track: "ROGUE::AGENT",
+        total_score: 8.5,
+        criteria: [{ name: "Innovation", score: 9, weight: 0.5, justification: "Great" }],
+        track_bonus: null,
+      };
+
+      useOperatorStore.getState().dispatch({
+        type: "event",
+        event_type: "scoring_complete",
+        timestamp: Date.now(),
+        data: { scorecard },
+      });
+
+      expect(useOperatorStore.getState().lastScorecard).toEqual(scorecard);
+      // scoringPhase NOT set by event — only by scoring_phase message
+      expect(useOperatorStore.getState().scoringPhase).toBeNull();
+    });
+
+    it("does NOT set scoringPhase from observation_verified event — relies on server push", () => {
+      useOperatorStore.getState().dispatch({
+        type: "event",
+        event_type: "observation_verified",
+        timestamp: Date.now(),
+      });
+      // scoringPhase stays null; server will push it explicitly
+      expect(useOperatorStore.getState().scoringPhase).toBeNull();
     });
   });
 

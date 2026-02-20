@@ -12,6 +12,7 @@ optional criteria parameter to override the default.
 
 from __future__ import annotations
 
+from src.config.tracks import VALID_TRACKS as _CANONICAL_TRACKS
 from src.scoring.models import RubricCriterion, TrackCriteria
 
 
@@ -181,3 +182,9 @@ TRACK_CRITERIA: dict[str, TrackCriteria] = {
         bonus_weight=0.10,
     ),
 }
+
+# Validate track criteria keys match canonical track list
+assert set(TRACK_CRITERIA.keys()) == _CANONICAL_TRACKS, (
+    f"TRACK_CRITERIA keys {set(TRACK_CRITERIA.keys())} don't match "
+    f"canonical tracks {_CANONICAL_TRACKS}"
+)

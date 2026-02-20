@@ -29,8 +29,12 @@ export function useArbiterSocket() {
 
       ws.onmessage = (event) => {
         try {
-          const msg: ArbiterMessage = JSON.parse(event.data);
-          dispatch(msg);
+          const msg = JSON.parse(event.data);
+          if (msg.type === "ping") {
+            ws.send(JSON.stringify({ type: "pong" }));
+            return;
+          }
+          dispatch(msg as ArbiterMessage);
         } catch {
           // Ignore malformed messages
         }

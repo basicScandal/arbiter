@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOperatorStore } from "../store/operatorStore";
+import tracksConfig from "@shared/tracks.json";
 
-const TRACKS = [
-  "SHADOW::VECTOR",
-  "SENTINEL::MESH",
-  "ZERO::PROOF",
-  "ROGUE::AGENT",
-];
+const TRACKS: string[] = tracksConfig.tracks;
+const DEFAULT_TRACK: string = tracksConfig.default_track;
 
 interface ActionButton {
   label: string;
@@ -48,7 +45,7 @@ export function NeuralPrompt() {
   const lastCommandResult = useOperatorStore((s) => s.lastCommandResult);
   const pendingCommand = useOperatorStore((s) => s.pendingCommand);
   const [teamName, setTeamName] = useState("");
-  const [track, setTrack] = useState(TRACKS[3]);
+  const [track, setTrack] = useState(DEFAULT_TRACK);
   const [showDeliberateConfirm, setShowDeliberateConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 

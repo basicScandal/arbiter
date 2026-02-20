@@ -49,4 +49,9 @@ export interface DemoTimerMessage {
   max_duration: number;
 }
 
-export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage | HealthMessage | DemoTimerMessage;
+export interface ScoringPhaseMessage {
+  type: 'scoring_phase';
+  phase: 'sanitizing' | 'scoring' | 'revealing' | null;
+}
+
+export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage | HealthMessage | DemoTimerMessage | ScoringPhaseMessage;

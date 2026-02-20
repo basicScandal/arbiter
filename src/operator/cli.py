@@ -18,6 +18,7 @@ from statemachine.exceptions import TransitionNotAllowed
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.commentary.models import QARequested
+from src.config.tracks import DEFAULT_TRACK, VALID_TRACKS
 from src.memory.models import DeliberationRequested
 
 if TYPE_CHECKING:
@@ -25,13 +26,6 @@ if TYPE_CHECKING:
     from src.scoring.pipeline import ScoringPipeline
 
 logger = logging.getLogger(__name__)
-
-VALID_TRACKS = {
-    "SHADOW::VECTOR",
-    "SENTINEL::MESH",
-    "ZERO::PROOF",
-    "ROGUE::AGENT",
-}
 
 
 class OperatorCLI:
@@ -123,7 +117,7 @@ class OperatorCLI:
         """Handle the 'start' command to begin a demo session.
 
         Accepts optional track argument: start <team_name> [track]
-        Valid tracks: SHADOW::VECTOR, SENTINEL::MESH, ZERO::PROOF, ROGUE::AGENT
+        Valid tracks are loaded from shared/tracks.json.
         """
         parts = args.strip().split()
         if not parts:
@@ -142,9 +136,9 @@ class OperatorCLI:
                 logger.info("Track %s assigned to team %s", track, team_name)
             else:
                 print(f"Warning: Unknown track '{track}'. Valid tracks: {', '.join(sorted(VALID_TRACKS))}")
-                print("  Demo will start but scoring will use default track ROGUE::AGENT.")
+                print(f"  Demo will start but scoring will use default track {DEFAULT_TRACK}.")
         elif track is None:
-            print("No track specified -- defaulting to ROGUE::AGENT for scoring")
+            print(f"No track specified -- defaulting to {DEFAULT_TRACK} for scoring")
 
         self.demo_machine.send("start_demo", team_name=team_name)
         print(f"Demo started for team: {team_name}")
@@ -252,7 +246,8 @@ class OperatorCLI:
     def _print_help(self) -> None:
         """Print available commands."""
         print("Available commands:")
-        print("  start <team> [track]  - Start a demo (tracks: SHADOW::VECTOR, SENTINEL::MESH, ZERO::PROOF, ROGUE::AGENT)")
+        tracks_str = ", ".join(sorted(VALID_TRACKS))
+        print(f"  start <team> [track]  - Start a demo (tracks: {tracks_str})")
         print("  stop                  - Stop the current demo")
         print("  pause                 - Pause the current demo")
         print("  resume                - Resume a paused demo")

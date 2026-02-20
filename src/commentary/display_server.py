@@ -158,9 +158,20 @@ class DisplayServer:
             await self._manager.connect(ws)
             try:
                 while True:
-                    # Keep connection alive; client doesn't send meaningful data
-                    await ws.receive_text()
+                    # Send ping to detect silent disconnections
+                    try:
+                        await ws.send_json({"type": "ping"})
+                    except Exception:
+                        break
+                    # Wait for any response (pong or other) with timeout
+                    try:
+                        await asyncio.wait_for(ws.receive_text(), timeout=15.0)
+                    except asyncio.TimeoutError:
+                        logger.info("Display client heartbeat timeout, closing")
+                        break
             except WebSocketDisconnect:
+                pass
+            finally:
                 self._manager.disconnect(ws)
 
     async def start(self) -> None:

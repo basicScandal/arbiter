@@ -77,7 +77,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   dispatch: (msg) => {
     switch (msg.type) {
       case 'state':
-        set((state) => ({
+        set({
           demoState: msg.state,
           teamName: msg.team_name,
           track: msg.track,
@@ -85,9 +85,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
           // Clear stale data on state transitions
           ...(msg.state === 'idle' && { events: [], lastScorecard: null, scoringPhase: null, demoTimer: null }),
           ...(msg.state === 'capturing' && { lastScorecard: null, scoringPhase: null, demoTimer: null }),
-          // Only set scoringPhase to 'sanitizing' if not already in a scoring phase
-          ...(msg.state === 'stopped' && state.scoringPhase === null && { scoringPhase: 'sanitizing' as const }),
-        }));
+        });
         break;
 
       case 'event': {
@@ -102,16 +100,10 @@ export const useOperatorStore = create<OperatorState>((set) => ({
             ...state.events,
           ].slice(0, 200),
         }));
-        // Advance scoring phase based on pipeline events
-        if (msg.event_type === 'observation_verified') {
-          set({ scoringPhase: 'scoring' });
-        }
         // Extract scorecard from scoring_complete events
         if (msg.event_type === 'scoring_complete') {
           if (msg.data?.scorecard) {
-            set({ scoringPhase: 'revealing', lastScorecard: msg.data.scorecard as OperatorState['lastScorecard'] });
-          } else {
-            set({ scoringPhase: 'revealing' });
+            set({ lastScorecard: msg.data.scorecard as OperatorState['lastScorecard'] });
           }
         }
         break;
@@ -139,6 +131,10 @@ export const useOperatorStore = create<OperatorState>((set) => ({
 
       case 'demo_timer':
         set({ demoTimer: { level: msg.level, message: msg.message, elapsed: msg.elapsed } });
+        break;
+
+      case 'scoring_phase':
+        set({ scoringPhase: msg.phase });
         break;
     }
   },

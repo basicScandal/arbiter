@@ -1,0 +1,9 @@
+{
+  "tracks": [
+    "SHADOW::VECTOR",
+    "SENTINEL::MESH",
+    "ZERO::PROOF",
+    "ROGUE::AGENT"
+  ],
+  "default_track": "ROGUE::AGENT"
+}

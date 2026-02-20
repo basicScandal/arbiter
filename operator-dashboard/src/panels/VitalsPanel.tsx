@@ -42,7 +42,10 @@ function CounterBar({ label, value, color, barColor, maxValue }: {
 }
 
 export function VitalsPanel() {
-  const { demoState, teamName, track, startedAt } = useOperatorStore();
+  const demoState = useOperatorStore((s) => s.demoState);
+  const teamName = useOperatorStore((s) => s.teamName);
+  const track = useOperatorStore((s) => s.track);
+  const startedAt = useOperatorStore((s) => s.startedAt);
   const counters = useOperatorStore((s) => s.counters);
   const events = useOperatorStore((s) => s.events);
   const theme = useStateTheme();
