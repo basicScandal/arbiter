@@ -31,6 +31,8 @@ export function Header({ muted, onToggleMute }: HeaderProps) {
           onClick={onToggleMute}
           className="text-text-dim hover:text-text-primary transition-colors text-sm"
           title={muted ? "Unmute sounds" : "Mute sounds"}
+          aria-label={muted ? "Unmute audio" : "Mute audio"}
+          aria-pressed={!muted}
         >
           {muted ? "\uD83D\uDD07" : "\uD83D\uDD0A"}
         </button>

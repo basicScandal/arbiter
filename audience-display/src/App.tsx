@@ -2,6 +2,7 @@ import { useArbiterSocket } from "./hooks/useArbiterSocket";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { ScreenRouter } from "./components/ScreenRouter";
+import { InjectionAlert } from "./components/InjectionAlert";
 
 export default function App() {
   useArbiterSocket();
@@ -11,6 +12,7 @@ export default function App() {
       <Header />
       <ScreenRouter />
       <Footer />
+      <InjectionAlert />
     </div>
   );
 }

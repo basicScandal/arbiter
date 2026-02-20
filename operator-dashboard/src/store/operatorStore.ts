@@ -33,6 +33,7 @@ export interface OperatorState {
     criteria: Array<{name: string; score: number; weight: number; justification: string}>;
     track_bonus: {name: string; score: number; weight: number; justification: string} | null;
   } | null;
+  pendingCommand: string | null;
   sendCommand: (action: string, params?: Record<string, string>) => void;
   dispatch: (msg: ServerMessage) => void;
   setConnected: (connected: boolean) => void;
@@ -61,11 +62,17 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   demoTimer: null,
   scoringPhase: null,
   lastScorecard: null,
+  pendingCommand: null,
   sendCommand: () => {},
 
   setConnected: (connected) => set({ connected, connectionState: connected ? 'connected' : 'reconnecting' }),
   setConnectionState: (connectionState) => set({ connectionState, connected: connectionState === 'connected' }),
-  setSendCommand: (fn) => set({ sendCommand: fn }),
+  setSendCommand: (fn) => set({
+    sendCommand: (action, params) => {
+      set({ pendingCommand: action });
+      fn(action, params);
+    },
+  }),
 
   dispatch: (msg) => {
     switch (msg.type) {
@@ -126,7 +133,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
         break;
 
       case 'command_result':
-        set({ lastCommandResult: { success: msg.success, message: msg.message } });
+        set({ lastCommandResult: { success: msg.success, message: msg.message }, pendingCommand: null });
         setTimeout(() => set({ lastCommandResult: null }), 3000);
         break;
 

@@ -6,6 +6,9 @@ export interface CommentaryMessage {
   type: "commentary";
   text: string;
   team_name: string;
+  emotion?: string;
+  sentence_index?: number;
+  is_final?: boolean;
 }
 
 export interface QuestionMessage {
@@ -48,6 +51,26 @@ export interface DeliberationNarrativeMessage {
   narrative: string;
 }
 
+export interface InjectionBlockedMessage {
+  type: "injection_blocked";
+  category: string;
+  confidence: string;
+  roast: string;
+  team_name: string;
+}
+
+export interface CaptureStartedMessage {
+  type: "capture_started";
+  team_name: string;
+  track: string;
+}
+
+export interface IntermissionMessage {
+  type: "intermission";
+  leaderboard: Array<{ team_name: string; total_score: number; track: string }>;
+  total_injections: number;
+}
+
 export type ArbiterMessage =
   | ClearMessage
   | CommentaryMessage
@@ -56,4 +79,7 @@ export type ArbiterMessage =
   | ScoreCriterionMessage
   | ScoreTotalMessage
   | DeliberationRankingMessage
-  | DeliberationNarrativeMessage;
+  | DeliberationNarrativeMessage
+  | InjectionBlockedMessage
+  | CaptureStartedMessage
+  | IntermissionMessage;

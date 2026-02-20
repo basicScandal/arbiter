@@ -137,6 +137,7 @@ class CommentaryPipeline:
         context_id: str,
         emotion: str,
         is_continuation: bool,
+        sentence_index: int = 0,
     ) -> None:
         """Deliver a single sentence via TTS and display.
 
@@ -149,6 +150,7 @@ class CommentaryPipeline:
             context_id: Cartesia context ID for sentence grouping.
             emotion: Cartesia emotion tag for TTS.
             is_continuation: Whether this continues a prior context.
+            sentence_index: Zero-based index of this sentence in the stream.
         """
         if default_health.is_healthy("cartesia_tts"):
             try:
@@ -159,7 +161,11 @@ class CommentaryPipeline:
                         emotion,
                         is_continuation=is_continuation,
                     ),
-                    self._display.push_commentary(sentence, team_name),
+                    self._display.push_commentary(
+                        sentence, team_name,
+                        emotion=emotion,
+                        sentence_index=sentence_index,
+                    ),
                 )
                 # TTS succeeded -- mark healthy for future checks
                 if self._tts._connected:
@@ -170,11 +176,19 @@ class CommentaryPipeline:
                 logger.exception("TTS speak failed, marking unhealthy")
                 default_health.mark_unhealthy("cartesia_tts")
                 # Still push text to display
-                await self._display.push_commentary(sentence, team_name)
+                await self._display.push_commentary(
+                    sentence, team_name,
+                    emotion=emotion,
+                    sentence_index=sentence_index,
+                )
         else:
             # Text-only mode: TTS unhealthy, skip TTS and push to display only
             logger.info("TTS unhealthy -- delivering text-only commentary")
-            await self._display.push_commentary(sentence, team_name)
+            await self._display.push_commentary(
+                sentence, team_name,
+                emotion=emotion,
+                sentence_index=sentence_index,
+            )
 
     async def _on_observation_verified(self, event: ObservationVerified) -> None:
         """Generate and deliver commentary after a demo stops.
@@ -213,6 +227,7 @@ class CommentaryPipeline:
                         await self._deliver_sentence(
                             sentence, team_name, context_id,
                             emotion, is_continuation=(i > 0),
+                            sentence_index=i,
                         )
             except TimeoutError:
                 logger.warning(

@@ -98,7 +98,7 @@ export function NeuralFeed() {
   return (
     <div className="glass-panel p-4 flex-1 overflow-hidden flex flex-col animate-border-glow">
       <h2 className="section-label mb-3">NEURAL FEED</h2>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-0.5 font-mono text-sm">
+      <div ref={scrollRef} role="log" aria-live="polite" className="flex-1 overflow-y-auto space-y-0.5 font-mono text-sm">
         {events.length === 0 ? (
           <div className="text-text-dim text-center py-8">Awaiting neural activity...</div>
         ) : (

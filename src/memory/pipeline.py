@@ -167,7 +167,9 @@ class DeliberationPipeline:
         Display errors are caught and logged -- never crash.
         """
         try:
-            for ranking in result.rankings:
+            # Feature G: Send in reverse order for dramatic bottom-up reveal
+            # (worst rank first, rank 1 / winner last)
+            for ranking in reversed(result.rankings):
                 await self._display.push_deliberation_ranking(
                     rank=ranking.rank,
                     team_name=ranking.team_name,

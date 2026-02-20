@@ -5,6 +5,8 @@ import { CommentaryScreen } from "../screens/CommentaryScreen";
 import { QuestionScreen } from "../screens/QuestionScreen";
 import { ScoreCardScreen } from "../screens/ScoreCardScreen";
 import { DeliberationScreen } from "../screens/DeliberationScreen";
+import { ThinkingScreen } from "../screens/ThinkingScreen";
+import { IntermissionScreen } from "../screens/IntermissionScreen";
 
 const screenMap = {
   idle: IdleScreen,
@@ -12,6 +14,8 @@ const screenMap = {
   question: QuestionScreen,
   scorecard: ScoreCardScreen,
   deliberation: DeliberationScreen,
+  thinking: ThinkingScreen,
+  intermission: IntermissionScreen,
 } as const;
 
 export function ScreenRouter() {

@@ -43,10 +43,31 @@ class FakeDisplayServer:
 
     def __init__(self) -> None:
         self._app = FastAPI()
+        self.cleared: int = 0
+        self.capture_started_calls: list[dict] = []
+        self.intermission_calls: list[dict] = []
+        self.injection_blocked_calls: list[dict] = []
 
     @property
     def app(self) -> FastAPI:
         return self._app
+
+    async def clear(self) -> None:
+        self.cleared += 1
+
+    async def push_capture_started(self, team_name: str, track: str) -> None:
+        self.capture_started_calls.append({"team_name": team_name, "track": track})
+
+    async def push_intermission(self, leaderboard: list, total_injections: int) -> None:
+        self.intermission_calls.append({"leaderboard": leaderboard, "total_injections": total_injections})
+
+    async def push_injection_blocked(
+        self, category: str, confidence: str, roast: str, team_name: str,
+    ) -> None:
+        self.injection_blocked_calls.append({
+            "category": category, "confidence": confidence,
+            "roast": roast, "team_name": team_name,
+        })
 
 
 class FakeScoringPipeline:
@@ -912,7 +933,7 @@ async def test_broadcast_handles_disconnected_client():
 
     broken_ws.send_json = broken_send
 
-    op._operator_connections.append(broken_ws)
+    op._operator_connections.add(broken_ws)
     assert len(op._operator_connections) == 1
 
     await op._broadcast_to_operators({"type": "test"})

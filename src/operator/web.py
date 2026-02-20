@@ -8,9 +8,11 @@ operator dashboard at NEBULA:FOG 2026.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import WebSocket, WebSocketDisconnect, Query, status
@@ -29,6 +31,9 @@ from src.resilience.metrics import default_metrics
 if TYPE_CHECKING:
     from src.memory.pipeline import DeliberationPipeline
     from src.scoring.pipeline import ScoringPipeline
+
+# Feature A: Path to session checkpoint file
+_CHECKPOINT_PATH = Path("data/session_checkpoint.json")
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +84,21 @@ class WebOperator:
 
         Blocks until the operator sends a quit command via WebSocket.
         """
+        # Feature A: Ensure data/ directory exists and check for incomplete checkpoint
+        _CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if _CHECKPOINT_PATH.exists():
+            try:
+                raw = await asyncio.to_thread(_CHECKPOINT_PATH.read_text)
+                chk = json.loads(raw)
+                if chk.get("state") != "idle":
+                    team_name = chk.get("team_name", "unknown")
+                    logger.warning(
+                        "Found incomplete session checkpoint for %s — manual recovery may be needed",
+                        team_name,
+                    )
+            except Exception:
+                logger.debug("Could not read session checkpoint on startup", exc_info=True)
+
         self._register_routes()
         self._subscribe_events()
         self._counter_task = asyncio.create_task(self._push_counters_loop())
@@ -168,6 +188,21 @@ class WebOperator:
             self._counters["transcripts"] += 1
         elif event.event_type == "injection_detected":
             self._counters["attacks"] += 1
+            # Feature C: Broadcast injection blocked notification to audience display
+            if hasattr(event, "attempt"):
+                attempt = event.attempt
+                category = getattr(attempt, "pattern", "injection_attempt")
+                confidence = getattr(attempt, "confidence", "medium")
+                team_name = getattr(attempt, "team_name", "")
+                # Use a roast if available via roasts field, otherwise empty string
+                asyncio.create_task(
+                    self._display_server.push_injection_blocked(
+                        category=category,
+                        confidence=confidence,
+                        roast="",
+                        team_name=team_name,
+                    )
+                )
         elif event.event_type == "observation_verified":
             # Count clean observations
             if hasattr(event, "output") and hasattr(event.output, "observations"):
@@ -336,6 +371,20 @@ class WebOperator:
 
                 self._demo_machine.send("start_demo", team_name=team_name)
                 self._start_demo_timer()
+
+                # Feature A: Write checkpoint after start transition
+                await self._write_checkpoint(self._demo_machine.current_state.id)
+
+                # Feature E: Broadcast capture_started to audience display
+                resolved_track = track or (
+                    self._scoring_pipeline._pending_tracks.get(team_name, "")
+                    if self._scoring_pipeline else ""
+                )
+                await self._display_server.clear()
+                await self._display_server.push_capture_started(
+                    team_name=team_name, track=resolved_track,
+                )
+
                 await self._send_result(ws, True, f"Demo started for {team_name}")
                 logger.info("Operator started demo for team: %s", team_name)
                 log_command("start", success=True, team_name=team_name, track=track or "", state_before=state_before, state_after=self._demo_machine.current_state.id)
@@ -348,6 +397,8 @@ class WebOperator:
                 if session and session.started_at:
                     duration = time.time() - session.started_at
                 team = session.team_name if session else "Unknown"
+                # Feature A: Write checkpoint after stop transition
+                await self._write_checkpoint(self._demo_machine.current_state.id)
                 await self._send_result(ws, True, f"Demo stopped for team: {team} (duration: {duration:.1f}s)")
                 logger.info("Operator stopped demo for team: %s (%.1fs)", team, duration)
                 log_command("stop", success=True, team_name=team, state_before=state_before, state_after=self._demo_machine.current_state.id, detail=f"duration={duration:.1f}s")
@@ -356,6 +407,8 @@ class WebOperator:
                 session = self._demo_machine.current_session
                 self._demo_machine.send("pause_demo")
                 team = session.team_name if session else "Unknown"
+                # Feature A: Write checkpoint after pause transition
+                await self._write_checkpoint(self._demo_machine.current_state.id)
                 await self._send_result(ws, True, f"Demo paused for team: {team}")
                 logger.info("Operator paused demo for team: %s", team)
                 log_command("pause", success=True, team_name=team, state_before=state_before, state_after=self._demo_machine.current_state.id)
@@ -364,6 +417,8 @@ class WebOperator:
                 session = self._demo_machine.current_session
                 self._demo_machine.send("resume_demo")
                 team = session.team_name if session else "Unknown"
+                # Feature A: Write checkpoint after resume transition
+                await self._write_checkpoint(self._demo_machine.current_state.id)
                 await self._send_result(ws, True, f"Demo resumed for team: {team}")
                 logger.info("Operator resumed demo for team: %s", team)
                 log_command("resume", success=True, team_name=team, state_before=state_before, state_after=self._demo_machine.current_state.id)
@@ -371,6 +426,29 @@ class WebOperator:
             elif action == "reset":
                 self._cancel_demo_timer()
                 self._demo_machine.send("reset")
+
+                # Feature A: Delete checkpoint when session completes (state → idle)
+                await self._delete_checkpoint()
+
+                # Feature F: Load leaderboard from ScoreStore and broadcast intermission
+                try:
+                    from src.scoring.store import ScoreStore
+
+                    score_store = ScoreStore(scores_dir="data/scores")
+                    scorecards = await score_store.load_all()
+                    leaderboard = [
+                        {
+                            "team_name": sc.team_name,
+                            "total_score": sc.total_score,
+                            "track": sc.track,
+                        }
+                        for sc in sorted(scorecards, key=lambda s: s.total_score, reverse=True)
+                    ]
+                    total_injections = self._counters.get("attacks", 0)
+                    await self._display_server.push_intermission(leaderboard, total_injections)
+                except Exception:
+                    logger.warning("Failed to push intermission leaderboard", exc_info=True)
+
                 await self._send_result(ws, True, "Ready for next demo.")
                 logger.info("Operator reset demo machine")
                 log_command("reset", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
@@ -498,6 +576,42 @@ class WebOperator:
         }
 
         return state_data
+
+    async def _write_checkpoint(self, state_id: str) -> None:
+        """Write current session state to the crash-recovery checkpoint file.
+
+        Feature A: Called after every state transition. Uses asyncio.to_thread
+        to avoid blocking the event loop during file I/O.
+        """
+        session = self._demo_machine.current_session
+        team_name = session.team_name if session else ""
+        track = ""
+        if team_name and self._scoring_pipeline:
+            track = self._scoring_pipeline._pending_tracks.get(team_name, "")
+
+        checkpoint = {
+            "team_name": team_name,
+            "track": track,
+            "state": state_id,
+            "started_at": session.started_at if session else None,
+            "observation_count": self._counters.get("clean", 0),
+            "timestamp": time.time(),
+        }
+        try:
+            data = json.dumps(checkpoint)
+            await asyncio.to_thread(_CHECKPOINT_PATH.write_text, data)
+        except Exception:
+            logger.debug("Failed to write session checkpoint", exc_info=True)
+
+    async def _delete_checkpoint(self) -> None:
+        """Delete the checkpoint file when session completes (state → idle).
+
+        Feature A: Removes the checkpoint so a clean startup doesn't warn.
+        """
+        try:
+            await asyncio.to_thread(_CHECKPOINT_PATH.unlink, True)
+        except Exception:
+            logger.debug("Failed to delete session checkpoint", exc_info=True)
 
     async def _broadcast_to_operators(self, message: dict) -> None:
         """Broadcast a message to all connected operator clients.

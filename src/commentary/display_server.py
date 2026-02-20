@@ -35,12 +35,29 @@ class ConnectionManager:
     def __init__(self) -> None:
         self.active: list[WebSocket] = []
         self._broadcast_lock = asyncio.Lock()
+        # Feature B: State cache for replaying current screen state to new clients
+        self._last_screen_state: dict | None = None
+        self._criteria_sequence: list[dict] = []
 
     async def connect(self, ws: WebSocket) -> None:
-        """Accept and register a new WebSocket connection."""
+        """Accept and register a new WebSocket connection.
+
+        After accepting, replays the current screen state so the new client
+        sees the same thing as existing connected clients (Feature B).
+        """
         await ws.accept()
         self.active.append(ws)
         logger.info("Display client connected (%d active)", len(self.active))
+
+        # Feature B: Replay cached state to the newly connected client
+        if self._last_screen_state:
+            try:
+                await ws.send_json(self._last_screen_state)
+                if self._last_screen_state.get("type") == "score_intro":
+                    for criterion in self._criteria_sequence:
+                        await ws.send_json(criterion)
+            except Exception:
+                logger.debug("Failed to replay state to new display client", exc_info=True)
 
     def disconnect(self, ws: WebSocket) -> None:
         """Remove a disconnected WebSocket."""
@@ -51,9 +68,32 @@ class ConnectionManager:
     async def broadcast(self, message: dict) -> None:
         """Send a JSON message to all connected clients.
 
+        Updates the screen state cache before broadcasting so new clients
+        connecting later can be replayed the current state (Feature B).
         Uses a lock to prevent concurrent broadcasts from interleaving
         WebSocket frames. Silently removes clients that have disconnected.
         """
+        # Feature B: Update cached screen state based on message type
+        msg_type = message.get("type")
+        if msg_type == "clear":
+            self._last_screen_state = None
+            self._criteria_sequence = []
+        elif msg_type == "score_intro":
+            self._last_screen_state = message
+            self._criteria_sequence = []
+        elif msg_type == "score_criterion":
+            self._criteria_sequence.append(message)
+        elif msg_type in (
+            "deliberation_ranking",
+            "deliberation_narrative",
+            "commentary",
+            "question",
+            "capture_started",
+            "intermission",
+            "injection_blocked",
+        ):
+            self._last_screen_state = message
+
         async with self._broadcast_lock:
             disconnected: list[WebSocket] = []
             for ws in self.active:
@@ -218,13 +258,26 @@ class DisplayServer:
         if self._server is not None:
             self._server.should_exit = True
 
-    async def push_commentary(self, text: str, team_name: str) -> None:
-        """Broadcast commentary text to all connected display clients."""
-        await self._manager.broadcast({
-            "type": "commentary",
-            "text": text,
-            "team_name": team_name,
-        })
+    async def push_commentary(
+        self,
+        text: str,
+        team_name: str,
+        *,
+        emotion: str = "",
+        sentence_index: int = 0,
+        is_final: bool = False,
+    ) -> None:
+        """Broadcast commentary text to all connected display clients.
+
+        Feature D: Optional emotion, sentence_index, and is_final fields
+        are included in the message for richer audience display rendering.
+        """
+        msg: dict = {"type": "commentary", "text": text, "team_name": team_name}
+        if emotion:
+            msg["emotion"] = emotion
+        msg["sentence_index"] = sentence_index
+        msg["is_final"] = is_final
+        await self._manager.broadcast(msg)
 
     async def push_question(self, text: str, team_name: str) -> None:
         """Broadcast a Q&A question to all connected display clients."""
@@ -282,6 +335,48 @@ class DisplayServer:
         await self._manager.broadcast({
             "type": "deliberation_narrative",
             "narrative": narrative,
+        })
+
+    async def push_injection_blocked(
+        self, category: str, confidence: str, roast: str, team_name: str,
+    ) -> None:
+        """Broadcast an injection-blocked notification to audience display clients.
+
+        Feature C: Called when an injection attempt is detected so the
+        audience display can show a dramatic blocked-injection screen.
+        """
+        await self._manager.broadcast({
+            "type": "injection_blocked",
+            "category": category,
+            "confidence": confidence,
+            "roast": roast,
+            "team_name": team_name,
+        })
+
+    async def push_capture_started(self, team_name: str, track: str) -> None:
+        """Broadcast capture-started notification to audience display clients.
+
+        Feature E: Called when a demo starts capturing so the audience
+        display can show a "thinking" / waiting screen.
+        """
+        await self._manager.broadcast({
+            "type": "capture_started",
+            "team_name": team_name,
+            "track": track,
+        })
+
+    async def push_intermission(
+        self, leaderboard: list[dict], total_injections: int,
+    ) -> None:
+        """Broadcast intermission leaderboard to audience display clients.
+
+        Feature F: Called after each demo resets to idle so the audience
+        display can show the running leaderboard between teams.
+        """
+        await self._manager.broadcast({
+            "type": "intermission",
+            "leaderboard": leaderboard,
+            "total_injections": total_injections,
         })
 
     async def clear(self) -> None:

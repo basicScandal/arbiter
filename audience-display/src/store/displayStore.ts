@@ -6,7 +6,9 @@ export type ActiveScreen =
   | "commentary"
   | "question"
   | "scorecard"
-  | "deliberation";
+  | "deliberation"
+  | "thinking"
+  | "intermission";
 
 export interface CriterionEntry {
   name: string;
@@ -29,6 +31,7 @@ export interface DisplayState {
   // Commentary / Question
   teamName: string;
   commentaryText: string;
+  commentarySentences: Array<{ text: string; emotion: string }>;
   isQuestion: boolean;
   // ScoreCard
   scoreTeamName: string;
@@ -37,6 +40,12 @@ export interface DisplayState {
   // Deliberation
   rankings: RankingEntry[];
   narrative: string;
+  // Injection alert overlay
+  injectionAlert: { category: string; confidence: string; roast: string; teamName: string } | null;
+  // Intermission
+  intermissionData: { leaderboard: Array<{ teamName: string; totalScore: number; track: string }>; totalInjections: number } | null;
+  // Thinking (capture in progress)
+  thinkingTeam: { teamName: string; track: string } | null;
   // Actions
   dispatch: (msg: ArbiterMessage) => void;
   setConnected: (connected: boolean) => void;
@@ -47,12 +56,16 @@ export const useDisplayStore = create<DisplayState>((set) => ({
   activeScreen: "idle",
   teamName: "",
   commentaryText: "",
+  commentarySentences: [],
   isQuestion: false,
   scoreTeamName: "",
   criteria: [],
   scoreTotal: null,
   rankings: [],
   narrative: "",
+  injectionAlert: null,
+  intermissionData: null,
+  thinkingTeam: null,
 
   setConnected: (connected) => set({ connected }),
 
@@ -63,23 +76,37 @@ export const useDisplayStore = create<DisplayState>((set) => ({
           activeScreen: "idle",
           teamName: "",
           commentaryText: "",
+          commentarySentences: [],
           isQuestion: false,
           scoreTeamName: "",
           criteria: [],
           scoreTotal: null,
           rankings: [],
           narrative: "",
+          injectionAlert: null,
+          intermissionData: null,
+          thinkingTeam: null,
         });
         break;
 
-      case "commentary":
-        set({
-          activeScreen: "commentary",
-          teamName: msg.team_name,
-          commentaryText: msg.text,
-          isQuestion: false,
+      case "commentary": {
+        const sentenceIndex = msg.sentence_index ?? 0;
+        const emotion = msg.emotion ?? "";
+        set((state) => {
+          const sentences =
+            sentenceIndex === 0
+              ? [{ text: msg.text, emotion }]
+              : [...state.commentarySentences, { text: msg.text, emotion }];
+          return {
+            activeScreen: "commentary",
+            teamName: msg.team_name,
+            commentaryText: msg.text,
+            commentarySentences: sentences,
+            isQuestion: false,
+          };
         });
         break;
+      }
 
       case "question":
         set({
@@ -125,8 +152,7 @@ export const useDisplayStore = create<DisplayState>((set) => ({
 
       case "deliberation_ranking":
         set((state) => {
-          // Reset rankings when rank 1 arrives (start of new deliberation run)
-          const base = msg.rank === 1 ? [] : state.rankings;
+          const base = state.activeScreen !== "deliberation" ? [] : state.rankings;
           return {
             activeScreen: "deliberation",
             rankings: [
@@ -145,6 +171,49 @@ export const useDisplayStore = create<DisplayState>((set) => ({
 
       case "deliberation_narrative":
         set({ narrative: msg.narrative });
+        break;
+
+      case "capture_started":
+        set({
+          activeScreen: "thinking",
+          thinkingTeam: {
+            teamName: msg.team_name,
+            track: msg.track,
+          },
+        });
+        break;
+
+      case "injection_blocked":
+        set({
+          injectionAlert: {
+            category: msg.category,
+            confidence: msg.confidence,
+            roast: msg.roast,
+            teamName: msg.team_name,
+          },
+        });
+        setTimeout(() => {
+          set((state) => {
+            if (state.injectionAlert?.roast === msg.roast) {
+              return { injectionAlert: null };
+            }
+            return {};
+          });
+        }, 4000);
+        break;
+
+      case "intermission":
+        set({
+          activeScreen: "intermission",
+          intermissionData: {
+            leaderboard: msg.leaderboard.map((e) => ({
+              teamName: e.team_name,
+              totalScore: e.total_score,
+              track: e.track,
+            })),
+            totalInjections: msg.total_injections,
+          },
+        });
         break;
     }
   },
