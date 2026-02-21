@@ -336,6 +336,34 @@ describe("operatorStore", () => {
   });
 
   describe("dispatch - state resets scoringPhase on transitions", () => {
+    it("resets lastScorecard to null on idle state", () => {
+      // Set a scorecard from a completed demo
+      useOperatorStore.getState().dispatch({
+        type: "event",
+        event_type: "scoring_complete",
+        timestamp: Date.now(),
+        data: {
+          scorecard: {
+            team_name: "Old Team",
+            track: "ZERO::PROOF",
+            total_score: 7.2,
+            criteria: [{ name: "Security", score: 7, weight: 0.5, justification: "Solid" }],
+            track_bonus: null,
+          },
+        },
+      });
+      expect(useOperatorStore.getState().lastScorecard).not.toBeNull();
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "idle",
+        team_name: "",
+        track: "",
+        started_at: null,
+      });
+      expect(useOperatorStore.getState().lastScorecard).toBeNull();
+    });
+
     it("resets scoringPhase to null on idle state", () => {
       useOperatorStore.getState().dispatch({
         type: "scoring_phase",

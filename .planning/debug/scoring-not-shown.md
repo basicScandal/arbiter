@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: fixed
 trigger: "the commentary didn't finish. there is no way to reset, and the score hasn't shown"
 created: 2026-02-17T00:00:00Z
 updated: 2026-02-17T00:12:30Z

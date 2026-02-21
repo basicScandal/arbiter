@@ -62,9 +62,11 @@ skipped: 0
   severity: major
   test: 8
   root_cause: "operatorStore.ts missing lastScorecard reset when new demo starts — stale scorecard persists across demos, and if commentary hangs before scoring fires, ScorePanel never updates"
+  fix_applied: "Added lastScorecard/scoringPhase/demoTimer reset on idle and capturing state transitions (operatorStore.ts lines 86-87)"
+  fix_commit: "c55d631 (Tier 3 technical quality improvements)"
+  status: fixed
   artifacts:
     - path: "operator-dashboard/src/store/operatorStore.ts"
       issue: "No lastScorecard reset in dispatch() when demoState transitions to capturing"
-  missing:
-    - "Reset lastScorecard to null when state message indicates new demo starting (demoState === capturing)"
+  missing: []
   debug_session: ".planning/debug/scoring-not-shown.md"
