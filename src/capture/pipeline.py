@@ -37,6 +37,7 @@ from src.operator.tui import ArbiterTUI
 from src.operator.web import WebOperator
 from src.providers import create_provider
 from src.providers.base import LLMProvider
+from src.resilience.metrics import default_metrics
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.pipeline import ScoringPipeline
 
@@ -147,6 +148,7 @@ class CapturePipeline:
 
     async def _on_demo_started(self, event: DemoStarted) -> None:
         """React to demo start: spin up camera, audio, and Gemini tasks."""
+        default_metrics.inc("demos_started")
         logger.info("Demo started for team: %s", event.team_name)
 
         self._capture_tasks = [
@@ -162,6 +164,8 @@ class CapturePipeline:
 
     async def _on_demo_stopped(self, event: DemoStopped) -> None:
         """React to demo stop: shut down capture tasks, preserve session data."""
+        default_metrics.inc("demos_stopped")
+        default_metrics.observe_seconds("demo_duration_sec", event.duration)
         logger.info(
             "Demo stopped for team: %s, duration: %.1fs",
             event.team_name,

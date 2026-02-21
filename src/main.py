@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from src.capture.config import load_config
 from src.capture.pipeline import CapturePipeline
+from src.logging_config import configure_logging
 
 
 def main() -> None:
@@ -41,37 +42,17 @@ def main() -> None:
     if args.rehearsal:
         from src.rehearsal import RehearsalPipeline
 
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        )
-        print("=" * 50)
-        print("  Arbiter Rehearsal Mode")
-        print("  Running full demo cycle with synthetic data...")
-        print("=" * 50)
-        print()
+        load_dotenv()
+        configure_logging(rehearsal=True, level="INFO")
+        log = logging.getLogger(__name__)
+        log.info("Arbiter Rehearsal Mode — running full demo cycle with synthetic data")
         pipeline = RehearsalPipeline()
         asyncio.run(pipeline.run_demo())
-        print()
-        print("Rehearsal complete!")
+        log.info("Rehearsal complete")
         return
 
     load_dotenv()
-
-    # Configure logging — attach FileHandler directly to root logger.
-    # Cannot use basicConfig() because library imports may have already
-    # configured root, making basicConfig a silent no-op.
-    log_fmt = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    file_handler = logging.FileHandler("/tmp/arbiter.log", mode="w")
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(log_fmt)
-
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    root.addHandler(file_handler)
+    configure_logging()
 
     config = load_config()
     operator_mode = "cli" if args.cli else args.operator
