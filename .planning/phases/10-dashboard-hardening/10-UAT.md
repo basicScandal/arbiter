@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 10-dashboard-hardening
 source: [10-01-SUMMARY.md, 10-02-SUMMARY.md]
 started: 2026-02-17T20:20:00Z
@@ -61,7 +61,10 @@ skipped: 0
   reason: "User reported: the commentary didn't finish. there is no way to reset, and the score hasn't shown"
   severity: major
   test: 8
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "operatorStore.ts missing lastScorecard reset when new demo starts — stale scorecard persists across demos, and if commentary hangs before scoring fires, ScorePanel never updates"
+  artifacts:
+    - path: "operator-dashboard/src/store/operatorStore.ts"
+      issue: "No lastScorecard reset in dispatch() when demoState transitions to capturing"
+  missing:
+    - "Reset lastScorecard to null when state message indicates new demo starting (demoState === capturing)"
+  debug_session: ".planning/debug/scoring-not-shown.md"
