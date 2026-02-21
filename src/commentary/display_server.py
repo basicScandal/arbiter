@@ -133,11 +133,11 @@ class DisplayServer:
 
         @self._app.get("/", response_class=HTMLResponse)
         async def display_page(request: Request) -> HTMLResponse:
-            return self._templates.TemplateResponse("display.html", {"request": request})
+            return self._templates.TemplateResponse(request, "display.html")
 
         @self._app.get("/stream", response_class=HTMLResponse)
         async def stream_overlay(request: Request) -> HTMLResponse:
-            return self._templates.TemplateResponse("stream.html", {"request": request})
+            return self._templates.TemplateResponse(request, "stream.html")
 
         # Mount React audience display (production build)
         react_dist = Path(__file__).parent / "../../audience-display/dist"
