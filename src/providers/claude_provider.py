@@ -34,7 +34,7 @@ _RETRYABLE_EXCEPTIONS = (
     APIConnectionError, APITimeoutError, InternalServerError, RateLimitError,
 )
 
-CLAUDE_RETRY = retry(
+_PROVIDER_RETRY = retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
     retry=retry_if_exception_type(_RETRYABLE_EXCEPTIONS),
@@ -100,7 +100,7 @@ class ClaudeProvider(LLMProvider):
             )
             return ""
 
-    @CLAUDE_RETRY
+    @_PROVIDER_RETRY
     async def _call_claude(
         self,
         prompt: str,
@@ -110,7 +110,7 @@ class ClaudeProvider(LLMProvider):
     ) -> str:
         """Call Claude API with retry on transient errors.
 
-        Decorated with CLAUDE_RETRY for 5 retry attempts with
+        Decorated with _PROVIDER_RETRY for 5 retry attempts with
         exponential backoff on network errors.
         """
         message = await self._client.messages.create(

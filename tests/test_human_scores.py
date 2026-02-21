@@ -17,7 +17,6 @@ from pydantic import ValidationError
 from src.scoring.human import (
     HumanScore,
     HumanScoreStore,
-    BlendedScorecard,
     blend_scores,
     AI_WEIGHT,
     HUMAN_WEIGHT,

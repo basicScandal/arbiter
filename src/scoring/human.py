@@ -15,7 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from src.scoring.models import DemoScorecard, CriterionScore
+from src.scoring.models import CriterionScore
 from src.scoring.store import ScoreStore
 from src.utils import sanitize_team_name
 

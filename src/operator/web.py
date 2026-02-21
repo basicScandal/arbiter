@@ -25,7 +25,7 @@ from src.commentary.display_server import DisplayServer
 from src.commentary.models import QARequested
 from src.memory.models import DeliberationRequested
 from src.operator.audit import log_command
-from src.operator.cli import VALID_TRACKS
+from src.config.tracks import VALID_TRACKS
 from src.resilience.metrics import default_metrics
 
 if TYPE_CHECKING:

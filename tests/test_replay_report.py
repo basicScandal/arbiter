@@ -76,7 +76,7 @@ class TestBuildMarkdown:
         md = _build_markdown(cards, None)
         lines = md.split("\n")
         # Find the rank rows
-        rank_lines = [l for l in lines if l.startswith("| ") and "Rank" not in l and "---" not in l]
+        rank_lines = [ln for ln in lines if ln.startswith("| ") and "Rank" not in ln and "---" not in ln]
         assert "High" in rank_lines[0]
         assert "Mid" in rank_lines[1]
         assert "Low" in rank_lines[2]

@@ -46,3 +46,15 @@ htmlcov/
 
 # uv
 .python-version
+
+# Runtime data
+data/
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Frontend dependencies (each app has its own)
+node_modules/
+
+# Generated artifacts
+*.svg

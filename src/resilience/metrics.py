@@ -8,7 +8,6 @@ as Prometheus text format for scraping.
 from __future__ import annotations
 
 import threading
-import time
 from collections import defaultdict
 
 
