@@ -44,6 +44,7 @@ dev = [
     "pytest-xdist~=3.8",
     "vcrpy~=8.1",
     "pytest-recording~=0.13",
+    "yt-dlp>=2026.2.4",
 ]
 
 [tool.pytest.ini_options]

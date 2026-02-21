@@ -17,6 +17,7 @@ from src.defense.models import SanitizedOutput
 from src.memory.deliberation_engine import DeliberationEngine
 from src.memory.models import DemoMemory, DeliberationResult
 from src.memory.store import MemoryStore
+from src.logging_config import configure_logging
 from src.replay.config import (
     BASE_DIR,
     COMMENTARY_DIR,
@@ -82,7 +83,7 @@ class ReplayPipeline:
             only: If set, process only this video number.
             force: If True, re-process all demos even if results exist.
         """
-        self._setup_logging()
+        configure_logging(console=True, log_file=str(LOG_FILE))
         t0 = time.time()
 
         entries = self._select_entries(start=start, only=only)
@@ -248,30 +249,3 @@ class ReplayPipeline:
             return [e for e in MANIFEST if e.number == only]
         return [e for e in MANIFEST if e.number >= start]
 
-    @staticmethod
-    def _setup_logging() -> None:
-        """Configure file + console logging for the replay run."""
-        BASE_DIR.mkdir(parents=True, exist_ok=True)
-
-        file_handler = logging.FileHandler(LOG_FILE, mode="a")
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-        )
-
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(
-            logging.Formatter("%(levelname)-8s %(message)s")
-        )
-
-        root = logging.getLogger()
-        # Avoid duplicate handlers on repeated runs
-        if not any(isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", "").endswith("replay.log") for h in root.handlers):
-            root.addHandler(file_handler)
-        if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in root.handlers):
-            root.addHandler(console_handler)
-        root.setLevel(logging.DEBUG)
