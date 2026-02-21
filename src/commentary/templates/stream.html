@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ARBITER Stream Overlay</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: transparent;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    overflow: hidden;
+    width: 1920px;
+    height: 1080px;
+    position: relative;
+  }
+
+  /* Lower-third container — anchored to bottom */
+  .lower-third {
+    position: absolute;
+    bottom: 60px;
+    left: 60px;
+    right: 60px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+  }
+  .lower-third.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Bar background */
+  .bar {
+    background: rgba(10, 14, 26, 0.92);
+    border: 1px solid rgba(0, 204, 255, 0.2);
+    border-radius: 4px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* Team badge */
+  .team-badge {
+    background: rgba(0, 255, 136, 0.15);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #00ff88;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Commentary text */
+  .text-content {
+    flex: 1;
+    font-size: 18px;
+    line-height: 1.5;
+    color: #e0e0f0;
+  }
+
+  /* Score display */
+  .score-display {
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .score-value {
+    font-size: 36px;
+    font-weight: 900;
+    color: #00ff88;
+  }
+  .score-label {
+    font-size: 10px;
+    color: #4a5080;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* Injection alert - top bar */
+  .injection-bar {
+    position: absolute;
+    top: 40px;
+    left: 60px;
+    right: 60px;
+    background: rgba(80, 0, 0, 0.92);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    border-radius: 4px;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .injection-bar.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .injection-label {
+    color: #ff4444;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .injection-text {
+    color: #fca5a5;
+    font-size: 14px;
+    font-style: italic;
+    flex: 1;
+  }
+
+  /* Deliberation rank badge */
+  .rank-badge {
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffd700;
+    letter-spacing: 0.15em;
+    flex-shrink: 0;
+  }
+
+  /* Thinking indicator */
+  .thinking-dots::after {
+    content: '';
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+    100% { content: ''; }
+  }
+</style>
+</head>
+<body>
+
+<div id="lower-third" class="lower-third">
+  <div class="bar" id="bar-content"></div>
+</div>
+
+<div id="injection-bar" class="injection-bar">
+  <span class="injection-label">BLOCKED</span>
+  <span class="injection-text" id="injection-text"></span>
+</div>
+
+<script>
+(function() {
+  const lowerThird = document.getElementById('lower-third');
+  const barContent = document.getElementById('bar-content');
+  const injectionBar = document.getElementById('injection-bar');
+  const injectionText = document.getElementById('injection-text');
+
+  let hideTimer = null;
+  let injectionTimer = null;
+
+  function show(html, duration) {
+    barContent.innerHTML = html;
+    lowerThird.classList.add('visible');
+    clearTimeout(hideTimer);
+    if (duration) {
+      hideTimer = setTimeout(() => lowerThird.classList.remove('visible'), duration);
+    }
+  }
+
+  function hide() {
+    lowerThird.classList.remove('visible');
+  }
+
+  function showInjection(text) {
+    injectionText.textContent = text;
+    injectionBar.classList.add('visible');
+    clearTimeout(injectionTimer);
+    injectionTimer = setTimeout(() => injectionBar.classList.remove('visible'), 4000);
+  }
+
+  function connect() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${location.host}/ws/display`);
+
+    ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+
+      // Respond to heartbeat pings
+      if (msg.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+        return;
+      }
+
+      switch (msg.type) {
+        case 'clear':
+          hide();
+          break;
+
+        case 'commentary':
+          show(
+            `<div class="team-badge">${esc(msg.team_name)}</div>` +
+            `<div class="text-content">${esc(msg.text)}</div>`,
+          );
+          break;
+
+        case 'question':
+          show(
+            `<div class="team-badge">Q&A</div>` +
+            `<div class="text-content">${esc(msg.text)}</div>`,
+          );
+          break;
+
+        case 'score_intro':
+          show(
+            `<div class="team-badge">${esc(msg.team_name)}</div>` +
+            `<div class="text-content">Scoring in progress...</div>`,
+          );
+          break;
+
+        case 'score_criterion':
+          show(
+            `<div class="team-badge">${esc(msg.name)}</div>` +
+            `<div class="text-content">${esc(msg.justification)}</div>` +
+            `<div class="score-display"><div class="score-value">${msg.score.toFixed(1)}</div><div class="score-label">x${msg.weight}</div></div>`,
+          );
+          break;
+
+        case 'score_total':
+          show(
+            `<div class="team-badge">${esc(msg.team_name)}</div>` +
+            `<div class="text-content" style="text-align:center;font-size:14px;color:#4a5080;">${esc(msg.track)}</div>` +
+            `<div class="score-display"><div class="score-value">${msg.total_score.toFixed(1)}</div><div class="score-label">TOTAL / 10</div></div>`,
+            15000,
+          );
+          break;
+
+        case 'deliberation_ranking':
+          show(
+            `<div class="rank-badge">#${msg.rank}</div>` +
+            `<div class="team-badge">${esc(msg.team_name)}</div>` +
+            `<div class="text-content">${esc(msg.reasoning)}</div>` +
+            `<div class="score-display"><div class="score-value">${msg.total_score.toFixed(1)}</div><div class="score-label">SCORE</div></div>`,
+          );
+          break;
+
+        case 'deliberation_narrative':
+          show(
+            `<div class="team-badge">FINAL VERDICT</div>` +
+            `<div class="text-content">${esc(msg.narrative)}</div>`,
+            20000,
+          );
+          break;
+
+        case 'capture_started':
+          show(
+            `<div class="team-badge">${esc(msg.team_name)}</div>` +
+            `<div class="text-content">Analyzing<span class="thinking-dots"></span></div>`,
+          );
+          break;
+
+        case 'injection_blocked':
+          showInjection(`${msg.category} — ${msg.roast || 'Attempt blocked'}`);
+          break;
+
+        case 'intermission':
+          // Show top team during intermission
+          if (msg.leaderboard && msg.leaderboard.length > 0) {
+            const top = msg.leaderboard[0];
+            show(
+              `<div class="rank-badge">LEADING</div>` +
+              `<div class="team-badge">${esc(top.team_name)}</div>` +
+              `<div class="score-display"><div class="score-value">${top.total_score.toFixed(1)}</div><div class="score-label">${msg.leaderboard.length} TEAMS</div></div>`,
+              15000,
+            );
+          }
+          break;
+      }
+    };
+
+    ws.onclose = () => setTimeout(connect, 2000);
+    ws.onerror = () => ws.close();
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  connect();
+})();
+</script>
+</body>
+</html>

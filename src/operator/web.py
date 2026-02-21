@@ -146,6 +146,112 @@ class WebOperator:
                 )
             return default_metrics.snapshot()
 
+        @app.get("/api/report-card/{team_name}")
+        async def report_card_endpoint(team_name: str):
+            from fastapi.responses import HTMLResponse
+            from src.reports.card import generate_report_card_html
+
+            html = await generate_report_card_html(team_name)
+            if html is None:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=404,
+                    content={"error": f"No scorecard found for team '{team_name}'"},
+                )
+            return HTMLResponse(html)
+
+        @app.get("/api/report-cards")
+        async def report_cards_list():
+            from src.scoring.store import ScoreStore
+            score_store = ScoreStore(scores_dir="data/scores")
+            scorecards = await score_store.load_all()
+            return [
+                {"team_name": sc.team_name, "track": sc.track, "total_score": sc.total_score}
+                for sc in sorted(scorecards, key=lambda s: s.total_score, reverse=True)
+            ]
+
+        @app.post("/api/human-score")
+        async def submit_human_score(score: dict):
+            """Submit a human judge's score for a team."""
+            from src.scoring.human import HumanScore, HumanScoreStore
+            import time as _time
+
+            try:
+                human_score = HumanScore(
+                    judge_name=score.get("judge_name", ""),
+                    team_name=score.get("team_name", ""),
+                    total_score=score.get("total_score", 0),
+                    notes=score.get("notes", ""),
+                    submitted_at=_time.time(),
+                )
+            except Exception as e:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=400, content={"error": str(e)})
+
+            if not human_score.judge_name or not human_score.team_name:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=400, content={"error": "judge_name and team_name are required"})
+
+            store = HumanScoreStore()
+            await store.save(human_score)
+            return {"status": "ok", "team_name": human_score.team_name, "judge": human_score.judge_name}
+
+        @app.get("/api/blended-score/{team_name}")
+        async def blended_score_endpoint(team_name: str):
+            """Get blended AI + human score for a team."""
+            from src.scoring.human import blend_scores
+            from fastapi.responses import JSONResponse
+
+            result = await blend_scores(team_name)
+            if result is None:
+                return JSONResponse(status_code=404, content={"error": f"No AI scorecard found for '{team_name}'"})
+            return result.model_dump()
+
+        @app.get("/api/blended-scores")
+        async def blended_scores_list():
+            """Get blended scores for all teams."""
+            from src.scoring.human import blend_scores
+            from src.scoring.store import ScoreStore
+
+            score_store = ScoreStore(scores_dir="data/scores")
+            scorecards = await score_store.load_all()
+            results = []
+            for sc in scorecards:
+                blended = await blend_scores(sc.team_name)
+                if blended:
+                    results.append({
+                        "team_name": blended.team_name,
+                        "track": blended.track,
+                        "ai_score": blended.ai_score,
+                        "human_score": blended.human_score,
+                        "blended_score": blended.blended_score,
+                        "human_judge_count": len(blended.human_judges),
+                    })
+            return sorted(results, key=lambda r: r["blended_score"], reverse=True)
+
+        @app.get("/api/export")
+        async def export_all(
+            include_audit: bool = Query(default=False),
+            include_observations: bool = Query(default=True),
+        ):
+            """Export all event data as JSON."""
+            from src.reports.export import export_event_data
+            result = await export_event_data(
+                include_audit=include_audit,
+                include_observations=include_observations,
+            )
+            return result.model_dump()
+
+        @app.get("/api/export/{team_name}")
+        async def export_team(team_name: str):
+            """Export all data for a single team."""
+            from src.reports.export import export_team_data
+            from fastapi.responses import JSONResponse
+            result = await export_team_data(team_name)
+            if result is None:
+                return JSONResponse(status_code=404, content={"error": f"No data found for team '{team_name}'"})
+            return result.model_dump()
+
         @app.websocket("/ws/operator")
         async def operator_ws(ws: WebSocket, token: str = Query(default="")) -> None:
             required_token = os.environ.get("OPERATOR_TOKEN", "")
