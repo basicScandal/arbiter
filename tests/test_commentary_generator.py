@@ -366,7 +366,7 @@ class TestDemoContext:
             await gen.generate(sanitized)  # demo 1
 
         system_msg = gen._groq_client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
-        assert "generous" in system_msg
+        assert "Early in the event" in system_msg
 
     @pytest.mark.asyncio
     async def test_late_demo_tough_context(self, sanitized):
@@ -387,7 +387,7 @@ class TestDemoContext:
             await gen.generate(sanitized)  # demo 16
 
         system_msg = gen._groq_client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
-        assert "seen it all" in system_msg
+        assert "Late in the event" in system_msg
 
 
 # ---------------------------------------------------------------------------

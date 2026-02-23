@@ -39,11 +39,10 @@ _GROQ_TIMEOUT = 20.0  # longer than QA since commentary is more text
 _EMOTION_KEYWORDS: dict[str, list[str]] = {
     "sarcastic": ["bold strategy", "interesting choice", "somehow", "mysteriously", "apparently", "of course"],
     "ironic": ["ironic", "irony", "ironically", "paradox"],
-    "contempt": ["pathetic", "embarrassing", "lazy", "half-baked", "amateur"],
     "surprised": ["actually", "genuinely", "surprisingly", "didn't expect", "wow"],
     "triumphant": ["most polished", "best i've seen", "first time today", "genuinely impressed", "this is what"],
     "amazed": ["incredible", "remarkable", "exceptional", "brilliant", "stunning"],
-    "disappointed": ["unfortunately", "shame", "disaster", "terrible", "awful", "missing", "broken", "failed", "crashed"],
+    "disappointed": ["unfortunately", "shame", "disaster", "terrible", "awful", "missing", "broken", "failed", "crashed", "pathetic", "embarrassing", "lazy", "half-baked", "amateur"],
     "content": ["solid", "clean", "elegant", "well-built"],
     "enthusiastic": ["fix that and", "ship it", "keep going", "next step", "get there", "on the right track"],
     "contemplative": ["the one area", "worth noting", "consider", "the question is", "what's missing"],
@@ -78,11 +77,11 @@ class CommentaryGenerator:
     # Includes both native Cartesia emotions and semantic aliases that get
     # mapped to valid Cartesia emotions via _LLM_TO_CARTESIA_MAP.
     _VALID_LLM_EMOTIONS: frozenset[str] = frozenset({
-        "sarcastic", "ironic", "contempt", "surprised", "amazed",
+        "sarcastic", "ironic", "surprised", "amazed",
         "disappointed", "content", "excited", "confident", "skeptical",
         "curious", "proud",
-        # New constructive emotions (mapped to Cartesia equivalents)
-        "impressed", "thoughtful", "encouraging", "constructive",
+        # Constructive emotions (mapped to Cartesia equivalents)
+        "impressed", "thoughtful", "encouraging", "constructive", "supportive",
     })
 
     # Map semantic LLM emotions to valid Cartesia TTS emotions.
@@ -92,6 +91,7 @@ class CommentaryGenerator:
         "thoughtful": "contemplative",
         "encouraging": "enthusiastic",
         "constructive": "determined",
+        "supportive": "enthusiastic",
     }
 
     def __init__(
@@ -221,11 +221,11 @@ class CommentaryGenerator:
         temp = min(0.95, 0.8 + self._demo_count * 0.005)
 
         if self._demo_count <= 7:
-            demo_context = "You're feeling generous — give benefit of the doubt, but still be sharp."
+            demo_context = "Early in the event. Set the tone -- sharp, fair, and constructive."
         elif self._demo_count <= 15:
-            demo_context = "Classic Arbiter — sharp, fair, increasingly hard to impress."
+            demo_context = "Mid-event. You've seen a range. Draw comparisons where useful, stay consistent."
         else:
-            demo_context = "You've seen it all today — only genuine brilliance impresses you now."
+            demo_context = "Late in the event. Stay fresh -- every team deserves the same quality of feedback as the first."
 
         formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
 
@@ -280,11 +280,11 @@ class CommentaryGenerator:
 
         # Build demo context based on demo number
         if self._demo_count <= 7:
-            demo_context = "You're feeling generous — give benefit of the doubt, but still be sharp."
+            demo_context = "Early in the event. Set the tone -- sharp, fair, and constructive."
         elif self._demo_count <= 15:
-            demo_context = "Classic Arbiter — sharp, fair, increasingly hard to impress."
+            demo_context = "Mid-event. You've seen a range. Draw comparisons where useful, stay consistent."
         else:
-            demo_context = "You've seen it all today — only genuine brilliance impresses you now."
+            demo_context = "Late in the event. Stay fresh -- every team deserves the same quality of feedback as the first."
 
         # Format the persona prompt with demo context
         formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
@@ -310,11 +310,11 @@ class CommentaryGenerator:
 
         # Build the same formatted prompt that Gemini gets
         if self._demo_count <= 7:
-            demo_context = "You're feeling generous — give benefit of the doubt, but still be sharp."
+            demo_context = "Early in the event. Set the tone -- sharp, fair, and constructive."
         elif self._demo_count <= 15:
-            demo_context = "Classic Arbiter — sharp, fair, increasingly hard to impress."
+            demo_context = "Mid-event. You've seen a range. Draw comparisons where useful, stay consistent."
         else:
-            demo_context = "You've seen it all today — only genuine brilliance impresses you now."
+            demo_context = "Late in the event. Stay fresh -- every team deserves the same quality of feedback as the first."
         formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
 
         temp = min(0.95, 0.8 + self._demo_count * 0.005)

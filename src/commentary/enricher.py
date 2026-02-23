@@ -32,9 +32,10 @@ RULES:
 2. Make technical references more specific (name exact algorithms, \
    protocols, tools, or CVEs where relevant)
 3. Calibrate tone to match the draft's intent:
-   - If the draft is roasting a bad demo, make the roast land harder
-   - If the draft is giving constructive feedback, make the suggestions \
-     more specific and actionable
+   - If the draft is critiquing a weak demo, make the feedback more specific \
+     and the improvement path clearer
+   - If the draft is giving constructive feedback, make the suggestions more \
+     concrete and actionable
    - If the draft is praising good work, make the praise more precise \
      (name exactly what impressed you)
 4. Maintain the same sentence count as the draft
@@ -89,7 +90,7 @@ class CommentaryEnricher:
             enriched_text = await asyncio.wait_for(
                 self._provider.generate(
                     prompt=prompt,
-                    system_prompt="You refine AI judge commentary to be sharper and funnier.",
+                    system_prompt="You refine AI judge commentary to be sharper, more specific, and more constructive.",
                     temperature=0.7,
                     max_tokens=400,
                 ),
