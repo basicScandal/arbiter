@@ -16,7 +16,7 @@ const AUTO_HIDE_MS = 3000;
 
 export function ViewSwitcher() {
   const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const activeScreen = useDisplayStore((s) => s.activeScreen);
   const manualOverride = useDisplayStore((s) => s.manualOverride);
   const setManualScreen = useDisplayStore((s) => s.setManualScreen);
