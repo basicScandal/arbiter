@@ -26,37 +26,47 @@ export function CommentaryScreen() {
 
   return (
     <div
-      className="flex flex-col items-center justify-center h-full px-16 gap-8"
+      className="flex h-full"
       aria-live="polite"
       aria-atomic="false"
     >
-      {teamName && (
-        <motion.h2
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-2xl text-arbiter-accent tracking-widest uppercase"
-        >
-          {teamName}
-        </motion.h2>
-      )}
-      <div className="text-4xl leading-relaxed text-center max-w-5xl font-medium space-y-1">
-        <AnimatePresence>
-          {sentences.map((s, i) => {
-            const colorClass = emotionStyles[s.emotion] ?? emotionStyles.default;
-            const glowClass = emotionGlow[s.emotion] ?? emotionGlow.default;
-            return (
-              <motion.span
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.05 }}
-                className={`inline ${colorClass} ${glowClass}`}
-              >
-                {s.text}{" "}
-              </motion.span>
-            );
-          })}
-        </AnimatePresence>
+      {/* Left ~40% — sigil shows through from background layer */}
+      <div className="w-2/5 shrink-0" />
+
+      {/* Right ~60% — text content with semi-transparent backdrop */}
+      <div className="flex-1 flex flex-col justify-center px-12 py-8">
+        <div className="bg-arbiter-bg/70 rounded-2xl px-10 py-8 backdrop-blur-sm">
+          {teamName && (
+            <motion.h2
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-2xl text-arbiter-accent tracking-widest uppercase mb-6"
+            >
+              {teamName}
+            </motion.h2>
+          )}
+          <div className="text-4xl leading-relaxed max-w-5xl font-medium space-y-1">
+            <AnimatePresence>
+              {sentences.map((s, i) => {
+                const colorClass =
+                  emotionStyles[s.emotion] ?? emotionStyles.default;
+                const glowClass =
+                  emotionGlow[s.emotion] ?? emotionGlow.default;
+                return (
+                  <motion.span
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.05 }}
+                    className={`inline ${colorClass} ${glowClass}`}
+                  >
+                    {s.text}{" "}
+                  </motion.span>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { ScoreCardScreen } from "../screens/ScoreCardScreen";
 import { DeliberationScreen } from "../screens/DeliberationScreen";
 import { ThinkingScreen } from "../screens/ThinkingScreen";
 import { IntermissionScreen } from "../screens/IntermissionScreen";
+import { SigilBackground } from "./SigilBackground";
 
 const screenMap = {
   idle: IdleScreen,
@@ -24,6 +25,7 @@ export function ScreenRouter() {
 
   return (
     <div className="flex-1 overflow-hidden relative">
+      <SigilBackground />
       <AnimatePresence mode="wait">
         <motion.div
           key={activeScreen}
@@ -31,7 +33,7 @@ export function ScreenRouter() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.4, ease: "easeInOut" }}
-          className="absolute inset-0 overflow-auto"
+          className="absolute inset-0 overflow-auto z-10"
         >
           <Screen />
         </motion.div>

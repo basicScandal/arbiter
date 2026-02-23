@@ -5,8 +5,8 @@ export function ThinkingScreen() {
   const thinkingTeam = useDisplayStore((s) => s.thinkingTeam);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-10">
-      {/* Team name + track */}
+    <div className="flex flex-col items-center justify-end h-full gap-6 pb-24">
+      {/* Team name + track — positioned below sigil center */}
       {thinkingTeam && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -23,13 +23,13 @@ export function ThinkingScreen() {
         </motion.div>
       )}
 
-      {/* Main analyzing text */}
+      {/* Main analyzing text — reduced weight so sigil dominates */}
       <motion.div
-        animate={{ opacity: [0.5, 1, 0.5] }}
+        animate={{ opacity: [0.4, 0.8, 0.4] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="text-5xl font-black tracking-widest text-cyan-300 uppercase"
+        className="text-3xl font-bold tracking-widest text-cyan-300/80 uppercase"
         style={{
-          textShadow: "0 0 20px rgba(0,200,255,0.6), 0 0 40px rgba(0,200,255,0.3)",
+          textShadow: "0 0 12px rgba(0,200,255,0.4), 0 0 24px rgba(0,200,255,0.2)",
         }}
       >
         ARBITER IS ANALYZING...
@@ -40,7 +40,7 @@ export function ThinkingScreen() {
         {[0, 1, 2, 3, 4].map((i) => (
           <motion.div
             key={i}
-            className="w-3 h-3 rounded-full bg-cyan-400"
+            className="w-2 h-2 rounded-full bg-cyan-400/70"
             animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
             transition={{
               duration: 1.4,
@@ -48,27 +48,27 @@ export function ThinkingScreen() {
               ease: "easeInOut",
               delay: i * 0.18,
             }}
-            style={{ boxShadow: "0 0 8px rgba(0,200,255,0.6)" }}
+            style={{ boxShadow: "0 0 6px rgba(0,200,255,0.4)" }}
           />
         ))}
       </div>
 
       {/* Scan-line progress bar */}
-      <div className="w-80 h-1 bg-cyan-900/40 rounded overflow-hidden">
+      <div className="w-64 h-0.5 bg-cyan-900/30 rounded overflow-hidden">
         <motion.div
-          className="h-full bg-cyan-400 rounded"
+          className="h-full bg-cyan-400/60 rounded"
           animate={{ x: ["-100%", "100%"] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-          style={{ boxShadow: "0 0 12px rgba(0,200,255,0.8)" }}
+          style={{ boxShadow: "0 0 8px rgba(0,200,255,0.5)" }}
         />
       </div>
 
       {/* Subtle status text */}
       <motion.p
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
+        animate={{ opacity: 0.4 }}
         transition={{ delay: 0.8, duration: 0.6 }}
-        className="text-base text-arbiter-muted tracking-wider"
+        className="text-sm text-arbiter-muted/70 tracking-wider"
       >
         Processing demo output — stand by
       </motion.p>
