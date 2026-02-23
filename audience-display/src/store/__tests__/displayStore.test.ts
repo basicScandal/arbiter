@@ -7,6 +7,7 @@ describe("displayStore", () => {
     useDisplayStore.setState({
       connected: false,
       activeScreen: "idle",
+      manualOverride: false,
       teamName: "",
       commentaryText: "",
       commentarySentences: [],

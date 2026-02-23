@@ -28,6 +28,7 @@ export interface RankingEntry {
 export interface DisplayState {
   connected: boolean;
   activeScreen: ActiveScreen;
+  manualOverride: boolean;
   // Commentary / Question
   teamName: string;
   commentaryText: string;
@@ -49,11 +50,14 @@ export interface DisplayState {
   // Actions
   dispatch: (msg: ArbiterMessage) => void;
   setConnected: (connected: boolean) => void;
+  setManualScreen: (screen: ActiveScreen) => void;
+  resumeLive: () => void;
 }
 
-export const useDisplayStore = create<DisplayState>((set) => ({
+export const useDisplayStore = create<DisplayState>((set, get) => ({
   connected: false,
   activeScreen: "idle",
+  manualOverride: false,
   teamName: "",
   commentaryText: "",
   commentarySentences: [],
@@ -69,7 +73,13 @@ export const useDisplayStore = create<DisplayState>((set) => ({
 
   setConnected: (connected) => set({ connected }),
 
+  setManualScreen: (screen) => set({ activeScreen: screen, manualOverride: true }),
+
+  resumeLive: () => set({ manualOverride: false }),
+
   dispatch: (msg) => {
+    // In manual override mode, only injection alerts get through
+    if (get().manualOverride && msg.type !== "injection_blocked") return;
     switch (msg.type) {
       case "clear":
         set({
