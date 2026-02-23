@@ -218,3 +218,7 @@ export const useDisplayStore = create<DisplayState>((set) => ({
     }
   },
 }));
+
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__arbiterStore = useDisplayStore;
+}

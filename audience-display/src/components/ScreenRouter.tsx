@@ -8,6 +8,7 @@ import { DeliberationScreen } from "../screens/DeliberationScreen";
 import { ThinkingScreen } from "../screens/ThinkingScreen";
 import { IntermissionScreen } from "../screens/IntermissionScreen";
 import { SigilBackground } from "./SigilBackground";
+import { ParticleGrid } from "./ParticleGrid";
 
 const screenMap = {
   idle: IdleScreen,
@@ -25,6 +26,7 @@ export function ScreenRouter() {
 
   return (
     <div className="flex-1 overflow-hidden relative">
+      <ParticleGrid />
       <SigilBackground />
       <AnimatePresence mode="wait">
         <motion.div
