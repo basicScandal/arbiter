@@ -1,0 +1,24 @@
+services:
+  arbiter:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - arbiter-data:/app/data
+    env_file: .env
+    restart: unless-stopped
+
+  arbiter-rehearsal:
+    build: .
+    command: ["--rehearsal"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - arbiter-data:/app/data
+    env_file: .env
+    restart: unless-stopped
+    profiles:
+      - rehearsal
+
+volumes:
+  arbiter-data:

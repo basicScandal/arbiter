@@ -1,0 +1,53 @@
+# Version control
+.git/
+.gitignore
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Frontend deps (rebuilt in Docker)
+node_modules/
+
+# Runtime data
+data/
+
+# Environment (injected at runtime)
+.env
+
+# Tests
+tests/
+
+# Planning / docs
+.planning/
+.overstory/
+.claude/
+
+# Logs
+*.log
+
+# Media artifacts
+*.svg
+*.mp4
+*.wav
+*.png
+*.jpg
+*.jpeg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Playwright MCP
+.playwright-mcp/
