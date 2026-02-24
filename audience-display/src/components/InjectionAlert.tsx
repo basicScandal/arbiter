@@ -1,8 +1,23 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useMemo } from "react";
 import { useDisplayStore } from "../store/displayStore";
 
 export function InjectionAlert() {
   const alert = useDisplayStore((s) => s.injectionAlert);
+
+  // Glitch state — true for first 500ms on mount
+  const [glitching, setGlitching] = useState(false);
+
+  // Random vertical position for the TV glitch line (stable per mount)
+  const glitchLineY = useMemo(() => Math.random() * 80 + 10, [alert]);
+
+  useEffect(() => {
+    if (alert) {
+      setGlitching(true);
+      const timer = setTimeout(() => setGlitching(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [alert]);
 
   return (
     <AnimatePresence>
@@ -10,12 +25,47 @@ export function InjectionAlert() {
         <motion.div
           key="injection-alert"
           initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+            x: glitching ? [0, -8, 5, -3, 7, -5, 0] : 0,
+          }}
           exit={{ opacity: 0, scale: 1.05 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
+          transition={{
+            duration: 0.3,
+            ease: "easeOut",
+            x: { duration: 0.3, ease: "easeOut" },
+          }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center"
           style={{ background: "rgba(80, 0, 0, 0.88)" }}
         >
+          {/* CRT scanline overlay — fades out over 0.5s */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            initial={{ opacity: 0.6 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            style={{
+              background:
+                "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px)",
+              mixBlendMode: "multiply",
+            }}
+          />
+
+          {/* TV glitch line — thin white bar at random Y */}
+          <motion.div
+            className="absolute left-0 right-0 pointer-events-none"
+            initial={{ opacity: 0.8 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            style={{
+              top: `${glitchLineY}%`,
+              height: "2px",
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 20%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0.7) 80%, transparent 100%)",
+            }}
+          />
+
           {/* Pulsing backdrop glow */}
           <motion.div
             className="absolute inset-0 pointer-events-none"

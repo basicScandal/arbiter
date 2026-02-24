@@ -21,6 +21,7 @@ interface SigilState {
   coreCycleDuration: number;
   color: EmotionVisuals;
   coreScale: [number, number, number];
+  strokeMultiplier: number;
 }
 
 function getSigilState(
@@ -35,6 +36,7 @@ function getSigilState(
       coreCycleDuration: 0.3,
       color: { primary: "#ff4444", secondary: "#ff0000", intensity: 1.0 },
       coreScale: [0.9, 1.1, 0.9],
+      strokeMultiplier: 1,
     };
   }
 
@@ -49,6 +51,7 @@ function getSigilState(
         coreCycleDuration: 1.5,
         color: { primary: "#00d4ff", secondary: "#00d4ff", intensity: 0.8 },
         coreScale: [0.92, 1.08, 0.92],
+        strokeMultiplier: 1,
       };
 
     case "commentary":
@@ -58,6 +61,7 @@ function getSigilState(
         coreCycleDuration: Math.max(1, 3 - emotionVisuals.intensity * 2),
         color: emotionVisuals,
         coreScale: [0.93, 1.12, 0.93],
+        strokeMultiplier: 1,
       };
 
     case "question":
@@ -67,6 +71,7 @@ function getSigilState(
         coreCycleDuration: 3,
         color: { primary: "#ff8c00", secondary: "#ff8c00", intensity: 0.6 },
         coreScale: [0.96, 1.04, 0.96],
+        strokeMultiplier: 1,
       };
 
     case "scorecard":
@@ -76,6 +81,7 @@ function getSigilState(
         coreCycleDuration: 2.5,
         color: { primary: "#ffd700", secondary: "#ffd700", intensity: 0.7 },
         coreScale: [0.97, 1.03, 0.97],
+        strokeMultiplier: 1,
       };
 
     case "deliberation":
@@ -85,6 +91,7 @@ function getSigilState(
         coreCycleDuration: 3,
         color: { primary: "#ffd700", secondary: "#00d4ff", intensity: 0.9 },
         coreScale: [0.95, 1.05, 0.95],
+        strokeMultiplier: 2,
       };
 
     case "idle":
@@ -96,6 +103,7 @@ function getSigilState(
         coreCycleDuration: 4,
         color: defaultVisuals,
         coreScale: [0.95, 1.05, 0.95],
+        strokeMultiplier: 1,
       };
   }
 }
@@ -132,6 +140,12 @@ export function ArbiterSigil({
   // Score burst counter
   const [scoreBurstKey, setScoreBurstKey] = useState(0);
 
+  // Question "lean forward" contraction counter
+  const [contractKey, setContractKey] = useState(0);
+
+  // High-intensity double pulse counter
+  const [doublePulseKey, setDoublePulseKey] = useState(0);
+
   // Speaking pulse — fire on new sentence during commentary
   useEffect(() => {
     if (
@@ -142,17 +156,33 @@ export function ArbiterSigil({
         scale: [1.0, 1.15, 1.0],
         transition: { duration: 0.5, times: [0, 0.3, 1], ease: "easeOut" },
       });
+
+      // Double pulse for high-intensity emotions (>= 0.7)
+      const intensity = emotion && emotionConfig[emotion]
+        ? emotionConfig[emotion].intensity
+        : 0;
+      if (intensity >= 0.7) {
+        setDoublePulseKey((k) => k + 1);
+      }
     }
     prevSentenceCountRef.current = sentenceCount;
-  }, [sentenceCount, activeScreen, coreControls]);
+  }, [sentenceCount, activeScreen, coreControls, emotion]);
 
-  // Shockwave on thinking entry
+  // Shockwave on thinking entry + contraction on question entry
   useEffect(() => {
     if (activeScreen === "thinking" && prevScreenRef.current !== "thinking") {
       setShockwaveKey((k) => k + 1);
     }
+    if (activeScreen === "question" && prevScreenRef.current !== "question") {
+      setContractKey((k) => k + 1);
+      // Interrogative lean: contract then expand all rings
+      coreControls.start({
+        scale: [1.0, 0.9, 1.0],
+        transition: { duration: 0.5, times: [0, 0.3, 1], ease: "easeOut" },
+      });
+    }
     prevScreenRef.current = activeScreen;
-  }, [activeScreen]);
+  }, [activeScreen, coreControls]);
 
   // Injection shatter
   useEffect(() => {
@@ -184,6 +214,7 @@ export function ArbiterSigil({
   const shatterOffset = shattered ? 30 : 0;
 
   const isQuestion = activeScreen === "question";
+  const isDeliberation = activeScreen === "deliberation";
 
   return (
     <div className={className}>
@@ -224,18 +255,38 @@ export function ArbiterSigil({
           )}
         </AnimatePresence>
 
+        {/* Question contraction ring — contracts inward then expands on question entry */}
+        <AnimatePresence>
+          {contractKey > 0 && (
+            <motion.circle
+              key={`contract-${contractKey}`}
+              cx={200}
+              cy={200}
+              fill="none"
+              stroke="#ff8c00"
+              strokeWidth={1.5}
+              initial={{ r: 180, opacity: 0.6 }}
+              animate={{ r: 160, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Outer ring — dashed, rotating, shatters outward on injection */}
         <motion.circle
           cx={200}
           cy={200}
           r={180}
           fill="none"
-          strokeWidth={injectionAlert ? 3 : 2}
+          strokeWidth={injectionAlert ? 3 : 2 * state.strokeMultiplier}
           strokeDasharray={dashArray}
           strokeLinecap="round"
           animate={{
             rotate: 360,
-            stroke: state.color.primary,
+            stroke: isDeliberation
+              ? ["#ffd700", "#00d4ff", "#ffffff", "#ffd700"]
+              : state.color.primary,
             opacity: state.opacity,
             scale: shattered ? 1.15 : 1,
           }}
@@ -245,7 +296,9 @@ export function ArbiterSigil({
               repeat: Infinity,
               ease: "linear",
             },
-            stroke: { duration: 0.6 },
+            stroke: isDeliberation
+              ? { duration: 6, repeat: Infinity, ease: "linear" }
+              : { duration: 0.6 },
             opacity: { duration: 0.6 },
             scale: { duration: shattered ? 0.2 : 0.8, ease: "easeOut" },
           }}
@@ -258,15 +311,19 @@ export function ArbiterSigil({
           cy={200}
           r={120}
           fill="none"
-          strokeWidth={injectionAlert ? 2.5 : 1.5}
+          strokeWidth={injectionAlert ? 2.5 : 1.5 * state.strokeMultiplier}
           animate={{
-            stroke: state.color.primary,
+            stroke: isDeliberation
+              ? ["#ffd700", "#00d4ff", "#ffffff", "#ffd700"]
+              : state.color.primary,
             opacity: state.opacity,
             translateY: shattered ? -shatterOffset * 0.5 : 0,
             scale: shattered ? 1.1 : 1,
           }}
           transition={{
-            stroke: { duration: 0.6 },
+            stroke: isDeliberation
+              ? { duration: 6, repeat: Infinity, ease: "linear" }
+              : { duration: 0.6 },
             opacity: { duration: 0.6 },
             translateY: { duration: shattered ? 0.15 : 0.8, ease: "easeOut" },
             scale: { duration: shattered ? 0.15 : 0.8, ease: "easeOut" },
@@ -352,6 +409,24 @@ export function ArbiterSigil({
               animate={{ r: 130, opacity: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Double pulse ring — fires on high-intensity sentences (delayed, larger) */}
+        <AnimatePresence>
+          {doublePulseKey > 0 && activeScreen === "commentary" && (
+            <motion.circle
+              key={`doublepulse-${doublePulseKey}`}
+              cx={200}
+              cy={200}
+              fill="none"
+              stroke={state.color.primary}
+              strokeWidth={1}
+              initial={{ r: 60, opacity: 0.5 }}
+              animate={{ r: 150, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
             />
           )}
         </AnimatePresence>
