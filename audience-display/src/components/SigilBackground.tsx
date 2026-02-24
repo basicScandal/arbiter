@@ -72,15 +72,39 @@ export function SigilBackground() {
         )}
       </AnimatePresence>
 
+      {/* CRT scanline overlay — red interference on background layer */}
+      <AnimatePresence>
+        {injectionAlert && (
+          <motion.div
+            key="crt-scanlines"
+            className="absolute inset-0 pointer-events-none"
+            initial={{ opacity: 0.5 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            style={{
+              background:
+                "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.08) 2px, rgba(255,0,0,0.08) 4px)",
+              mixBlendMode: "multiply",
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <motion.div
         animate={{
-          x: layout.x,
+          x: injectionAlert
+            ? [0, -12, 8, -5, 10, -7, 0]
+            : layout.x,
           y: layout.y,
           scale: layout.scale,
         }}
         transition={{
           duration: 0.8,
           ease: [0.25, 0.1, 0.25, 1], // cubic-bezier for smooth deceleration
+          x: injectionAlert
+            ? { duration: 0.3, ease: "easeOut" }
+            : undefined,
         }}
       >
         <ArbiterSigil
