@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDisplayStore } from "../store/displayStore";
 import { ArbiterSigil } from "./ArbiterSigil";
 
@@ -46,10 +46,32 @@ export function SigilBackground() {
       ? sentences[sentences.length - 1].emotion
       : undefined;
 
+  const criteriaAvgScore =
+    criteria.length > 0
+      ? criteria.reduce((sum, c) => sum + c.score, 0) / criteria.length
+      : 0;
+
   const layout = getSigilLayout(activeScreen);
 
   return (
     <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center">
+      {/* Screen border flash — red glow on injection alert */}
+      <AnimatePresence>
+        {injectionAlert && (
+          <motion.div
+            key="border-flash"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              boxShadow: "inset 0 0 60px 10px rgba(255, 68, 68, 0.6)",
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0.4] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, times: [0, 0.15, 1] }}
+          />
+        )}
+      </AnimatePresence>
+
       <motion.div
         animate={{
           x: layout.x,
@@ -69,6 +91,8 @@ export function SigilBackground() {
           hasScoreTotal={!!scoreTotal}
           hasWinnerRevealed={rankings.some((r) => r.rank === 1)}
           criteriaCount={criteria.length}
+          rankingsCount={rankings.length}
+          criteriaAvgScore={criteriaAvgScore}
         />
       </motion.div>
     </div>

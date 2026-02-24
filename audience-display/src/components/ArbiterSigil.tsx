@@ -5,6 +5,7 @@ import {
   defaultVisuals,
   type EmotionVisuals,
 } from "../lib/emotionConfig";
+import { scoreColor } from "../lib/scoreColor";
 
 interface ArbiterSigilProps {
   activeScreen: string;
@@ -14,6 +15,8 @@ interface ArbiterSigilProps {
   hasScoreTotal: boolean;
   hasWinnerRevealed: boolean;
   criteriaCount: number;
+  rankingsCount: number;
+  criteriaAvgScore: number;
   className?: string;
 }
 
@@ -126,6 +129,8 @@ export function ArbiterSigil({
   hasScoreTotal,
   hasWinnerRevealed,
   criteriaCount,
+  rankingsCount,
+  criteriaAvgScore,
   className,
 }: ArbiterSigilProps) {
   const state = getSigilState(activeScreen, emotion, injectionAlert);
@@ -157,6 +162,10 @@ export function ArbiterSigil({
   // Criteria fill flash state
   const prevCriteriaCountRef = useRef(criteriaCount);
   const [criteriaFlashKey, setCriteriaFlashKey] = useState(0);
+
+  // Ranking scan line state
+  const prevRankingsCountRef = useRef(rankingsCount);
+  const [rankScanKey, setRankScanKey] = useState(0);
 
   // Speaking pulse — fire on new sentence during commentary
   useEffect(() => {
@@ -239,6 +248,17 @@ export function ArbiterSigil({
     prevCriteriaCountRef.current = criteriaCount;
   }, [criteriaCount]);
 
+  // Ranking scan line — sweep on each new ranking during deliberation
+  useEffect(() => {
+    if (
+      rankingsCount > prevRankingsCountRef.current &&
+      activeScreen === "deliberation"
+    ) {
+      setRankScanKey((k) => k + 1);
+    }
+    prevRankingsCountRef.current = rankingsCount;
+  }, [rankingsCount, activeScreen]);
+
   const glowSize = Math.round(8 + state.color.intensity * 24);
   const glowColor = state.color.primary;
 
@@ -247,6 +267,10 @@ export function ArbiterSigil({
 
   const isQuestion = activeScreen === "question";
   const isDeliberation = activeScreen === "deliberation";
+  const isScorecard = activeScreen === "scorecard";
+
+  // Inner core grows ~2% per criterion during scorecard
+  const coreGrowth = isScorecard ? 1 + criteriaCount * 0.02 : 1;
 
   return (
     <div className={className}>
@@ -258,6 +282,12 @@ export function ArbiterSigil({
             <stop offset="30%" stopColor="#00d4ff" stopOpacity={1} />
             <stop offset="70%" stopColor="#00d4ff" stopOpacity={1} />
             <stop offset="100%" stopColor="#00d4ff" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="rankScanGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#ffd700" stopOpacity={0} />
+            <stop offset="30%" stopColor="#ffd700" stopOpacity={1} />
+            <stop offset="70%" stopColor="#ffd700" stopOpacity={1} />
+            <stop offset="100%" stopColor="#ffd700" stopOpacity={0} />
           </linearGradient>
         </defs>
 
@@ -357,7 +387,9 @@ export function ArbiterSigil({
           animate={{
             stroke: isDeliberation
               ? ["#ffd700", "#00d4ff", "#ffffff", "#ffd700"]
-              : state.color.primary,
+              : isScorecard && criteriaCount > 0
+                ? scoreColor(criteriaAvgScore)
+                : state.color.primary,
             opacity: state.opacity,
             translateY: shattered ? -shatterOffset * 0.5 : 0,
             scale: shattered ? 1.1 : 1,
@@ -412,7 +444,7 @@ export function ArbiterSigil({
             strokeWidth={0}
             animate={{
               fill: state.color.primary,
-              scale: state.coreScale,
+              scale: state.coreScale.map((s) => s * coreGrowth) as unknown as [number, number, number],
               opacity: state.opacity * 0.3,
               translateY: shattered ? shatterOffset * 0.3 : 0,
             }}
@@ -572,6 +604,23 @@ export function ArbiterSigil({
             opacity={0.4}
           />
         )}
+
+        {/* Ranking scan line — gold sweep on each new ranking during deliberation */}
+        <AnimatePresence>
+          {rankScanKey > 0 && activeScreen === "deliberation" && (
+            <motion.rect
+              key={`rankscan-${rankScanKey}`}
+              x={0}
+              width={400}
+              height={2}
+              fill="url(#rankScanGradient)"
+              initial={{ y: 0, opacity: 0.5 }}
+              animate={{ y: 400, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
       </svg>
     </div>
   );
