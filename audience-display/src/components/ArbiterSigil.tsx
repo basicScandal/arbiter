@@ -29,7 +29,7 @@ interface SigilState {
   strokeMultiplier: number;
 }
 
-function getSigilState(
+export function getSigilState(
   activeScreen: string,
   emotion?: string,
   injectionAlert?: boolean,
@@ -113,7 +113,7 @@ function getSigilState(
   }
 }
 
-function outerRingDashArray(r: number, segments: number): string {
+export function outerRingDashArray(r: number, segments: number): string {
   const circumference = 2 * Math.PI * r;
   const segLen = circumference / segments;
   const dash = segLen * 0.6;
