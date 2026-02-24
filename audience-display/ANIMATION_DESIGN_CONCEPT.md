@@ -461,4 +461,58 @@ sessionIntensity: number;         // Rolling average (last 5 emotions)
 
 ---
 
-*Document authored for NEBULA:FOG 2026 Arbiter animation system. Ready for implementation review.*
+---
+
+## 6. Implementation Status: COMPLETE
+
+*All three phases shipped. Verified in-browser 2026-02-24.*
+
+### Phase 1 — "The Sigil Breathes" ✅
+- `ArbiterSigil.tsx` — three concentric SVG rings with Framer Motion
+- Persistent background layer via `SigilBackground.tsx` in `ScreenRouter`
+- `activeScreen` wired to sigil state (idle/thinking/commentary/question/scorecard/deliberation)
+- `commentarySentences[latest].emotion` drives sigil color
+- Commentary layout: sigil left, text right
+
+### Phase 2 — "The Sigil Speaks" ✅
+- Speaking pulse — inner core scale bump per new sentence
+- Emotion crossfade — colors and ring speed driven by `emotionConfig`
+- Double pulse — fires on high-intensity emotions (>= 0.7)
+- Shockwave — radial ring burst on thinking entry
+- Gold burst — expanding ring + core scale-up on score total
+- Shatter/reassemble — rings separate outward on injection alert
+- Diamond morph — inner core rotates to diamond on question screen
+- Question contraction — rings contract inward then expand on entry
+
+### Phase 3 — "The World Reacts" ✅
+- `ParticleGrid.tsx` — CSS particle grid background
+- Particle behaviors wired to emotion state
+- Sigil position/scale transitions per screen via `getSigilLayout()`
+- Transition timings polished across all state pairs
+
+### Animation Polish (post-Phase 3) ✅
+- Winner explosion — 150% scale burst + double gold expanding rings on rank #1
+- Criteria ring fill — outer ring segments fill as criteria arrive (pathLength-based)
+- Criteria flash — brief ring flash on each new criterion
+- Thinking scan line — horizontal sweep during analysis
+- Ranking scan line — gold sweep on each new ranking during deliberation
+- Inner core growth — core scales +2% per criterion during scorecard
+- Middle ring scoreColor — ring color reflects running score average (red→green)
+- Screen border flash — red inset box-shadow glow on injection alerts
+- Deliberation color cycling — outer/middle rings cycle gold→cyan→white
+- Deliberation doubled stroke width
+
+### Test Coverage
+- `scoreColor` — 7 tests (boundaries, clamping, all color bands)
+- `formatScore` — 3 tests (formatting, rounding)
+- `getSigilState` — 14 tests (all screen states, injection override, emotion scaling)
+- `outerRingDashArray` — 3 tests (dash/gap ratio, segment math)
+
+### Files Created
+```
+src/components/ArbiterSigil.tsx       — Sigil SVG + all animation effects
+src/components/SigilBackground.tsx    — Layout, prop computation, border flash
+src/components/ParticleGrid.tsx       — CSS particle grid background
+src/lib/emotionConfig.ts              — Emotion → visual parameter mapping
+src/lib/scoreColor.ts                 — Score → color utility
+```
