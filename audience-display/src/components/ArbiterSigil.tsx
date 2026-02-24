@@ -12,6 +12,8 @@ interface ArbiterSigilProps {
   sentenceCount: number;
   injectionAlert: boolean;
   hasScoreTotal: boolean;
+  hasWinnerRevealed: boolean;
+  criteriaCount: number;
   className?: string;
 }
 
@@ -122,6 +124,8 @@ export function ArbiterSigil({
   sentenceCount,
   injectionAlert,
   hasScoreTotal,
+  hasWinnerRevealed,
+  criteriaCount,
   className,
 }: ArbiterSigilProps) {
   const state = getSigilState(activeScreen, emotion, injectionAlert);
@@ -145,6 +149,14 @@ export function ArbiterSigil({
 
   // High-intensity double pulse counter
   const [doublePulseKey, setDoublePulseKey] = useState(0);
+
+  // Winner explosion state
+  const prevWinnerRef = useRef(false);
+  const [winnerBurstKey, setWinnerBurstKey] = useState(0);
+
+  // Criteria fill flash state
+  const prevCriteriaCountRef = useRef(criteriaCount);
+  const [criteriaFlashKey, setCriteriaFlashKey] = useState(0);
 
   // Speaking pulse — fire on new sentence during commentary
   useEffect(() => {
@@ -207,6 +219,26 @@ export function ArbiterSigil({
     prevScoreTotalRef.current = hasScoreTotal;
   }, [hasScoreTotal, coreControls]);
 
+  // Winner explosion — 150% scale burst + double gold rings
+  useEffect(() => {
+    if (hasWinnerRevealed && !prevWinnerRef.current) {
+      setWinnerBurstKey((k) => k + 1);
+      coreControls.start({
+        scale: [1.0, 1.5, 1.0],
+        transition: { duration: 0.8, times: [0, 0.25, 1], ease: "easeOut" },
+      });
+    }
+    prevWinnerRef.current = hasWinnerRevealed;
+  }, [hasWinnerRevealed, coreControls]);
+
+  // Criteria fill flash — flash on each new criterion
+  useEffect(() => {
+    if (criteriaCount > prevCriteriaCountRef.current) {
+      setCriteriaFlashKey((k) => k + 1);
+    }
+    prevCriteriaCountRef.current = criteriaCount;
+  }, [criteriaCount]);
+
   const glowSize = Math.round(8 + state.color.intensity * 24);
   const glowColor = state.color.primary;
 
@@ -219,6 +251,16 @@ export function ArbiterSigil({
   return (
     <div className={className}>
       <svg viewBox="0 0 400 400" className="w-80 h-80">
+        {/* Gradient defs for scan line */}
+        <defs>
+          <linearGradient id="scanGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#00d4ff" stopOpacity={0} />
+            <stop offset="30%" stopColor="#00d4ff" stopOpacity={1} />
+            <stop offset="70%" stopColor="#00d4ff" stopOpacity={1} />
+            <stop offset="100%" stopColor="#00d4ff" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+
         {/* Shockwave ring — one-shot expanding circle */}
         <AnimatePresence>
           {shockwaveKey > 0 && (
@@ -443,6 +485,93 @@ export function ArbiterSigil({
           animate={coreControls}
           style={{ originX: "200px", originY: "200px" }}
         />
+
+        {/* Winner explosion — primary gold burst ring */}
+        <AnimatePresence>
+          {winnerBurstKey > 0 && (
+            <motion.circle
+              key={`winnerburst1-${winnerBurstKey}`}
+              cx={200}
+              cy={200}
+              fill="none"
+              stroke="#ffd700"
+              strokeWidth={4}
+              initial={{ r: 60, opacity: 1 }}
+              animate={{ r: 250, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Winner explosion — secondary burst ring (delayed, thinner) */}
+        <AnimatePresence>
+          {winnerBurstKey > 0 && (
+            <motion.circle
+              key={`winnerburst2-${winnerBurstKey}`}
+              cx={200}
+              cy={200}
+              fill="none"
+              stroke="#ffd700"
+              strokeWidth={2}
+              initial={{ r: 80, opacity: 0.8 }}
+              animate={{ r: 220, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Criteria segment fill — gold arc grows as criteria arrive */}
+        {activeScreen === "scorecard" && (
+          <motion.circle
+            cx={200}
+            cy={200}
+            r={180}
+            fill="none"
+            pathLength={12}
+            strokeWidth={3}
+            strokeLinecap="round"
+            animate={{
+              strokeDasharray: `${criteriaCount} ${12 - criteriaCount}`,
+              stroke: "#ffd700",
+            }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            style={{ originX: "200px", originY: "200px" }}
+          />
+        )}
+
+        {/* Criteria flash ring — brief flash on each new criterion */}
+        <AnimatePresence>
+          {criteriaFlashKey > 0 && activeScreen === "scorecard" && (
+            <motion.circle
+              key={`criteriaflash-${criteriaFlashKey}`}
+              cx={200}
+              cy={200}
+              r={180}
+              fill="none"
+              stroke="#ffd700"
+              strokeWidth={2}
+              initial={{ opacity: 0.6 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Thinking scan line — vertical sweep during analysis */}
+        {activeScreen === "thinking" && (
+          <motion.rect
+            x={0}
+            width={400}
+            height={2}
+            fill="url(#scanGradient)"
+            animate={{ y: [0, 400] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            opacity={0.4}
+          />
+        )}
       </svg>
     </div>
   );

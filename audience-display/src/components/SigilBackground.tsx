@@ -38,6 +38,8 @@ export function SigilBackground() {
   const sentences = useDisplayStore((s) => s.commentarySentences);
   const injectionAlert = useDisplayStore((s) => s.injectionAlert);
   const scoreTotal = useDisplayStore((s) => s.scoreTotal);
+  const rankings = useDisplayStore((s) => s.rankings);
+  const criteria = useDisplayStore((s) => s.criteria);
 
   const latestEmotion =
     sentences.length > 0
@@ -65,6 +67,8 @@ export function SigilBackground() {
           sentenceCount={sentences.length}
           injectionAlert={!!injectionAlert}
           hasScoreTotal={!!scoreTotal}
+          hasWinnerRevealed={rankings.some((r) => r.rank === 1)}
+          criteriaCount={criteria.length}
         />
       </motion.div>
     </div>
