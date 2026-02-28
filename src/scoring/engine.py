@@ -116,17 +116,21 @@ class ScoringEngine:
         else:
             try:
                 raw_text = await self._call_gemini(prompt)
+                if self._circuit_breaker:
+                    self._circuit_breaker.record_success()
                 return self._parse_and_validate(
                     raw_text, sanitized.team_name, track, criteria, track_criteria
                 )
             except DailyQuotaExhausted:
                 if self._circuit_breaker:
-                    self._circuit_breaker.trip()
+                    self._circuit_breaker.trip_permanent()
                 logger.warning(
                     "Gemini scoring failed (daily quota) for team %s, trying Claude fallback",
                     sanitized.team_name,
                 )
             except Exception:
+                if self._circuit_breaker:
+                    self._circuit_breaker.trip()
                 logger.warning(
                     "Gemini scoring failed for team %s, trying Claude fallback",
                     sanitized.team_name,

@@ -141,11 +141,15 @@ class DeliberationEngine:
         else:
             try:
                 result = await self._call_gemini(prompt)
+                if self._circuit_breaker and result is not None:
+                    self._circuit_breaker.record_success()
             except DailyQuotaExhausted:
                 if self._circuit_breaker:
-                    self._circuit_breaker.trip()
+                    self._circuit_breaker.trip_permanent()
                 logger.warning("Gemini deliberation failed (daily quota), trying Claude fallback")
             except Exception:
+                if self._circuit_breaker:
+                    self._circuit_breaker.trip()
                 logger.warning("Gemini deliberation failed, trying Claude fallback", exc_info=True)
 
         # Fallback: Claude

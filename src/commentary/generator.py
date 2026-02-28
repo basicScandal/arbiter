@@ -142,11 +142,15 @@ class CommentaryGenerator:
         else:
             try:
                 full_text = await self._stream_gemini(user_prompt)
+                if self._circuit_breaker and full_text.strip():
+                    self._circuit_breaker.record_success()
             except DailyQuotaExhausted:
                 if self._circuit_breaker:
-                    self._circuit_breaker.trip()
+                    self._circuit_breaker.trip_permanent()
                 logger.warning("Gemini commentary failed (daily quota) for team %s", sanitized.team_name)
             except Exception:
+                if self._circuit_breaker:
+                    self._circuit_breaker.trip()
                 logger.exception("Gemini commentary failed for team %s", sanitized.team_name)
 
         # Fallback: Groq

@@ -56,4 +56,5 @@ addopts = "-x --tb=short"
 markers = [
     "integration: tests requiring full pipeline wiring or external dependencies",
     "slow: tests taking >5s (real API calls, cassette recording)",
+    "smoke: pre-event go/no-go smoke test",
 ]
