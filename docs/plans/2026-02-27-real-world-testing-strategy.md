@@ -1,7 +1,7 @@
 # Arbiter Real-World Testing Strategy
 
 **Date**: 2026-02-27
-**Status**: Phases 0-4 automated testing complete (860 tests)
+**Status**: Phases 0-4 automated testing complete, VCR cassettes recorded (864 tests)
 **Updated**: 2026-02-28
 **Timeline**: 4 weeks before NEBULA:FOG 2026
 
@@ -107,7 +107,7 @@ Zero infrastructure required. Highest ROI per hour invested.
 
 | # | Action | Effort | Addresses | Status |
 |---|--------|--------|-----------|--------|
-| 0.1 | Record VCR cassettes -- run scoring against live APIs, capture real responses (success + 429 errors) | 1h | All | Remaining (requires live API keys) |
+| 0.1 | Record VCR cassettes -- run scoring against live APIs, capture real responses (success + 429 errors) | 1h | All | Done (4 cassettes: Gemini scoring/commentary, Claude scoring, Groq commentary) |
 | 0.2 | Injection test corpus -- `tests/injection_corpus.py` with 50+ attack payloads AND 20+ false-positive security-discussion texts | 3-4h | FM2 | Done |
 | 0.3 | Fix circuit breaker -- add half-open state with 60s cooldown probe | 1h | FM1 | Done |
 | 0.4 | `make smoke` command -- starts rehearsal, connects WS, runs 1 demo, asserts valid score in <60s | 2-4h | All | Done (`pytest -m smoke`) |
@@ -165,7 +165,7 @@ Build fault injection into existing test infrastructure.
 
 | Priority | Item | Failure Mode | Impact | Effort | Status |
 |----------|------|-------------|--------|--------|--------|
-| P0 | Record VCR cassettes | All | Critical | 1h | Remaining |
+| P0 | Record VCR cassettes | All | Critical | 1h | Done |
 | P0 | `make smoke` command | All | Critical | 2-4h | Done |
 | P0 | Fix circuit breaker | FM1 | Critical | 1h | Done |
 | P1 | Injection test corpus | FM2 | High | 3-4h | Done |
@@ -184,8 +184,8 @@ Build fault injection into existing test infrastructure.
 
 The system is ready for the live event when:
 
-1. `make smoke` passes consistently -- PASSING (860 tests, 0 failures)
-2. VCR cassettes capture real API response shapes and error formats -- Remaining
+1. `make smoke` passes consistently -- PASSING (864 tests, 0 failures)
+2. VCR cassettes capture real API response shapes and error formats -- VERIFIED (4 cassettes, 3 providers)
 3. Circuit breaker recovers from transient failures within 120 seconds -- VERIFIED
 4. Injection detection rate > 95%, false positive rate < 5% -- VERIFIED
 5. Scoring variance < 1.0 stdev per criterion across 5 identical runs -- VERIFIED

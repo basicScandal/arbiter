@@ -98,20 +98,24 @@ def event_collector(event_bus: EventBus) -> EventCollector:
 
 
 @pytest.fixture(scope="module")
-def vcr_config() -> dict:
+def vcr_config(request) -> dict:
     """Configure VCR for HTTP cassette recording/playback.
 
-    Filters sensitive headers, disables recording by default (playback only),
-    and stores cassettes in tests/cassettes/.
+    Filters sensitive headers, stores cassettes in tests/cassettes/, and
+    defaults to playback-only mode unless --record-mode is passed via CLI.
     """
-    return {
+    config: dict = {
         "filter_headers": [
             "authorization",
             "x-api-key",
             "x-goog-api-key",
             "anthropic-api-key",
         ],
-        "record_mode": "none",
         "cassette_library_dir": "tests/cassettes",
         "decode_compressed_response": True,
     }
+    # Only hardcode "none" when the CLI flag isn't overriding it.
+    # pytest-recording's --record-mode flag needs to win when present.
+    if not request.config.getoption("--record-mode", default=None):
+        config["record_mode"] = "none"
+    return config
