@@ -309,7 +309,12 @@ class CommentaryPipeline:
             logger.exception("Q&A delivery failed")
 
     async def _on_demo_started(self, event: DemoStarted) -> None:
-        """Play start chime when a demo begins."""
+        """Cancel any in-flight TTS and play start chime when a demo begins.
+
+        Cancels pending speak() calls from the previous demo's commentary
+        to prevent old audio from bleeding into the new demo.
+        """
+        self._tts.cancel()
         try:
             await self._tts.play_sound(self._sounds.start_chime)
         except Exception:
