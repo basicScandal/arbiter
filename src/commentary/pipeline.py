@@ -28,6 +28,7 @@ from src.commentary.tts_engine import TTSEngine
 from src.defense.models import InjectionDetected, ObservationVerified, SanitizedOutput
 from src.providers.base import LLMProvider
 from src.resilience.health import default_health
+from src.resilience.metrics import default_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,7 @@ class CommentaryPipeline:
         """
         team_name = event.output.team_name
         full_text = ""
+        _commentary_start = time.monotonic()
 
         try:
             self._last_sanitized = event.output
@@ -249,6 +251,11 @@ class CommentaryPipeline:
             logger.exception(
                 "Commentary delivery failed for team: %s", team_name,
             )
+
+        # Record commentary latency before publishing the delivered event.
+        default_metrics.observe_seconds(
+            "commentary.latency_sec", time.monotonic() - _commentary_start,
+        )
 
         # ALWAYS publish — scoring pipeline depends on this event to
         # trigger the theatrical score reveal. Without it, scores hang.
