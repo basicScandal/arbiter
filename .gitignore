@@ -53,6 +53,9 @@ data/
 # Playwright MCP logs
 .playwright-mcp/
 
+# Serena MCP
+.serena/
+
 # Frontend dependencies (each app has its own)
 node_modules/
 
