@@ -72,6 +72,7 @@ class TTSEngine:
         self._sample_rate = 44100
         self._connected = False
         self._closing = False
+        self._cancelled = asyncio.Event()
         self._speak_lock = asyncio.Lock()
         self._fallback = FallbackChain([
             OpenAITTSFallback(),
@@ -152,6 +153,11 @@ class TTSEngine:
             is_continuation: Whether this continues a prior context send.
         """
         if self._closing:
+            return
+
+        # Check cancellation before acquiring the lock
+        if self._cancelled.is_set():
+            self._cancelled.clear()
             return
 
         async with self._speak_lock:
@@ -245,6 +251,16 @@ class TTSEngine:
                 logger.warning("macOS say fallback not available")
         except Exception:
             logger.exception("macOS say fallback also failed")
+
+    def cancel(self) -> None:
+        """Cancel pending speak() calls.
+
+        Sets a cancellation flag checked by speak() before acquiring the
+        lock. The flag is cleared on the next speak() call so the engine
+        can be reused after cancellation.
+        """
+        self._cancelled.set()
+        logger.info("TTS engine cancelled -- pending speaks will be skipped")
 
     async def speak_commentary(
         self,
