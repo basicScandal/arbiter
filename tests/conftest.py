@@ -13,6 +13,7 @@ import pytest
 from src.capture.event_bus import EventBus
 import src.capture.event_bus as event_bus_module
 import src.resilience.health as health_module
+from src.resilience.metrics import default_metrics
 from src.resilience.rate_limiter import GeminiRateLimiter
 from tests.helpers.event_collector import EventCollector
 
@@ -54,8 +55,14 @@ def _do_reset() -> None:
     # Clear EventBus state in-place
     _original_bus._subscribers.clear()
     _original_bus._global_subscribers.clear()
+    _original_bus._pending_count = 0
+    _original_bus._drain_event.set()
     # Ensure the module attribute points to the canonical object
     event_bus_module.default_bus = _original_bus
+
+    # Clear Metrics state in-place
+    default_metrics._counters.clear()
+    default_metrics._timers.clear()
 
     # Clear ServiceHealth state in-place
     _original_health._healthy.clear()
