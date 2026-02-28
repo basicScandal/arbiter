@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
@@ -19,6 +20,7 @@ from src.scoring.engine import ScoringEngine
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete
 from src.scoring.store import ScoreStore
+from src.resilience.metrics import default_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,7 @@ class ScoringPipeline:
         """
         team_name = event.output.team_name
         track = self._pending_tracks.get(team_name, "ROGUE::AGENT")
+        _scoring_start = time.monotonic()
 
         try:
             # Use MoE engine if available, otherwise single-model engine
@@ -81,6 +84,9 @@ class ScoringPipeline:
             scorecard = await engine.score(event.output, track)
             self._pending_scorecards[team_name] = scorecard
             await self._store.save(scorecard)
+            default_metrics.observe_seconds(
+                "scoring.latency_sec", time.monotonic() - _scoring_start,
+            )
             logger.info(
                 "Scored team %s: %.1f (track: %s)",
                 team_name,
@@ -129,6 +135,7 @@ class ScoringPipeline:
         The entire reveal is wrapped in try/except to prevent display errors
         from crashing the pipeline.
         """
+        _reveal_start = time.monotonic()
         try:
             # Phase 1: Intro
             await self._display.push_score_intro(scorecard.team_name)
@@ -164,6 +171,9 @@ class ScoringPipeline:
 
             # Publish score revealed event
             if self._event_bus is not None:
+                default_metrics.observe_seconds(
+                    "reveal.latency_sec", time.monotonic() - _reveal_start,
+                )
                 self._event_bus.publish(
                     ScoreRevealed(team_name=scorecard.team_name)
                 )
