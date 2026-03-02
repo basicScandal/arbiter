@@ -1,8 +1,8 @@
 # Arbiter Real-World Testing Strategy
 
 **Date**: 2026-02-27
-**Status**: Phases 0-4 automated testing complete, VCR cassettes recorded (864 tests)
-**Updated**: 2026-02-28
+**Status**: Phases 0-5 automated testing complete, VCR cassettes recorded (1089 tests)
+**Updated**: 2026-03-02
 **Timeline**: 4 weeks before NEBULA:FOG 2026
 
 ## Problem Statement
@@ -161,6 +161,19 @@ Build fault injection into existing test infrastructure.
 - Memory profiling under sustained load (< 500MB)
 - WS latency assertions (< 100ms)
 
+### Phase 5: Historical Demo Replay & Re-Scoring -- COMPLETE
+
+**Automated (done):**
+- Historical pipeline replay: 15 real demo observation sets through full event-bus pipeline (Defense → Scoring → Commentary → Deliberation): Done
+- Cached observation re-scoring: prompt construction validation for all 15 teams (team name, track, observations, transcripts, duration, calibration anchors): Done
+- Scoring path validation: weighted total computation, rubric weight enforcement, non-fallback scorecard verification: Done
+- 225 new tests (15 pipeline replay + 210 scoring engine), all passing
+
+**Key files:**
+- `tests/helpers/demo_memory.py` -- DemoMemory loader and SanitizedOutput converter
+- `tests/test_historical_pipeline_replay.py` -- Full pipeline replay (15 parametrized tests)
+- `tests/test_cached_observation_scoring.py` -- Prompt construction + scoring path (210 parametrized tests)
+
 ## Priority Matrix
 
 | Priority | Item | Failure Mode | Impact | Effort | Status |
@@ -178,13 +191,15 @@ Build fault injection into existing test infrastructure.
 | P2 | WebSocket reconnection test | FM3 | Medium | 4-6h | Remaining |
 | P3 | Chaos marathon (automated) | FM1, FM3 | Medium | 8-12h | Done |
 | P3 | Chaos marathon (Docker) | FM1, FM3 | Medium | 4-6h | Remaining |
+| P3 | Historical demo replay | FM4 | Medium | 2-3h | Done |
+| P3 | Cached observation re-scoring | FM4 | Medium | 2-3h | Done |
 | P3 | Exploratory testing sessions | FM2, FM3 | Medium | 3x45m | Remaining |
 
 ## Success Criteria
 
 The system is ready for the live event when:
 
-1. `make smoke` passes consistently -- PASSING (864 tests, 0 failures)
+1. `make smoke` passes consistently -- PASSING (1089 tests, 0 failures)
 2. VCR cassettes capture real API response shapes and error formats -- VERIFIED (4 cassettes, 3 providers)
 3. Circuit breaker recovers from transient failures within 120 seconds -- VERIFIED
 4. Injection detection rate > 95%, false positive rate < 5% -- VERIFIED
