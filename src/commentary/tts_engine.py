@@ -155,13 +155,19 @@ class TTSEngine:
         if self._closing:
             return
 
-        # Check cancellation before acquiring the lock
+        # Check cancellation before acquiring the lock.
+        # Flag stays set so ALL queued speaks see it — only cleared
+        # by pipeline._on_observation_verified() when new commentary begins.
         if self._cancelled.is_set():
-            self._cancelled.clear()
             return
 
         async with self._speak_lock:
             if self._closing:
+                return
+
+            # Second check after acquiring lock — a cancel() may have
+            # fired while we were waiting on the lock.
+            if self._cancelled.is_set():
                 return
 
             connected = await self._ensure_connected()
@@ -237,6 +243,9 @@ class TTSEngine:
         await ctx.no_more_inputs()
 
         async for event in ctx.receive():
+            if self._cancelled.is_set():
+                logger.info("TTS cancelled mid-stream, breaking out")
+                break
             if event.type == "chunk" and event.audio:
                 processed = self._audio_processor.process_chunk(event.audio)
                 await asyncio.to_thread(self._stream.write, processed)

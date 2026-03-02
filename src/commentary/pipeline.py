@@ -36,6 +36,13 @@ logger = logging.getLogger(__name__)
 # Partial sentences delivered before timeout are still kept.
 _COMMENTARY_TIMEOUT = 30
 
+# Outer safety net wrapping the entire commentary handler.
+# Catches edge cases the inner _COMMENTARY_TIMEOUT misses (e.g.
+# _deliver_sentence hangs on display push, generator close() blocks).
+# Must be > _COMMENTARY_TIMEOUT to let the inner timeout fire first
+# under normal conditions.
+_PIPELINE_TIMEOUT = 45
+
 # Pre-written injection quips for zero-latency real-time reactions.
 # {type} is replaced with the injection type (e.g. "prompt_injection").
 _INJECTION_QUIPS: list[str] = [
@@ -207,45 +214,63 @@ class CommentaryPipeline:
         full_text = ""
         _commentary_start = time.monotonic()
 
+        # Clear cancellation flag from previous demo so new speaks work.
+        # cancel() in _on_demo_started sets the flag persistently — all
+        # old queued speaks see it. We clear here because this is the
+        # earliest point where new commentary will call speak().
+        self._tts._cancelled.clear()
+
+        # Declared outside the timeout scope so partial sentences survive
+        # both inner and outer timeouts.
+        sentences: list[str] = []
+
         try:
-            self._last_sanitized = event.output
+            async with asyncio.timeout(_PIPELINE_TIMEOUT):
+                self._last_sanitized = event.output
 
-            # Clear display before new commentary
-            await self._display.clear()
+                # Clear display before new commentary
+                await self._display.clear()
 
-            context_id = str(uuid.uuid4())[:8]
+                context_id = str(uuid.uuid4())[:8]
 
-            # Always stream for minimum latency — speak each sentence the
-            # moment it's detected in the LLM stream. Enrichment is skipped
-            # in streaming mode because latency reduction > text polish.
-            # Timeout prevents indefinite hangs from stalled LLM streams.
-            # Both timeouts and mid-stream crashes are caught here so that
-            # partial sentences are preserved in full_text.
-            sentences: list[str] = []
-            try:
-                async with asyncio.timeout(_COMMENTARY_TIMEOUT):
-                    async for sentence, emotion, i in self._generator.stream_sentences(event.output):
-                        sentences.append(sentence)
-                        await self._deliver_sentence(
-                            sentence, team_name, context_id,
-                            emotion, is_continuation=(i > 0),
-                            sentence_index=i,
-                        )
-            except TimeoutError:
-                logger.warning(
-                    "Commentary generation timed out after %ds for team: %s "
-                    "(delivered %d sentences before timeout)",
-                    _COMMENTARY_TIMEOUT, team_name, len(sentences),
-                )
-            except Exception:
-                logger.exception(
-                    "Commentary streaming failed for team: %s "
-                    "(delivered %d sentences before failure)",
-                    team_name, len(sentences),
-                )
+                # Always stream for minimum latency — speak each sentence the
+                # moment it's detected in the LLM stream. Enrichment is skipped
+                # in streaming mode because latency reduction > text polish.
+                # Timeout prevents indefinite hangs from stalled LLM streams.
+                # Both timeouts and mid-stream crashes are caught here so that
+                # partial sentences are preserved in full_text.
+                try:
+                    async with asyncio.timeout(_COMMENTARY_TIMEOUT):
+                        async for sentence, emotion, i in self._generator.stream_sentences(event.output):
+                            sentences.append(sentence)
+                            await self._deliver_sentence(
+                                sentence, team_name, context_id,
+                                emotion, is_continuation=(i > 0),
+                                sentence_index=i,
+                            )
+                except TimeoutError:
+                    logger.warning(
+                        "Commentary generation timed out after %ds for team: %s "
+                        "(delivered %d sentences before timeout)",
+                        _COMMENTARY_TIMEOUT, team_name, len(sentences),
+                    )
+                except Exception:
+                    logger.exception(
+                        "Commentary streaming failed for team: %s "
+                        "(delivered %d sentences before failure)",
+                        team_name, len(sentences),
+                    )
+                full_text = " ".join(sentences)
+
+                logger.info("Commentary delivered for team: %s", team_name)
+
+        except TimeoutError:
+            logger.warning(
+                "Outer pipeline timeout (%ds) fired for team: %s — "
+                "commentary handler took too long (inner timeout may have missed)",
+                _PIPELINE_TIMEOUT, team_name,
+            )
             full_text = " ".join(sentences)
-
-            logger.info("Commentary delivered for team: %s", team_name)
 
         except Exception:
             logger.exception(
