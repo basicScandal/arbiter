@@ -14,12 +14,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.capture.event_bus import EventBus
 from src.commentary.generator import CommentaryGenerator
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.scoring.engine import ScoringEngine
-from tests.helpers.event_collector import EventCollector
 
 
 def _make_sanitized(team_name: str = "ChaosTeam") -> SanitizedOutput:

@@ -17,12 +17,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.commentary.display_server import DisplayServer
-from src.defense.models import ObservationVerified, SanitizedOutput
 from src.commentary.pipeline import CommentaryPipeline
+from src.defense.models import ObservationVerified, SanitizedOutput
+from src.memory.pipeline import DeliberationPipeline
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
-from src.memory.pipeline import DeliberationPipeline
-
 
 # ---------------------------------------------------------------------------
 # Shared test data

@@ -25,7 +25,7 @@ from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.rate_limiter import GeminiRateLimiter
-from src.resilience.retry import DailyQuotaExhausted, GEMINI_RETRY
+from src.resilience.retry import GEMINI_RETRY, DailyQuotaExhausted
 
 logger = logging.getLogger(__name__)
 

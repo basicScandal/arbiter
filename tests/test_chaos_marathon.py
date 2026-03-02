@@ -11,7 +11,6 @@ Covers Phase 4 chaos marathon requirements (automatable portion).
 from __future__ import annotations
 
 import asyncio
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,7 +24,6 @@ from src.memory.pipeline import DeliberationPipeline
 from src.resilience.metrics import default_metrics
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
-
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -257,7 +255,6 @@ async def test_chaos_with_intermittent_failures(event_bus, event_collector):
 
             # Wait for pipeline to settle
             deadline = asyncio.get_event_loop().time() + 10.0
-            target = min(i + 1, expected_reveals) if i not in scoring_fail_demos else event_collector.count("score_revealed")
             # Just wait for commentary_delivered which always fires
             while event_collector.count("commentary_delivered") < i + 1:
                 if asyncio.get_event_loop().time() > deadline:

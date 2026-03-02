@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from src.capture.models import CaptureEvent
 
-
 # ---------------------------------------------------------------------------
 # Core commentary types
 # ---------------------------------------------------------------------------

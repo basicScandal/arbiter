@@ -6,10 +6,7 @@ provider convergence after calibration, and score clamping at extremes.
 
 from __future__ import annotations
 
-import pytest
-
 from src.scoring.aggregator import DEFAULT_CALIBRATION, ScoreAggregator
-
 
 # ---------------------------------------------------------------------------
 # Tests

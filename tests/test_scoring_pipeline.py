@@ -15,9 +15,8 @@ from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
 from src.defense.models import ObservationVerified, SanitizedOutput
-from src.scoring.models import CriterionScore, DemoScorecard, ScoringComplete, ScoreRevealed
+from src.scoring.models import CriterionScore, DemoScorecard, ScoreRevealed, ScoringComplete
 from src.scoring.pipeline import ScoringPipeline
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -14,10 +14,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.defense.models import InjectionAttempt, SanitizedOutput
-from src.scoring.engine import ScoringEngine
 from src.resilience.retry import DailyQuotaExhausted
+from src.scoring.engine import ScoringEngine
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from fastapi import WebSocket, WebSocketDisconnect, Query, status
+from fastapi import Query, WebSocket, WebSocketDisconnect, status
 from statemachine.exceptions import TransitionNotAllowed
 
 from src.capture.demo_machine import DemoMachine
@@ -23,9 +23,9 @@ from src.capture.event_bus import EventBus
 from src.capture.models import CaptureEvent
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import QARequested
+from src.config.tracks import VALID_TRACKS
 from src.memory.models import DeliberationRequested
 from src.operator.audit import log_command
-from src.config.tracks import VALID_TRACKS
 from src.resilience.metrics import default_metrics
 
 if TYPE_CHECKING:
@@ -149,6 +149,7 @@ class WebOperator:
         @app.get("/api/report-card/{team_name}")
         async def report_card_endpoint(team_name: str):
             from fastapi.responses import HTMLResponse
+
             from src.reports.card import generate_report_card_html
 
             html = await generate_report_card_html(team_name)
@@ -173,8 +174,9 @@ class WebOperator:
         @app.post("/api/human-score")
         async def submit_human_score(score: dict):
             """Submit a human judge's score for a team."""
-            from src.scoring.human import HumanScore, HumanScoreStore
             import time as _time
+
+            from src.scoring.human import HumanScore, HumanScoreStore
 
             try:
                 human_score = HumanScore(
@@ -199,8 +201,9 @@ class WebOperator:
         @app.get("/api/blended-score/{team_name}")
         async def blended_score_endpoint(team_name: str):
             """Get blended AI + human score for a team."""
-            from src.scoring.human import blend_scores
             from fastapi.responses import JSONResponse
+
+            from src.scoring.human import blend_scores
 
             result = await blend_scores(team_name)
             if result is None:
@@ -245,8 +248,9 @@ class WebOperator:
         @app.get("/api/export/{team_name}")
         async def export_team(team_name: str):
             """Export all data for a single team."""
-            from src.reports.export import export_team_data
             from fastapi.responses import JSONResponse
+
+            from src.reports.export import export_team_data
             result = await export_team_data(team_name)
             if result is None:
                 return JSONResponse(status_code=404, content={"error": f"No data found for team '{team_name}'"})

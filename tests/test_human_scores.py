@@ -15,14 +15,13 @@ import pytest
 from pydantic import ValidationError
 
 from src.scoring.human import (
+    AI_WEIGHT,
+    HUMAN_WEIGHT,
     HumanScore,
     HumanScoreStore,
     blend_scores,
-    AI_WEIGHT,
-    HUMAN_WEIGHT,
 )
 from src.scoring.models import CriterionScore, DemoScorecard
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

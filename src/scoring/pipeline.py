@@ -16,11 +16,11 @@ from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
 from src.defense.models import ObservationVerified
-from src.scoring.engine import ScoringEngine
-from src.scoring.moe_engine import MoEScoringEngine
-from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete
-from src.scoring.store import ScoreStore
 from src.resilience.metrics import default_metrics
+from src.scoring.engine import ScoringEngine
+from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete
+from src.scoring.moe_engine import MoEScoringEngine
+from src.scoring.store import ScoreStore
 
 logger = logging.getLogger(__name__)
 

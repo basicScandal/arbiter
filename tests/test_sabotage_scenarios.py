@@ -20,14 +20,11 @@ from src.commentary.pipeline import CommentaryPipeline
 from src.defense.models import (
     InjectionAttempt,
     InjectionDetected,
-    ObservationVerified,
-    SanitizedOutput,
 )
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
-
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -239,9 +236,6 @@ async def test_rapid_stop_start_between_demos(event_bus, event_collector):
     """
     mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
     mock_display = _make_mock_display()
-
-    scorecard_a = _make_scorecard("TeamA")
-    scorecard_b = _make_scorecard("TeamB")
 
     async def _score_by_team(sanitized, *args, **kwargs):
         return _make_scorecard(sanitized.team_name)

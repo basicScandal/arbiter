@@ -9,7 +9,6 @@ import pytest
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.retry import DailyQuotaExhausted
 
-
 # ---------------------------------------------------------------------------
 # Scoring engine + circuit breaker
 # ---------------------------------------------------------------------------
@@ -21,8 +20,8 @@ class TestScoringCircuitBreaker:
     @pytest.mark.asyncio
     async def test_skips_gemini_when_breaker_tripped(self):
         """When circuit breaker is tripped, Gemini is never called."""
-        from src.scoring.engine import ScoringEngine
         from src.defense.models import SanitizedOutput
+        from src.scoring.engine import ScoringEngine
 
         cb = GeminiCircuitBreaker()
         cb.trip()
@@ -50,8 +49,8 @@ class TestScoringCircuitBreaker:
     @pytest.mark.asyncio
     async def test_trips_breaker_on_daily_quota(self):
         """DailyQuotaExhausted from scoring should trip the shared breaker."""
-        from src.scoring.engine import ScoringEngine
         from src.defense.models import SanitizedOutput
+        from src.scoring.engine import ScoringEngine
 
         cb = GeminiCircuitBreaker()
         assert cb.available is True
@@ -161,7 +160,7 @@ class TestDeliberationCircuitBreaker:
     async def test_skips_gemini_when_breaker_tripped(self):
         """When circuit breaker is tripped, Gemini is never called for deliberation."""
         from src.memory.deliberation_engine import DeliberationEngine
-        from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
+        from src.memory.models import DeliberationResult, DemoMemory, TeamRanking
         from src.scoring.models import CriterionScore, DemoScorecard
 
         cb = GeminiCircuitBreaker()
@@ -212,8 +211,8 @@ class TestCrossComponentPropagation:
 
     def test_scoring_trip_affects_commentary(self):
         """When scoring trips the breaker, commentary should see it."""
-        from src.scoring.engine import ScoringEngine
         from src.commentary.generator import CommentaryGenerator
+        from src.scoring.engine import ScoringEngine
 
         cb = GeminiCircuitBreaker()
         scorer = ScoringEngine(api_key="test-key", circuit_breaker=cb)

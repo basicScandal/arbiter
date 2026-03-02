@@ -18,9 +18,9 @@ from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
 
-from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
+from src.memory.models import DeliberationResult, DemoMemory, TeamRanking
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
-from src.resilience.retry import CLAUDE_RETRY, DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
+from src.resilience.retry import CLAUDE_RETRY, GEMINI_RETRY_BACKGROUND, DailyQuotaExhausted
 from src.scoring.models import DemoScorecard
 from src.utils import sanitize_team_name, strip_markdown_fences
 

@@ -15,8 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.capture.event_bus import EventBus
-from src.capture.models import DemoStopped
-from src.commentary.generator import CommentaryGenerator
 from src.commentary.models import CommentaryDelivered
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.models import ObservationVerified, SanitizedOutput
@@ -106,12 +104,6 @@ class TestTimeoutBudget:
             anthropic_api_key="sk-test",
             circuit_breaker=cb,
         )
-        gen = CommentaryGenerator(
-            api_key="test-key",
-            groq_api_key="gsk-test",
-            circuit_breaker=cb,
-        )
-
         sanitized = _make_sanitized()
 
         # Commentary stalls (simulating timeout scenario)

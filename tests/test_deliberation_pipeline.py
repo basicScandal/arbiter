@@ -23,7 +23,6 @@ from src.memory.models import (
 )
 from src.memory.pipeline import DeliberationPipeline
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

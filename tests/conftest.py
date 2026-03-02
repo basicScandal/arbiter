@@ -10,13 +10,12 @@ from __future__ import annotations
 
 import pytest
 
-from src.capture.event_bus import EventBus
 import src.capture.event_bus as event_bus_module
 import src.resilience.health as health_module
+from src.capture.event_bus import EventBus
 from src.resilience.metrics import default_metrics
 from src.resilience.rate_limiter import GeminiRateLimiter
 from tests.helpers.event_collector import EventCollector
-
 
 # ---------------------------------------------------------------------------
 # Singleton reset (autouse)

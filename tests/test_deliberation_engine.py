@@ -17,9 +17,8 @@ from src.memory.deliberation_engine import (
     DELIBERATION_SYSTEM_PROMPT,
     DeliberationEngine,
 )
-from src.memory.models import DemoMemory, DeliberationResult, TeamRanking
+from src.memory.models import DeliberationResult, DemoMemory, TeamRanking
 from src.scoring.models import CriterionScore, DemoScorecard
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

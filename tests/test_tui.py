@@ -14,14 +14,15 @@ import asyncio
 import logging
 
 import pytest
+from textual.widgets import Footer, Input
 
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import (
     CaptureEvent,
     DemoStarted,
-    KeyFrameDetected,
     FrameData,
+    KeyFrameDetected,
     TranscriptReceived,
     TranscriptSegment,
 )
@@ -43,8 +44,6 @@ from src.operator.widgets import (
     LogRecord,
     StatusSidebar,
 )
-from textual.widgets import Footer, Input
-
 
 # ---------------------------------------------------------------------------
 # Helpers

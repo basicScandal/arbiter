@@ -19,10 +19,8 @@ Pattern references:
 
 from __future__ import annotations
 
-import json
 import time
-from pathlib import Path
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -38,8 +36,6 @@ from src.capture.models import (
 )
 from src.operator.web import WebOperator
 from src.scoring.models import CriterionScore, DemoScorecard, ScoringComplete
-from src.scoring.store import ScoreStore
-
 
 # ---------------------------------------------------------------------------
 # Fake collaborators (mirrored from test_web_operator.py)
@@ -587,7 +583,6 @@ def test_blended_score_returns_404_for_unknown_team(tmp_path):
 
 def test_blended_scores_all_returns_list(tmp_path):
     """GET /api/blended-scores returns a ranked list of all blended scores."""
-    from src.scoring.human import HumanScore
 
     scorecards = [
         _make_scorecard("November", total_score=7.0),

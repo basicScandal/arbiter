@@ -19,8 +19,8 @@ from fastapi.testclient import TestClient
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import (
-    KeyFrameDetected,
     FrameData,
+    KeyFrameDetected,
     TranscriptReceived,
     TranscriptSegment,
 )
@@ -31,7 +31,6 @@ from src.defense.models import (
     SanitizedOutput,
 )
 from src.operator.web import WebOperator
-
 
 # ---------------------------------------------------------------------------
 # Helpers & Fixtures

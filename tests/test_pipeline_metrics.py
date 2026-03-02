@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.capture.event_bus import EventBus
 from src.capture.models import DemoStarted, DemoStopped
 from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
@@ -20,7 +19,6 @@ from src.memory.pipeline import DeliberationPipeline
 from src.resilience.metrics import default_metrics
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
-
 
 # ---------------------------------------------------------------------------
 # Shared test data

@@ -15,7 +15,6 @@ from __future__ import annotations
 from src.config.tracks import VALID_TRACKS as _CANONICAL_TRACKS
 from src.scoring.models import RubricCriterion, TrackCriteria
 
-
 # ---------------------------------------------------------------------------
 # General criteria (SCORE-01 default: 3 criteria, 40/30/30)
 # ---------------------------------------------------------------------------

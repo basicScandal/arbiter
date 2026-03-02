@@ -20,7 +20,7 @@ from google.genai import types
 
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
-from src.resilience.retry import CLAUDE_RETRY, DailyQuotaExhausted, GEMINI_RETRY_BACKGROUND
+from src.resilience.retry import CLAUDE_RETRY, GEMINI_RETRY_BACKGROUND, DailyQuotaExhausted
 from src.scoring.models import CriterionScore, DemoScorecard, RubricCriterion, TrackCriteria
 from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 from src.utils import strip_markdown_fences

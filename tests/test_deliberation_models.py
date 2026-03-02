@@ -6,7 +6,6 @@ event types.
 
 from __future__ import annotations
 
-
 from src.memory.models import (
     DeliberationComplete,
     DeliberationRequested,
@@ -14,7 +13,6 @@ from src.memory.models import (
     DemoMemory,
     TeamRanking,
 )
-
 
 # ---------------------------------------------------------------------------
 # DemoMemory

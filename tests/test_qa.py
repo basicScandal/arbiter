@@ -12,9 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.commentary.qa_generator import QAGenerator, _MAX_QUESTIONS
+from src.commentary.qa_generator import _MAX_QUESTIONS, QAGenerator
 from src.defense.models import InjectionAttempt, SanitizedOutput
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
