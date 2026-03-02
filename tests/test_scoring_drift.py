@@ -10,14 +10,13 @@ within safe bounds over 20 demos.
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from src.commentary.generator import CommentaryGenerator
 from src.defense.models import SanitizedOutput
 from src.scoring.engine import ScoringEngine
-
 
 # ---------------------------------------------------------------------------
 # Helpers

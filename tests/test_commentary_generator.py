@@ -11,9 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.commentary.generator import CommentaryGenerator, _EMOTION_KEYWORDS
+from src.commentary.generator import _EMOTION_KEYWORDS, CommentaryGenerator
 from src.defense.models import InjectionAttempt, SanitizedOutput
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

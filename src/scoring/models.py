@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 
 from src.capture.models import CaptureEvent
 
-
 # ---------------------------------------------------------------------------
 # Core scoring types
 # ---------------------------------------------------------------------------

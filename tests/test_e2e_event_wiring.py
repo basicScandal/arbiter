@@ -46,7 +46,6 @@ from src.memory.models import DeliberationRequested
 from src.memory.pipeline import DeliberationPipeline
 from src.scoring.pipeline import ScoringPipeline
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

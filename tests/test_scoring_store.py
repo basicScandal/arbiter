@@ -15,7 +15,6 @@ from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.store import ScoreStore
 from src.utils import sanitize_team_name
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

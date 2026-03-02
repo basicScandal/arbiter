@@ -23,7 +23,6 @@ from textual.widgets import Input, RichLog, Sparkline, Static
 
 from src.capture.models import CaptureEvent
 
-
 # ---------------------------------------------------------------------------
 # Messages
 # ---------------------------------------------------------------------------

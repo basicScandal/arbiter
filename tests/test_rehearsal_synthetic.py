@@ -7,9 +7,8 @@ import asyncio
 import pytest
 
 from src.capture.event_bus import EventBus
-from src.rehearsal.synthetic_capture import SyntheticCapture, _SYNTHETIC_TRANSCRIPTS, _make_synthetic_frame
+from src.rehearsal.synthetic_capture import _SYNTHETIC_TRANSCRIPTS, SyntheticCapture, _make_synthetic_frame
 from tests.helpers.event_collector import EventCollector
-
 
 # ---------------------------------------------------------------------------
 # _make_synthetic_frame helper

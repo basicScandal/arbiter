@@ -23,8 +23,8 @@ from src.commentary.enricher import CommentaryEnricher
 from src.commentary.models import Commentary
 from src.defense.models import SanitizedOutput
 from src.providers.factory import create_provider
-from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.models import DemoScorecard
+from src.scoring.moe_engine import MoEScoringEngine
 
 # ---------------------------------------------------------------------------
 # Test fixtures: Top 5 most-viewed NEBULA:FOG:PRIME demos

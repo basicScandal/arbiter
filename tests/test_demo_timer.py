@@ -12,8 +12,7 @@ from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import DemoSession
 from src.commentary.display_server import DisplayServer
-from src.operator.web import MAX_DEMO_DURATION, WebOperator, _WARNING_RATIO
-
+from src.operator.web import _WARNING_RATIO, MAX_DEMO_DURATION, WebOperator
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import statistics
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -20,7 +20,6 @@ from src.scoring.aggregator import ScoreAggregator
 from src.scoring.engine import ScoringEngine
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.rubric import GENERAL_CRITERIA
-
 
 # ---------------------------------------------------------------------------
 # Helpers

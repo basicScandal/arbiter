@@ -15,7 +15,6 @@ from src.memory.models import DemoMemory
 from src.memory.store import MemoryStore
 from src.utils import sanitize_team_name
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

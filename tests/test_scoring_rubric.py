@@ -6,9 +6,7 @@ and track criteria configuration.
 
 from __future__ import annotations
 
-
 from src.scoring.rubric import EXTENDED_CRITERIA, GENERAL_CRITERIA, TRACK_CRITERIA
-
 
 # ---------------------------------------------------------------------------
 # General criteria

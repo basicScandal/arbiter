@@ -18,11 +18,10 @@ import pytest
 from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.defense.models import ObservationVerified, SanitizedOutput
-from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.models import ScoringComplete
+from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.pipeline import ScoringPipeline
 from tests.helpers.event_collector import EventCollector
-
 
 # ---------------------------------------------------------------------------
 # Helpers

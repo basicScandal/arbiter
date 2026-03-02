@@ -20,7 +20,6 @@ from src.resilience.health import default_health
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.store import ScoreStore
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

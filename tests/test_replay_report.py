@@ -18,7 +18,6 @@ from src.replay.report import (
 )
 from src.scoring.models import CriterionScore, DemoScorecard
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

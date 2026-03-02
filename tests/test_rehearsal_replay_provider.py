@@ -8,7 +8,6 @@ import pytest
 
 from src.rehearsal.replay_provider import ReplayProvider
 
-
 # ---------------------------------------------------------------------------
 # Keyword dispatch
 # ---------------------------------------------------------------------------

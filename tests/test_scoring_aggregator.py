@@ -15,7 +15,6 @@ from src.defense.models import SanitizedOutput
 from src.scoring.aggregator import ScoreAggregator
 from src.scoring.moe_engine import MoEScoringEngine
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

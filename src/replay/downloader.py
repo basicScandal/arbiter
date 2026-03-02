@@ -6,7 +6,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from src.replay.config import VideoEntry, VIDEOS_DIR, youtube_url
+from src.replay.config import VIDEOS_DIR, VideoEntry, youtube_url
 
 logger = logging.getLogger(__name__)
 

@@ -14,13 +14,12 @@ from pathlib import Path
 import pytest
 
 from src.reports.export import (
+    EventExport,
+    TeamExport,
     export_event_data,
     export_team_data,
-    TeamExport,
-    EventExport,
 )
 from src.scoring.models import CriterionScore, DemoScorecard
-
 
 # ---------------------------------------------------------------------------
 # Helpers

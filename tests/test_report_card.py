@@ -12,9 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from src.reports.card import _render_html, generate_report_card_html
 from src.scoring.models import CriterionScore, DemoScorecard
-from src.reports.card import generate_report_card_html, _render_html
-
 
 # ---------------------------------------------------------------------------
 # Helpers

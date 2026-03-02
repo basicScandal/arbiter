@@ -14,10 +14,10 @@ from dotenv import load_dotenv
 from src.commentary.generator import CommentaryGenerator
 from src.commentary.models import Commentary
 from src.defense.models import SanitizedOutput
-from src.memory.deliberation_engine import DeliberationEngine
-from src.memory.models import DemoMemory, DeliberationResult
-from src.memory.store import MemoryStore
 from src.logging_config import configure_logging
+from src.memory.deliberation_engine import DeliberationEngine
+from src.memory.models import DeliberationResult, DemoMemory
+from src.memory.store import MemoryStore
 from src.replay.config import (
     BASE_DIR,
     COMMENTARY_DIR,
