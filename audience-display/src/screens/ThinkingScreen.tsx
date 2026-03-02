@@ -27,7 +27,7 @@ export function ThinkingScreen() {
       <motion.div
         animate={{ opacity: [0.4, 0.8, 0.4] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="text-3xl font-bold tracking-widest text-cyan-300/80 uppercase"
+        className="text-4xl font-bold tracking-widest text-cyan-300/80 uppercase"
         style={{
           textShadow: "0 0 12px rgba(0,200,255,0.4), 0 0 24px rgba(0,200,255,0.2)",
         }}
@@ -54,7 +54,7 @@ export function ThinkingScreen() {
       </div>
 
       {/* Scan-line progress bar */}
-      <div className="w-64 h-0.5 bg-cyan-900/30 rounded overflow-hidden">
+      <div className="w-64 h-1.5 bg-cyan-900/30 rounded overflow-hidden">
         <motion.div
           className="h-full bg-cyan-400/60 rounded"
           animate={{ x: ["-100%", "100%"] }}
@@ -68,7 +68,7 @@ export function ThinkingScreen() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.4 }}
         transition={{ delay: 0.8, duration: 0.6 }}
-        className="text-sm text-arbiter-muted/70 tracking-wider"
+        className="text-lg text-arbiter-muted/70 tracking-wider"
       >
         Processing demo output — stand by
       </motion.p>
