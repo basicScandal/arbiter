@@ -365,6 +365,7 @@ class WebOperator:
                 "team_name": sc.team_name,
                 "track": sc.track,
                 "total_score": sc.total_score,
+                "is_fallback": sc.is_fallback,
                 "criteria": [
                     {"name": c.name, "score": c.score, "weight": c.weight, "justification": c.justification}
                     for c in sc.criteria

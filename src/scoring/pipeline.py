@@ -15,6 +15,7 @@ import time
 from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
+from src.capture.models import DemoStarted
 from src.defense.models import ObservationVerified
 from src.resilience.metrics import default_metrics
 from src.scoring.engine import ScoringEngine
@@ -48,16 +49,19 @@ class ScoringPipeline:
         self._pending_scorecards: dict[str, DemoScorecard] = {}
         self._pending_tracks: dict[str, str] = {}
         self._event_bus: EventBus | None = None
+        self._reveal_task: asyncio.Task | None = None
 
     async def setup(self, event_bus: EventBus) -> None:
         """Wire the scoring pipeline into the event bus.
 
-        Subscribes to observation_verified (triggers scoring) and
-        commentary_delivered (triggers theatrical reveal).
+        Subscribes to observation_verified (triggers scoring),
+        commentary_delivered (triggers theatrical reveal), and
+        demo_started (cancels in-flight reveals to prevent bleed).
         """
         self._event_bus = event_bus
         event_bus.subscribe("observation_verified", self._on_observation_verified)
         event_bus.subscribe("commentary_delivered", self._on_commentary_delivered)
+        event_bus.subscribe("demo_started", self._on_demo_started)
         logger.info("Scoring pipeline armed")
 
     def set_track(self, team_name: str, track: str) -> None:
@@ -121,8 +125,27 @@ class ScoringPipeline:
             )
             return
 
-        # Launch reveal as detached task -- must NOT block the event bus callback
-        asyncio.create_task(self._reveal_score(scorecard))
+        # Cancel any prior reveal still running (prevents bleed on rapid cycling)
+        if self._reveal_task is not None and not self._reveal_task.done():
+            self._reveal_task.cancel()
+            logger.info("Cancelled previous reveal task before starting new one")
+
+        # Launch reveal as tracked task -- must NOT block the event bus callback
+        self._reveal_task = asyncio.create_task(self._reveal_score(scorecard))
+
+    async def _on_demo_started(self, event: DemoStarted) -> None:
+        """Cancel in-flight score reveals when a new demo starts.
+
+        Prevents stale criterion messages from bleeding into the next
+        team's display if the operator cycles teams before the reveal
+        sequence finishes.
+        """
+        if self._reveal_task is not None and not self._reveal_task.done():
+            self._reveal_task.cancel()
+            logger.info(
+                "Cancelled in-flight score reveal due to new demo start: %s",
+                event.team_name,
+            )
 
     async def _reveal_score(self, scorecard: DemoScorecard) -> None:
         """Execute the theatrical score reveal sequence.

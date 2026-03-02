@@ -51,6 +51,7 @@ class DemoScorecard(BaseModel):
     track_bonus: CriterionScore | None = None
     total_score: float
     scored_at: float
+    is_fallback: bool = False
 
 
 # ---------------------------------------------------------------------------
