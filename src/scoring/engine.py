@@ -382,4 +382,5 @@ class ScoringEngine:
             track_bonus=None,
             total_score=round(total, 1),
             scored_at=time.time(),
+            is_fallback=True,
         )

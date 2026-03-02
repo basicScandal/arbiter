@@ -64,7 +64,7 @@ export function DeliberationScreen() {
       {rankings.length > 0 && (
         <table className="w-full max-w-5xl">
           <thead>
-            <tr className="text-base text-arbiter-muted uppercase tracking-wider border-b border-arbiter-accent/20">
+            <tr className="text-lg text-arbiter-muted uppercase tracking-wider border-b border-arbiter-accent/20">
               <th className="pb-3 text-center w-20">Rank</th>
               <th className="pb-3 text-left">Team</th>
               <th className="pb-3 text-center">Score</th>

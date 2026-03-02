@@ -19,13 +19,13 @@ export function CriterionRow({ criterion, index }: CriterionRowProps) {
       className="flex flex-col gap-2"
     >
       <div className="flex items-baseline justify-between">
-        <span className="text-xl text-arbiter-text font-medium">
+        <span className="text-2xl text-arbiter-text font-medium">
           {criterion.name}
-          <span className="text-arbiter-muted text-base ml-3">
+          <span className="text-arbiter-muted text-lg ml-3">
             (×{criterion.weight.toFixed(1)})
           </span>
         </span>
-        <span className="text-2xl font-bold" style={{ color }}>
+        <span className="text-3xl font-bold" style={{ color }}>
           {criterion.score.toFixed(1)}
         </span>
       </div>
@@ -41,7 +41,7 @@ export function CriterionRow({ criterion, index }: CriterionRowProps) {
       </div>
 
       {criterion.justification && (
-        <p className="text-base text-arbiter-muted leading-snug mt-1">
+        <p className="text-lg text-arbiter-muted leading-snug mt-1">
           {criterion.justification}
         </p>
       )}

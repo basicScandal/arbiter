@@ -17,7 +17,7 @@ export function ScoreTotal({ totalScore, track }: ScoreTotalProps) {
       transition={{ duration: 0.6, ease: "easeOut" }}
       className="flex flex-col items-center gap-3 mt-8"
     >
-      <span className="text-lg text-arbiter-muted uppercase tracking-widest">
+      <span className="text-xl text-arbiter-muted uppercase tracking-widest">
         Total Score
       </span>
       <span

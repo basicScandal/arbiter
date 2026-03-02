@@ -2,12 +2,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDisplayStore } from "../store/displayStore";
 
 const emotionStyles: Record<string, string> = {
-  sarcastic: "text-yellow-200/90",
+  // Warm / positive
+  excited: "text-green-300",
   amazed: "text-cyan-300",
   impressed: "text-cyan-300",
+  proud: "text-yellow-300",
+  encouraging: "text-green-300",
+  supportive: "text-cyan-200",
+  content: "text-arbiter-text",
+  // Cool / analytical
+  confident: "text-cyan-200",
+  thoughtful: "text-violet-300",
+  curious: "text-orange-300",
+  constructive: "text-green-200",
+  // Edge / negative
+  sarcastic: "text-yellow-200/90",
+  ironic: "text-orange-300",
+  skeptical: "text-orange-300",
   disappointed: "text-red-300/80",
+  surprised: "text-violet-300",
+  // Misc
   humorous: "text-amber-200",
-  excited: "text-green-300",
   concerned: "text-orange-300",
   default: "text-arbiter-text",
 };
@@ -17,6 +32,9 @@ const emotionGlow: Record<string, string> = {
   amazed: "drop-shadow-[0_0_12px_rgba(0,200,255,0.4)]",
   impressed: "drop-shadow-[0_0_12px_rgba(0,200,255,0.4)]",
   disappointed: "drop-shadow-[0_0_8px_rgba(255,68,68,0.3)]",
+  proud: "drop-shadow-[0_0_8px_rgba(255,215,0,0.3)]",
+  excited: "drop-shadow-[0_0_8px_rgba(0,255,136,0.3)]",
+  surprised: "drop-shadow-[0_0_8px_rgba(123,97,255,0.3)]",
   default: "",
 };
 

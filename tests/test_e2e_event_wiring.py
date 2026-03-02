@@ -365,8 +365,8 @@ async def test_subscriber_count_matches_expected(
 
     total_subscribers = sum(len(v) for v in event_bus._subscribers.values())
 
-    # Exact count: defense(4) + commentary(5) + scoring(2) + deliberation(2) = 13
-    assert total_subscribers == 13, (
-        f"Expected 13 total subscribers, got {total_subscribers}. "
+    # Exact count: defense(4) + commentary(5) + scoring(3) + deliberation(2) = 14
+    assert total_subscribers == 14, (
+        f"Expected 14 total subscribers, got {total_subscribers}. "
         f"Breakdown: {dict(event_bus._subscribers)}"
     )
