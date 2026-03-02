@@ -77,16 +77,22 @@ class TestTimeoutBudget:
             await asyncio.sleep(60)
             yield "This should never arrive.", "sarcastic", 2
 
-        with patch.object(
-            pipeline._generator, "stream_sentences", side_effect=slow_stream,
+        with (
+            patch.object(
+                pipeline._generator, "stream_sentences", side_effect=slow_stream,
+            ),
+            # Shrink timeout to 2s so the test completes fast instead of
+            # racing against the 30s pytest-timeout (which can't interrupt
+            # asyncio's event loop).
+            patch("src.commentary.pipeline._COMMENTARY_TIMEOUT", 2),
         ):
             # Publish observation_verified to trigger commentary
             bus.publish(ObservationVerified(
                 output=_make_sanitized(),
             ))
 
-            # Wait for commentary_delivered (should arrive after 30s timeout)
-            event = await collector.wait_for("commentary_delivered", timeout=35)
+            # Wait for commentary_delivered (arrives after the 2s timeout fires)
+            event = await collector.wait_for("commentary_delivered", timeout=10)
 
         assert isinstance(event, CommentaryDelivered)
         assert "First sentence" in event.commentary_text
@@ -142,6 +148,9 @@ class TestTimeoutBudget:
         Currently, if Gemini is slow (not down), the pipeline can hang
         for longer than 60s because there's no overarching deadline
         wrapping the full observation→commentary→scoring→reveal chain.
+
+        Sleeps are scaled down (20s→3s, 45s→8s, budget 60s→6s) to keep
+        the same proportional relationship without hitting pytest-timeout.
         """
         bus = EventBus()
         collector = EventCollector(bus)
@@ -169,26 +178,30 @@ class TestTimeoutBudget:
         )
 
         # Simulate slow Gemini (not down — still responds, just very slowly)
+        # Scaled: 45s → 8s (still exceeds the 6s global budget)
         async def slow_gemini_score(prompt: str) -> str:
-            await asyncio.sleep(45)  # 45s — under individual timeout but slow
+            await asyncio.sleep(8)
             return _SCORING_JSON
 
+        # Scaled: 20s → 3s (slow but under individual commentary timeout)
         async def slow_stream(sanitized: SanitizedOutput) -> AsyncGenerator:
             yield "Slow commentary sentence one.", "sarcastic", 0
-            await asyncio.sleep(20)  # Slow but not timed out individually
+            await asyncio.sleep(3)
             yield "Slow commentary sentence two.", "confident", 1
 
         with (
             patch.object(pipeline._generator, "stream_sentences", side_effect=slow_stream),
             patch.object(scorer, "_call_gemini", new=slow_gemini_score),
+            # Use a short commentary timeout (5s > 3s sleep so commentary finishes)
+            patch("src.commentary.pipeline._COMMENTARY_TIMEOUT", 5),
         ):
-            # The full cycle: commentary + scoring should complete within 60s
-            # This will likely fail because no global budget enforces it
-            async with asyncio.timeout(60):
+            # Scaled budget: 60s → 6s. Commentary (~3s) + scoring (~8s) = ~11s > 6s.
+            # This should still fail — no global budget enforces the deadline.
+            async with asyncio.timeout(6):
                 bus.publish(ObservationVerified(output=_make_sanitized()))
 
                 # Wait for commentary
-                await collector.wait_for("commentary_delivered", timeout=35)
+                await collector.wait_for("commentary_delivered", timeout=10)
 
                 # Run scoring (would be triggered by event in real pipeline)
                 scorecard = await scorer.score(_make_sanitized(), "SHADOW::VECTOR")
