@@ -207,3 +207,53 @@ class TestTimeoutBudget:
                 scorecard = await scorer.score(_make_sanitized(), "SHADOW::VECTOR")
 
         assert scorecard.total_score > 0
+
+    @pytest.mark.asyncio
+    async def test_outer_pipeline_timeout_fires_before_commentary_timeout(self):
+        """Outer _PIPELINE_TIMEOUT (2s) fires before inner _COMMENTARY_TIMEOUT (30s).
+
+        Simulates a generator that streams slowly (1s per sentence). With the
+        outer timeout at 2s and inner at 30s, the outer should fire first and
+        CommentaryDelivered should arrive within ~3s.
+        """
+        bus = EventBus()
+        collector = EventCollector(bus)
+
+        default_health.mark_unhealthy("cartesia_tts")
+
+        pipeline = CommentaryPipeline(
+            api_key="test-key",
+            voice_id="test-voice",
+            groq_api_key="gsk-test",
+        )
+
+        pipeline._event_bus = bus
+        bus.subscribe("observation_verified", pipeline._on_observation_verified)
+
+        pipeline._display = MagicMock()
+        pipeline._display.clear = AsyncMock()
+        pipeline._display.push_commentary = AsyncMock()
+
+        # Generator that streams slowly — 1 sentence per second, forever
+        async def slow_stream(sanitized: SanitizedOutput) -> AsyncGenerator:
+            for i in range(100):
+                yield f"Sentence {i}.", "sarcastic", i
+                await asyncio.sleep(1)
+
+        with (
+            patch.object(
+                pipeline._generator, "stream_sentences", side_effect=slow_stream,
+            ),
+            # Set outer timeout to 2s, keep inner at 30s (default)
+            patch("src.commentary.pipeline._PIPELINE_TIMEOUT", 2),
+            patch("src.commentary.pipeline._COMMENTARY_TIMEOUT", 30),
+        ):
+            bus.publish(ObservationVerified(output=_make_sanitized()))
+
+            # CommentaryDelivered should arrive within 3s (outer fires at 2s)
+            event = await collector.wait_for("commentary_delivered", timeout=5)
+
+        assert isinstance(event, CommentaryDelivered)
+        # Should have delivered 1-2 sentences before the outer timeout
+        assert "Sentence 0" in event.commentary_text
+        assert "Sentence 50" not in event.commentary_text
