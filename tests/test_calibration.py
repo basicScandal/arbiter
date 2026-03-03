@@ -1,7 +1,8 @@
 """Calibration validation tests — Phase 2 Red Team + Scoring Gauntlet.
 
 Validates DEFAULT_CALIBRATION values, Groq's neutral defaults,
-provider convergence after calibration, and score clamping at extremes.
+provider convergence after calibration, score clamping at extremes,
+and empirical convergence from VCR cassette data.
 """
 
 from __future__ import annotations
@@ -98,3 +99,33 @@ def test_extreme_scores_clamped():
     for provider in DEFAULT_CALIBRATION:
         assert aggregator.calibrate_score(0.0, provider) >= 0.0
         assert aggregator.calibrate_score(10.0, provider) <= 10.0
+
+
+def test_cassette_empirical_convergence():
+    """Cassette-derived raw scores converge after calibration (delta < 0.5).
+
+    VCR cassettes captured Gemini and Claude scoring the identical demo
+    (Team Phantom, SHADOW::VECTOR). Raw scores:
+        Gemini: Tech=9, Innovation=9, Demo=8, Track=9 → mean 8.75
+        Claude: Tech=8, Innovation=8, Demo=8, Track=8 → mean 8.0
+        Raw delta: 0.75
+
+    After calibration, the per-criterion means should be within 0.5.
+    """
+    aggregator = ScoreAggregator()
+
+    # Raw per-criterion scores from cassettes
+    gemini_raw = {"Technical Execution": 9, "Innovation": 9, "Demo Quality": 8, "Track Bonus": 9}
+    claude_raw = {"Technical Execution": 8, "Innovation": 8, "Demo Quality": 8, "Track Bonus": 8}
+
+    gemini_calibrated = [aggregator.calibrate_score(s, "gemini") for s in gemini_raw.values()]
+    claude_calibrated = [aggregator.calibrate_score(s, "claude") for s in claude_raw.values()]
+
+    gemini_mean = sum(gemini_calibrated) / len(gemini_calibrated)
+    claude_mean = sum(claude_calibrated) / len(claude_calibrated)
+
+    delta = abs(gemini_mean - claude_mean)
+    assert delta < 0.5, (
+        f"Cassette calibration delta {delta:.2f} >= 0.5 — "
+        f"Gemini mean={gemini_mean:.2f}, Claude mean={claude_mean:.2f}"
+    )

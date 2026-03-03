@@ -83,10 +83,10 @@ class TestCalibration:
         assert cal > raw
 
     def test_gemini_bias_correction(self, aggregator):
-        """Gemini has -0.2 bias (scores slightly high), so calibrated score is lower."""
+        """Gemini has -0.4 bias (cassette: scores +0.75 high), so calibrated score is lower."""
         raw = 7.0
         cal = aggregator.calibrate_score(raw, "gemini")
-        # (7.0 - 5.0) / 1.1 + 5.0 + (-0.2) = 6.62
+        # (7.0 - 5.0) / 1.1 + 5.0 + (-0.4) = 6.42
         assert cal < raw
 
     def test_unknown_provider_passthrough(self, aggregator):
