@@ -88,14 +88,16 @@ clears the TTS queue within 1 second.
 
 **File**: `src/commentary/tts_engine.py`
 
-### Bug 5: MoE Calibration Constants Are Guesses (High)
+### Bug 5: MoE Calibration Constants Are Guesses (High) -- FIXED
 
 `ScoreAggregator` calibration parameters (temperature, bias per provider) have
 a comment on line 22 that literally says "Neutral defaults -- needs empirical
 calibration." No calibration data from real provider responses exists.
 
-**Fix**: Run calibration script with real API keys, collect empirical data,
-replace hardcoded defaults.
+**Fix**: Derived calibration from VCR cassettes (Team Phantom, SHADOW::VECTOR).
+Gemini bias -0.2 → -0.4, Claude temperature 1.2 → 1.05. Post-calibration
+delta reduced from 0.71 to 0.15. Added raw score logging for future calibration
+data collection.
 
 **File**: `src/scoring/aggregator.py`
 

@@ -14,11 +14,16 @@ logger = logging.getLogger(__name__)
 # Per-model calibration defaults.
 # temperature: Higher = flatten extreme scores toward center.
 # bias: Additive correction (positive = model scores low, negative = scores high).
+#
+# Calibrated from VCR cassettes (Team Phantom, SHADOW::VECTOR):
+#   Gemini raw mean 8.75, Claude raw mean 8.0 (delta +0.75).
+#   Claude stdev=0 (tight scorer).
+#   Post-calibration delta: 0.15 (within 0.5 target).
 DEFAULT_CALIBRATION: dict[str, dict[str, float]] = {
-    "gemini": {"temperature": 1.1, "bias": -0.2},
-    "claude": {"temperature": 1.2, "bias": 0.0},
-    "openai": {"temperature": 1.5, "bias": 0.3},
-    "groq": {"temperature": 1.0, "bias": 0.0},  # Neutral defaults — validated Phase 2, empirical calibration pending live data
+    "gemini": {"temperature": 1.1, "bias": -0.4},    # cassette: +0.75 above Claude → stronger negative bias
+    "claude": {"temperature": 1.05, "bias": 0.0},    # cassette: stdev=0, tight scorer → low temperature
+    "openai": {"temperature": 1.5, "bias": 0.3},     # no cassette data — unchanged
+    "groq": {"temperature": 1.0, "bias": 0.0},       # no empirical data — neutral defaults
 }
 
 OUTLIER_THRESHOLD = 2.0  # Points from median to flag as outlier

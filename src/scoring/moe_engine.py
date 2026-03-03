@@ -151,6 +151,14 @@ class MoEScoringEngine:
         """Aggregate per-criterion scores from multiple provider scorecards."""
         weight_map = {c.name: c.weight for c in criteria}
 
+        # Log raw per-provider scores BEFORE aggregation for future calibration
+        for prov_name, scorecard in parsed.items():
+            logger.info(
+                "MoE raw scores — provider=%s team=%s scores=%s",
+                prov_name, team_name,
+                {c.name: c.score for c in scorecard.criteria},
+            )
+
         # Collect per-criterion scores from each provider
         aggregated_criteria: list[CriterionScore] = []
 
