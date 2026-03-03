@@ -51,7 +51,7 @@ probe request. If it succeeds, resets to closed. If it fails, stays open for 120
 
 **File**: `src/resilience/circuit_breaker.py`
 
-### Bug 2: No End-to-End Timeout Budget (Critical)
+### Bug 2: No End-to-End Timeout Budget (Critical) -- FIXED
 
 Individual component timeouts exist (MOE_TIMEOUT=15s, COMMENTARY_TIMEOUT=30s,
 retry backoff up to 30s x 5 attempts) but no holistic timeout says "the entire
@@ -76,7 +76,7 @@ don't trigger removal.
 
 **File**: `src/defense/injection_detector.py`
 
-### Bug 4: TTS Queue Not Cancelled on Demo Transition (High)
+### Bug 4: TTS Queue Not Cancelled on Demo Transition (High) -- FIXED
 
 `TTSEngine` has `_speak_lock` that serializes speech. If commentary generates
 10 sentences at 3s each, there's a 30-second queue. If the operator starts a
