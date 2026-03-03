@@ -197,7 +197,13 @@ class CommentaryGenerator:
             async for item in self._stream_gemini_sentences(user_prompt):
                 yield item
             return
+        except DailyQuotaExhausted:
+            if self._circuit_breaker:
+                self._circuit_breaker.trip_permanent()
+            logger.warning("Gemini streaming failed (daily quota) for team %s", sanitized.team_name)
         except Exception:
+            if self._circuit_breaker:
+                self._circuit_breaker.trip()
             logger.exception("Gemini streaming failed for team %s", sanitized.team_name)
 
         # Fallback: Groq batch
@@ -218,6 +224,23 @@ class CommentaryGenerator:
             emotion = self._detect_sentence_emotion(sentence)
             yield sentence, emotion, i
 
+    @GEMINI_RETRY
+    async def _open_gemini_stream(self, user_prompt: str, formatted_prompt: str, temp: float):
+        """Open a Gemini streaming connection with retry on transient errors.
+
+        Isolated from iteration so retries only re-attempt the connection,
+        not already-yielded sentences.
+        """
+        return await self._client.aio.models.generate_content_stream(
+            model=self._model,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=formatted_prompt,
+                max_output_tokens=500,
+                temperature=temp,
+            ),
+        )
+
     async def _stream_gemini_sentences(
         self, user_prompt: str,
     ) -> AsyncGenerator[tuple[str, str, int], None]:
@@ -237,14 +260,8 @@ class CommentaryGenerator:
         sentence_index = 0
 
         async with GeminiRateLimiter.default().acquire("commentary-stream"):
-            async for chunk in await self._client.aio.models.generate_content_stream(
-                model=self._model,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=formatted_prompt,
-                    max_output_tokens=500,
-                    temperature=temp,
-                ),
+            async for chunk in await self._open_gemini_stream(
+                user_prompt, formatted_prompt, temp,
             ):
                 if chunk.text:
                     buffer += chunk.text

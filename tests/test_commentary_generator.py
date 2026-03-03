@@ -13,6 +13,8 @@ import pytest
 
 from src.commentary.generator import _EMOTION_KEYWORDS, CommentaryGenerator
 from src.defense.models import InjectionAttempt, SanitizedOutput
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
+from src.resilience.retry import DailyQuotaExhausted
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -434,3 +436,77 @@ class TestClose:
     async def test_close_without_groq(self):
         gen = CommentaryGenerator(api_key="key", groq_api_key="")
         await gen.close()  # should not raise
+
+
+# ---------------------------------------------------------------------------
+# Streaming retry & circuit breaker
+# ---------------------------------------------------------------------------
+
+
+class TestStreamingRetry:
+    """Tests for _open_gemini_stream retry and stream_sentences error handling."""
+
+    def test_open_gemini_stream_has_retry_decorator(self):
+        """Verify _open_gemini_stream is wrapped with GEMINI_RETRY (tenacity)."""
+        gen = CommentaryGenerator(api_key="key", groq_api_key="")
+        # tenacity wraps functions with a .retry attribute
+        assert hasattr(gen._open_gemini_stream, "retry"), (
+            "_open_gemini_stream should be decorated with @GEMINI_RETRY"
+        )
+
+    @pytest.mark.asyncio
+    async def test_stream_sentences_daily_quota_trips_breaker_permanent(self, sanitized):
+        """DailyQuotaExhausted in stream_sentences should trip circuit breaker permanently."""
+        cb = GeminiCircuitBreaker()
+        gen = CommentaryGenerator(
+            api_key="key", groq_api_key="", circuit_breaker=cb,
+        )
+
+        with patch.object(
+            gen, "_stream_gemini_sentences",
+            side_effect=DailyQuotaExhausted("quota gone"),
+        ):
+            sentences = []
+            async for item in gen.stream_sentences(sanitized):
+                sentences.append(item)
+
+        # Should have fallen back to static
+        assert any("Technical difficulties" in s[0] for s in sentences)
+        # Circuit breaker should be permanently tripped
+        assert not cb.available
+        assert cb._permanent
+
+    @pytest.mark.asyncio
+    async def test_stream_sentences_generic_error_trips_breaker(self, sanitized):
+        """Generic exception in stream_sentences should trip circuit breaker (non-permanent)."""
+        cb = GeminiCircuitBreaker()
+        gen = CommentaryGenerator(
+            api_key="key", groq_api_key="", circuit_breaker=cb,
+        )
+
+        with patch.object(
+            gen, "_stream_gemini_sentences",
+            side_effect=RuntimeError("something broke"),
+        ):
+            sentences = []
+            async for item in gen.stream_sentences(sanitized):
+                sentences.append(item)
+
+        assert any("Technical difficulties" in s[0] for s in sentences)
+        # Breaker tripped but not permanently
+        assert not cb.available
+
+    @pytest.mark.asyncio
+    async def test_stream_sentences_no_breaker_still_falls_back(self, sanitized):
+        """stream_sentences works without a circuit breaker (no crash on None)."""
+        gen = CommentaryGenerator(api_key="key", groq_api_key="")
+
+        with patch.object(
+            gen, "_stream_gemini_sentences",
+            side_effect=DailyQuotaExhausted("quota gone"),
+        ):
+            sentences = []
+            async for item in gen.stream_sentences(sanitized):
+                sentences.append(item)
+
+        assert any("Technical difficulties" in s[0] for s in sentences)
