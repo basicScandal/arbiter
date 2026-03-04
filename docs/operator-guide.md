@@ -96,6 +96,31 @@ curl http://localhost:8080/api/report-card/TeamAlpha
 | ZERO::PROOF | Cryptography, privacy tools | Privacy Guarantees (10% bonus weight) |
 | ROGUE::AGENT | Wildcard, cross-domain | Originality Factor (10% bonus weight) |
 
+## Dashboard Visual Indicators
+
+### Timer states
+- **Idle** -- shows `--:--` in dim text (no demo active)
+- **Capturing** -- shows elapsed time in green (demo in progress)
+- **Paused** -- shows frozen elapsed time in default color
+- **Stopped** -- shows final elapsed time in default color
+
+### Button states
+- **Active** -- normal button appearance, clickable
+- **Pending** -- spinning indicator next to button text, all buttons disabled
+- **Disabled** -- dimmed appearance (e.g., START without a team name)
+
+### Connection banner
+- **Connecting** -- amber banner at top: "CONNECTING..."
+- **Reconnecting** -- red banner at top: "CONNECTION LOST -- RECONNECTING..."
+- **Connected** -- no banner
+
+### Command feedback
+- Commands show a success/error toast for 3 seconds after the server responds.
+- If the server does not respond within 10 seconds, the command times out and
+  shows "Command timed out -- no response from server". Buttons re-enable.
+- If you click a button while disconnected, you see "Not connected -- command not
+  sent" immediately. The command is not queued.
+
 ## Troubleshooting
 
 ### Scoring shows 5.0 across all criteria
@@ -105,7 +130,19 @@ All LLM providers failed. The scorecard will show "Scoring error -- manual revie
 LLM streaming timed out after 30s. Partial sentences are preserved. Commentary delivered event still fires so scoring reveal proceeds normally.
 
 ### WebSocket disconnects
-Dashboard auto-reconnects with exponential backoff (1-10s). State is synced on reconnect. If the operator laptop crashes mid-demo, restart the dashboard and the connection will resume.
+Dashboard auto-reconnects with exponential backoff (1s, 2s, 4s, 8s, 10s max).
+Full state is resynced on every reconnect -- the client sends a `get_state`
+request and the server pushes current state, health, and scoring phase. If the
+operator laptop crashes mid-demo, restart the dashboard and the connection will
+resume with current state.
+
+The audience display also resyncs on reconnect. It sends `request_state` and the
+server replays the current screen (commentary, scorecard, intermission, etc.).
+
+### Buttons stuck / disabled
+If buttons appear stuck in a disabled state, the command may have timed out. The
+10-second timeout auto-clears `pendingCommand` and re-enables buttons. If this
+happens repeatedly, check the WebSocket connection (look for the reconnect banner).
 
 ### "TTS unhealthy" in health panel
 Cartesia API is down. System degrades to text-only commentary (display still works, no audio). Fallback chain: Cartesia -> OpenAI TTS -> macOS `say`.
@@ -115,6 +152,10 @@ Gemini had repeated failures. Auto-recovers in 60-120s with half-open probing. C
 
 ### Demo timer warning
 At 90% of MAX_DEMO_DURATION (default 10 min), operator gets a warning. The timer does NOT auto-stop -- operator must click STOP manually.
+
+### Long team names overflow the display
+Team names are truncated with ellipsis on the audience display. Keep team names
+under ~30 characters for best appearance on the projected screen.
 
 ## Emergency Procedures
 
@@ -134,6 +175,14 @@ At 90% of MAX_DEMO_DURATION (default 10 min), operator gets a warning. The timer
 1. Press backtick (`` ` ``) on audience display to open view switcher
 2. Press number keys to force any screen state
 3. View switcher auto-hides after 3 seconds
+
+### Network drop during demo
+1. Capture continues on the backend regardless of dashboard connection
+2. Both dashboards auto-reconnect and resync state
+3. No commands are lost -- if a command was in-flight, the 10s timeout
+   triggers and you can retry
+4. If the network is down for an extended period, the demo can still be
+   stopped via the CLI backup: `uv run python -m src.operator.cli`
 
 ## Rehearsal Mode
 

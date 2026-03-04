@@ -205,6 +205,26 @@ describe("NeuralPrompt", () => {
     });
   });
 
+  describe("loading spinner", () => {
+    it("shows spinner on the pending button", () => {
+      useOperatorStore.setState({
+        demoState: "capturing",
+        pendingCommand: "stop",
+      });
+      render(<NeuralPrompt />);
+      expect(screen.getByLabelText("Loading")).toBeInTheDocument();
+    });
+
+    it("does not show spinner when no command is pending", () => {
+      useOperatorStore.setState({
+        demoState: "capturing",
+        pendingCommand: null,
+      });
+      render(<NeuralPrompt />);
+      expect(screen.queryByLabelText("Loading")).not.toBeInTheDocument();
+    });
+  });
+
   describe("lastCommandResult display", () => {
     it("shows success message", () => {
       useOperatorStore.setState({

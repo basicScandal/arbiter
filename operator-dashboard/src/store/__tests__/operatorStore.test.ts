@@ -562,6 +562,49 @@ describe("operatorStore", () => {
     it("starts as null", () => {
       expect(useOperatorStore.getState().pendingCommand).toBeNull();
     });
+
+    it("auto-clears pendingCommand after 10s timeout", () => {
+      const mockFn = vi.fn();
+      useOperatorStore.getState().setSendCommand(mockFn);
+      useOperatorStore.getState().sendCommand("stop");
+      expect(useOperatorStore.getState().pendingCommand).toBe("stop");
+
+      vi.advanceTimersByTime(10_000);
+      expect(useOperatorStore.getState().pendingCommand).toBeNull();
+    });
+
+    it("sets timeout error in lastCommandResult after 10s", () => {
+      const mockFn = vi.fn();
+      useOperatorStore.getState().setSendCommand(mockFn);
+      useOperatorStore.getState().sendCommand("stop");
+
+      vi.advanceTimersByTime(10_000);
+      const result = useOperatorStore.getState().lastCommandResult;
+      expect(result).not.toBeNull();
+      expect(result!.success).toBe(false);
+      expect(result!.message).toMatch(/timed out/i);
+    });
+
+    it("does not trigger timeout if command_result arrives first", () => {
+      const mockFn = vi.fn();
+      useOperatorStore.getState().setSendCommand(mockFn);
+      useOperatorStore.getState().sendCommand("start_demo");
+
+      // Server responds after 2s
+      vi.advanceTimersByTime(2000);
+      useOperatorStore.getState().dispatch({
+        type: "command_result",
+        success: true,
+        message: "Demo started",
+      });
+      expect(useOperatorStore.getState().pendingCommand).toBeNull();
+      expect(useOperatorStore.getState().lastCommandResult?.success).toBe(true);
+
+      // Advance past timeout — should NOT set error
+      vi.advanceTimersByTime(10_000);
+      // lastCommandResult was auto-cleared by the 3s timer, not replaced by timeout
+      expect(useOperatorStore.getState().pendingCommand).toBeNull();
+    });
   });
 
   describe("dispatch - command_result message", () => {

@@ -58,7 +58,7 @@ export function CommentaryScreen() {
             <motion.h2
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-2xl text-arbiter-accent tracking-widest uppercase mb-6 shrink-0"
+              className="text-2xl text-arbiter-accent tracking-widest uppercase mb-6 shrink-0 truncate"
             >
               {teamName}
             </motion.h2>

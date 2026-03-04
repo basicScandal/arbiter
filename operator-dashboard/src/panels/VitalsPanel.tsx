@@ -108,8 +108,12 @@ export function VitalsPanel() {
         <div className="text-text-secondary text-sm">
           {teamName || "\u2014"} / {track || "\u2014"}
         </div>
-        <div className="text-text-primary font-mono text-3xl font-bold">
-          {demoState === "idle" ? "00:00" : formatElapsed(elapsed)}
+        <div className={`font-mono text-3xl font-bold ${
+          demoState === "idle" ? "text-text-dim/40" :
+          demoState === "capturing" ? "text-green-400" :
+          "text-text-primary"
+        }`}>
+          {demoState === "idle" ? "--:--" : formatElapsed(elapsed)}
         </div>
       </div>
 

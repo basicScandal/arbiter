@@ -46,9 +46,9 @@ describe("VitalsPanel", () => {
     expect(indicator).toBeInTheDocument();
   });
 
-  it("shows 00:00 elapsed when not capturing", () => {
+  it("shows --:-- when idle", () => {
     render(<VitalsPanel />);
-    expect(screen.getByText("00:00")).toBeInTheDocument();
+    expect(screen.getByText("--:--")).toBeInTheDocument();
   });
 
   // Counters section

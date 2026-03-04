@@ -13,7 +13,7 @@ export function ScoreCardScreen() {
       <motion.h2
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="text-3xl text-arbiter-accent tracking-widest uppercase shrink-0"
+        className="text-3xl text-arbiter-accent tracking-widest uppercase shrink-0 truncate max-w-full"
       >
         Score Reveal — {teamName}
       </motion.h2>

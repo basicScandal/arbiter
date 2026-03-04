@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import json
 import logging
 import os
 import signal
@@ -64,6 +65,17 @@ class ConnectionManager:
         if ws in self.active:
             self.active.remove(ws)
         logger.info("Display client disconnected (%d active)", len(self.active))
+
+    async def replay_state(self, ws: WebSocket) -> None:
+        """Re-send cached screen state to a specific client (e.g. on request_state)."""
+        if self._last_screen_state:
+            try:
+                await ws.send_json(self._last_screen_state)
+                if self._last_screen_state.get("type") == "score_intro":
+                    for criterion in self._criteria_sequence:
+                        await ws.send_json(criterion)
+            except Exception:
+                logger.debug("Failed to replay state on request", exc_info=True)
 
     async def broadcast(self, message: dict) -> None:
         """Send a JSON message to all connected clients.
@@ -167,9 +179,16 @@ class DisplayServer:
                         await ws.send_json({"type": "ping"})
                     except Exception:
                         break
-                    # Wait for any response (pong or other) with timeout
+                    # Wait for any response (pong, request_state, etc.) with timeout
                     try:
-                        await asyncio.wait_for(ws.receive_text(), timeout=15.0)
+                        raw = await asyncio.wait_for(ws.receive_text(), timeout=15.0)
+                        try:
+                            data = json.loads(raw)
+                            if data.get("type") == "request_state":
+                                # Client-initiated state resync (e.g. after reconnect)
+                                await self._manager.replay_state(ws)
+                        except (json.JSONDecodeError, TypeError):
+                            pass
                     except asyncio.TimeoutError:
                         logger.info("Display client heartbeat timeout, closing")
                         break

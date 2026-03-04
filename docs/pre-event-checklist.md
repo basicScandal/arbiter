@@ -45,6 +45,16 @@
 - [ ] Verify TTS audio plays (check speakers/PA system)
 - [ ] Verify audience display is visible on projector
 
+## Edge Case Verification
+
+- [ ] Timer shows `--:--` when idle, green elapsed time when capturing
+- [ ] Buttons show spinning indicator while command is pending
+- [ ] Kill network briefly, confirm: reconnect banner appears, dashboard resyncs state
+- [ ] Audience display also resyncs after network drop
+- [ ] Connection banner shows "CONNECTING..." on initial load (before first connect)
+- [ ] Long team name (30+ chars) truncates cleanly on audience display
+- [ ] If server is down, clicking a button shows "Not connected" error immediately
+
 ## Day-of
 
 - [ ] `data/` directory exists and is writable

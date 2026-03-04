@@ -10,18 +10,28 @@ describe("ReconnectBanner", () => {
 
   it("does not render when connected", () => {
     render(<ReconnectBanner />);
-    expect(screen.queryByText(/RECONNECTING/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("does not render during initial connecting", () => {
+  it("renders during initial connecting", () => {
     useOperatorStore.setState({ connectionState: 'connecting' });
     render(<ReconnectBanner />);
-    expect(screen.queryByText(/RECONNECTING/)).not.toBeInTheDocument();
+    expect(screen.getByText(/CONNECTING\.\.\./)).toBeInTheDocument();
   });
 
   it("renders when reconnecting", () => {
     useOperatorStore.setState({ connectionState: 'reconnecting' });
     render(<ReconnectBanner />);
     expect(screen.getByText(/RECONNECTING/)).toBeInTheDocument();
+  });
+
+  it("shows different messages for connecting vs reconnecting", () => {
+    useOperatorStore.setState({ connectionState: 'connecting' });
+    const { rerender } = render(<ReconnectBanner />);
+    expect(screen.getByText("CONNECTING...")).toBeInTheDocument();
+
+    useOperatorStore.setState({ connectionState: 'reconnecting' });
+    rerender(<ReconnectBanner />);
+    expect(screen.getByText(/CONNECTION LOST/)).toBeInTheDocument();
   });
 });
