@@ -42,6 +42,9 @@ export interface OperatorState {
 }
 
 let eventIdCounter = 0;
+let pendingCommandTimer: ReturnType<typeof setTimeout> | null = null;
+
+const PENDING_COMMAND_TIMEOUT_MS = 10_000;
 
 export const useOperatorStore = create<OperatorState>((set) => ({
   connected: false,
@@ -69,8 +72,17 @@ export const useOperatorStore = create<OperatorState>((set) => ({
   setConnectionState: (connectionState) => set({ connectionState, connected: connectionState === 'connected' }),
   setSendCommand: (fn) => set({
     sendCommand: (action, params) => {
+      if (pendingCommandTimer) clearTimeout(pendingCommandTimer);
       set({ pendingCommand: action });
       fn(action, params);
+      pendingCommandTimer = setTimeout(() => {
+        pendingCommandTimer = null;
+        set({
+          pendingCommand: null,
+          lastCommandResult: { success: false, message: 'Command timed out — no response from server' },
+        });
+        setTimeout(() => set({ lastCommandResult: null }), 3000);
+      }, PENDING_COMMAND_TIMEOUT_MS);
     },
   }),
 
@@ -126,6 +138,10 @@ export const useOperatorStore = create<OperatorState>((set) => ({
         break;
 
       case 'command_result':
+        if (pendingCommandTimer) {
+          clearTimeout(pendingCommandTimer);
+          pendingCommandTimer = null;
+        }
         set({ lastCommandResult: { success: msg.success, message: msg.message }, pendingCommand: null });
         setTimeout(() => set({ lastCommandResult: null }), 3000);
         break;

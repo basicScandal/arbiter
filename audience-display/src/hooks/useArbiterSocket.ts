@@ -25,6 +25,8 @@ export function useArbiterSocket() {
       ws.onopen = () => {
         setConnected(true);
         backoffRef.current = 1000;
+        // Request state resync on (re)connect
+        ws.send(JSON.stringify({ type: 'request_state' }));
       };
 
       ws.onmessage = (event) => {

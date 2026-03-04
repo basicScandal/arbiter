@@ -629,6 +629,11 @@ class WebOperator:
                 logger.info("Operator triggered rehearsal mode from dashboard")
                 log_command("rehearsal", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
+            elif action == "get_state":
+                # Client-initiated state resync (e.g. after reconnect)
+                await self._push_state(ws)
+                return
+
             elif action == "quit":
                 await self._send_result(ws, True, "Shutting down")
                 self._quit_signal.set()

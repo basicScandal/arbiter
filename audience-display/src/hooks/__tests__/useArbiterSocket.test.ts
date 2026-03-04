@@ -14,6 +14,7 @@ interface MockWebSocketInstance {
   onclose: (() => void) | null;
   onerror: (() => void) | null;
   close: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
   readyState: number;
 }
 
@@ -28,6 +29,7 @@ class MockWebSocket {
   close = vi.fn(() => {
     this.readyState = 3; // CLOSED
   });
+  send = vi.fn();
   readyState = 0; // CONNECTING
 
   static readonly CONNECTING = 0;

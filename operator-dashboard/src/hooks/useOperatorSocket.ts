@@ -15,6 +15,13 @@ export function useOperatorSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       const msg: CommandMessage = { type: 'command', action, ...params };
       wsRef.current.send(JSON.stringify(msg));
+    } else {
+      // Surface connection failure to operator immediately
+      useOperatorStore.getState().dispatch({
+        type: 'command_result',
+        success: false,
+        message: 'Not connected — command not sent',
+      });
     }
   }, []);
 
@@ -43,6 +50,8 @@ export function useOperatorSocket() {
       ws.onopen = () => {
         setConnectionState('connected');
         backoffRef.current = 1000;
+        // Request full state resync on (re)connect
+        ws.send(JSON.stringify({ type: 'command', action: 'get_state' }));
       };
 
       ws.onmessage = (event) => {
