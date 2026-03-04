@@ -29,7 +29,7 @@ export function DeliberationScreen() {
   }, [rankings]);
 
   return (
-    <div className="relative flex flex-col items-center h-full px-16 py-10 gap-8 overflow-auto">
+    <div className="relative flex flex-col items-center h-full px-16 py-10 gap-8">
       {/* Ranking arrival scan line */}
       <AnimatePresence>
         {scanKey > 0 && (
@@ -62,7 +62,8 @@ export function DeliberationScreen() {
       </motion.h2>
 
       {rankings.length > 0 && (
-        <table className="w-full max-w-5xl">
+        <div className="w-full max-w-5xl overflow-y-auto min-h-0 flex-1">
+        <table className="w-full">
           <thead>
             <tr className="text-lg text-arbiter-muted uppercase tracking-wider border-b border-arbiter-accent/20">
               <th className="pb-3 text-center w-20">Rank</th>
@@ -83,6 +84,7 @@ export function DeliberationScreen() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {narrative && <NarrativeBlock text={narrative} />}

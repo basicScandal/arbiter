@@ -85,6 +85,7 @@ export const useOperatorStore = create<OperatorState>((set) => ({
           // Clear stale data on state transitions
           ...(msg.state === 'idle' && { events: [], lastScorecard: null, scoringPhase: null, demoTimer: null }),
           ...(msg.state === 'capturing' && { lastScorecard: null, scoringPhase: null, demoTimer: null }),
+          ...(msg.state === 'stopped' && { demoTimer: null }),
         });
         break;
 

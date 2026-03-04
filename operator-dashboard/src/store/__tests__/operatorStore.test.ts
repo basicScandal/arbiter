@@ -444,6 +444,126 @@ describe("operatorStore", () => {
     });
   });
 
+  describe("dispatch - demoTimer clearing on state transitions", () => {
+    it("clears demoTimer on idle state", () => {
+      useOperatorStore.getState().dispatch({
+        type: "demo_timer",
+        level: "warning",
+        message: "5:00 elapsed",
+        elapsed: 300,
+      });
+      expect(useOperatorStore.getState().demoTimer).not.toBeNull();
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "idle",
+        team_name: "",
+        track: "",
+        started_at: null,
+      });
+      expect(useOperatorStore.getState().demoTimer).toBeNull();
+    });
+
+    it("clears demoTimer on capturing state", () => {
+      useOperatorStore.getState().dispatch({
+        type: "demo_timer",
+        level: "critical",
+        message: "7:00 elapsed",
+        elapsed: 420,
+      });
+      expect(useOperatorStore.getState().demoTimer).not.toBeNull();
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "capturing",
+        team_name: "Team A",
+        track: "ROGUE::AGENT",
+        started_at: Date.now(),
+      });
+      expect(useOperatorStore.getState().demoTimer).toBeNull();
+    });
+
+    it("clears demoTimer on stopped state", () => {
+      useOperatorStore.getState().dispatch({
+        type: "demo_timer",
+        level: "critical",
+        message: "8:00 — TIME IS UP",
+        elapsed: 480,
+      });
+      expect(useOperatorStore.getState().demoTimer).not.toBeNull();
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "stopped",
+        team_name: "Team A",
+        track: "ROGUE::AGENT",
+        started_at: 1700000000,
+      });
+      expect(useOperatorStore.getState().demoTimer).toBeNull();
+    });
+
+    it("does NOT clear demoTimer on paused state", () => {
+      useOperatorStore.getState().dispatch({
+        type: "demo_timer",
+        level: "warning",
+        message: "5:00 elapsed",
+        elapsed: 300,
+      });
+      expect(useOperatorStore.getState().demoTimer).not.toBeNull();
+
+      useOperatorStore.getState().dispatch({
+        type: "state",
+        state: "paused",
+        team_name: "Team A",
+        track: "ROGUE::AGENT",
+        started_at: 1700000000,
+      });
+      // Timer should persist during pause — operator needs to see elapsed time
+      expect(useOperatorStore.getState().demoTimer).not.toBeNull();
+    });
+  });
+
+  describe("pendingCommand lifecycle", () => {
+    it("sets pendingCommand when sendCommand is called", () => {
+      const mockFn = vi.fn();
+      useOperatorStore.getState().setSendCommand(mockFn);
+      useOperatorStore.getState().sendCommand("stop_demo");
+      expect(useOperatorStore.getState().pendingCommand).toBe("stop_demo");
+    });
+
+    it("clears pendingCommand on command_result", () => {
+      const mockFn = vi.fn();
+      useOperatorStore.getState().setSendCommand(mockFn);
+      useOperatorStore.getState().sendCommand("start_demo", { team: "Alpha" });
+      expect(useOperatorStore.getState().pendingCommand).toBe("start_demo");
+
+      useOperatorStore.getState().dispatch({
+        type: "command_result",
+        success: true,
+        message: "Demo started",
+      });
+      expect(useOperatorStore.getState().pendingCommand).toBeNull();
+    });
+
+    it("clears pendingCommand on failed command_result too", () => {
+      const mockFn = vi.fn();
+      useOperatorStore.getState().setSendCommand(mockFn);
+      useOperatorStore.getState().sendCommand("start_demo");
+      expect(useOperatorStore.getState().pendingCommand).toBe("start_demo");
+
+      useOperatorStore.getState().dispatch({
+        type: "command_result",
+        success: false,
+        message: "Already running",
+      });
+      expect(useOperatorStore.getState().pendingCommand).toBeNull();
+    });
+
+    it("starts as null", () => {
+      expect(useOperatorStore.getState().pendingCommand).toBeNull();
+    });
+  });
+
   describe("dispatch - command_result message", () => {
     it("sets lastCommandResult", () => {
       const msg: ServerMessage = {

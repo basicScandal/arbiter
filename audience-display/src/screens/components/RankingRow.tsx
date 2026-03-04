@@ -58,7 +58,7 @@ export function RankingRow({ entry, index, isWinner }: RankingRowProps) {
       <td className={`py-4 pr-4 text-arbiter-muted ${isWinner ? "text-xl" : "text-lg"}`}>
         {entry.track}
       </td>
-      <td className="py-4 text-lg text-arbiter-muted max-w-md">
+      <td className="py-4 text-lg text-arbiter-muted max-w-md line-clamp-2">
         {entry.reasoning}
       </td>
     </motion.tr>
