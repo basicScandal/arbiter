@@ -52,18 +52,18 @@ export function CommentaryScreen() {
       <div className="w-2/5 shrink-0" />
 
       {/* Right ~60% — text content with semi-transparent backdrop */}
-      <div className="flex-1 flex flex-col justify-center px-12 py-8">
-        <div className="bg-arbiter-bg/70 rounded-2xl px-10 py-8 backdrop-blur-sm">
+      <div className="flex-1 flex flex-col justify-end px-12 py-8 min-h-0">
+        <div className="bg-arbiter-bg/70 rounded-2xl px-10 py-8 backdrop-blur-sm max-h-full flex flex-col overflow-hidden">
           {teamName && (
             <motion.h2
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-2xl text-arbiter-accent tracking-widest uppercase mb-6"
+              className="text-2xl text-arbiter-accent tracking-widest uppercase mb-6 shrink-0"
             >
               {teamName}
             </motion.h2>
           )}
-          <div className="text-4xl leading-relaxed max-w-5xl font-medium space-y-1">
+          <div className="text-4xl leading-relaxed max-w-5xl font-medium space-y-1 overflow-y-auto min-h-0">
             <AnimatePresence>
               {sentences.map((s, i) => {
                 const colorClass =
