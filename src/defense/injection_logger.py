@@ -39,17 +39,6 @@ class InjectionLogger:
         """Return a copy of all recorded injection attempts."""
         return list(self._attempts)
 
-    def get_attempts_for_team(self, team_name: str) -> list[InjectionAttempt]:
-        """Return injection attempts filtered by team name.
-
-        Args:
-            team_name: The team name to filter by.
-
-        Returns:
-            List of attempts matching the given team name.
-        """
-        return [a for a in self._attempts if a.team_name == team_name]
-
     def clear(self) -> None:
         """Clear all recorded attempts. Call between events if needed."""
         self._attempts.clear()

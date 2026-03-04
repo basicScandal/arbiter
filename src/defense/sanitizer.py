@@ -27,7 +27,6 @@ class ObservationSanitizer:
     def sanitize_observations(
         self,
         observations: list[str],
-        known_attempts: list[InjectionAttempt],
     ) -> list[str]:
         """Remove tainted observations at medium or high confidence.
 
@@ -37,7 +36,6 @@ class ObservationSanitizer:
 
         Args:
             observations: Raw Gemini observations to sanitize.
-            known_attempts: Previously detected injection attempts (for context).
 
         Returns:
             List of clean observations with tainted entries removed.
@@ -64,7 +62,6 @@ class ObservationSanitizer:
     def sanitize_transcripts(
         self,
         transcripts: list[str],
-        known_attempts: list[InjectionAttempt],
     ) -> list[str]:
         """Remove tainted transcript segments at medium or high confidence.
 
@@ -73,7 +70,6 @@ class ObservationSanitizer:
 
         Args:
             transcripts: Raw transcript text segments to sanitize.
-            known_attempts: Previously detected injection attempts (for context).
 
         Returns:
             List of clean transcript segments with tainted entries removed.
@@ -123,8 +119,8 @@ class ObservationSanitizer:
             SanitizedOutput with clean observations/transcripts and full
             injection attempt list for reference.
         """
-        clean_observations = self.sanitize_observations(observations, attempts)
-        clean_transcripts = self.sanitize_transcripts(transcripts, attempts)
+        clean_observations = self.sanitize_observations(observations)
+        clean_transcripts = self.sanitize_transcripts(transcripts)
 
         return SanitizedOutput(
             team_name=team_name,

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import uuid
 
 import pyaudio
 from cartesia import AsyncCartesia
@@ -270,28 +269,6 @@ class TTSEngine:
         """
         self._cancelled.set()
         logger.info("TTS engine cancelled -- pending speaks will be skipped")
-
-    async def speak_commentary(
-        self,
-        sentences: list[str],
-        emotion_map: dict[int, str] | None = None,
-    ) -> None:
-        """Speak a full commentary as a sequence of sentences.
-
-        Args:
-            sentences: Ordered list of sentences to speak.
-            emotion_map: Optional mapping of sentence index to emotion tag.
-                Defaults to "sarcastic" for unmapped sentences.
-        """
-        context_id = str(uuid.uuid4())[:8]
-        for i, sentence in enumerate(sentences):
-            emotion = (emotion_map or {}).get(i, "sarcastic")
-            await self.speak(
-                sentence,
-                context_id,
-                emotion,
-                is_continuation=(i > 0),
-            )
 
     async def play_sound(self, pcm_bytes: bytes) -> None:
         """Play raw PCM int16 bytes through the PyAudio stream.
