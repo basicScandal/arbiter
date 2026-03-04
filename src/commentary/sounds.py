@@ -74,25 +74,6 @@ def generate_injection_alert() -> bytes:
     return _to_pcm16(audio.astype(np.float32))
 
 
-def generate_score_reveal() -> bytes:
-    """Dramatic rising sweep for score reveals (~1.2s)."""
-    sr = _SAMPLE_RATE
-    duration = int(sr * 1.2)
-
-    # Slow rising sweep with harmonics
-    freq = np.linspace(200, 600, duration)
-    phase = 2 * np.pi * np.cumsum(freq) / sr
-    audio = (
-        0.4 * np.sin(phase) +
-        0.2 * np.sin(2 * phase) +
-        0.1 * np.sin(3 * phase)
-    )
-    audio *= _envelope(duration, int(sr * 0.1), int(sr * 0.3))
-    audio *= 0.2
-
-    return _to_pcm16(audio.astype(np.float32))
-
-
 class SoundEffects:
     """Pre-generated sound effects for venue production cues.
 
@@ -104,5 +85,4 @@ class SoundEffects:
         self.start_chime = generate_start_chime()
         self.stop_tone = generate_stop_tone()
         self.injection_alert = generate_injection_alert()
-        self.score_reveal = generate_score_reveal()
-        logger.debug("Sound effects generated (%d cues)", 4)
+        logger.debug("Sound effects generated (%d cues)", 3)

@@ -22,11 +22,10 @@ from src.commentary.models import QAQuestion
 from src.commentary.prompts import QA_PROMPT
 from src.defense.models import SanitizedOutput
 from src.resilience.rate_limiter import GeminiRateLimiter
+from src.providers.groq_provider import GROQ_BASE_URL
 from src.resilience.retry import GEMINI_RETRY
 
 logger = logging.getLogger(__name__)
-
-_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 _GROQ_MODEL = "llama-3.3-70b-versatile"
 _GROQ_TIMEOUT = 15.0  # seconds -- prevent indefinite hang
 _MAX_QUESTIONS = 2  # enforce prompt contract
@@ -61,7 +60,7 @@ class QAGenerator:
         groq_key = os.environ.get("GROQ_API_KEY", "") if groq_api_key is None else groq_api_key
         if groq_key:
             self._groq_client: AsyncOpenAI | None = AsyncOpenAI(
-                api_key=groq_key, base_url=_GROQ_BASE_URL,
+                api_key=groq_key, base_url=GROQ_BASE_URL,
                 timeout=_GROQ_TIMEOUT,
             )
             logger.info("Groq fallback enabled for QA generation")

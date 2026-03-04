@@ -27,7 +27,7 @@ from src.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
-_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 # Retry on network errors AND OpenAI SDK-specific transient errors
 # (429 rate limits, 500/503 server errors, connection failures)
@@ -61,7 +61,7 @@ class GroqProvider(LLMProvider):
             model: Model identifier (default: llama-3.3-70b-versatile)
         """
         self._client = AsyncOpenAI(
-            api_key=api_key, base_url=_GROQ_BASE_URL, timeout=20.0
+            api_key=api_key, base_url=GROQ_BASE_URL, timeout=20.0
         )
         self._model = model
 

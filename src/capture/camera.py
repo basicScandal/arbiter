@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import time
 
 import cv2
 import numpy as np
@@ -89,8 +90,6 @@ class CameraCapture:
         buf = io.BytesIO()
         img.save(buf, format="JPEG")
         jpeg_bytes = buf.getvalue()
-
-        import time
 
         frame_data = FrameData(
             jpeg_data=jpeg_bytes,

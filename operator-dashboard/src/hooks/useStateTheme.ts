@@ -36,8 +36,6 @@ const STATE_THEMES = {
   },
 } as const;
 
-export type DemoState = keyof typeof STATE_THEMES;
-
 export function useStateTheme() {
   const demoState = useOperatorStore((s) => s.demoState);
 

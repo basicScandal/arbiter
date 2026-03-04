@@ -16,7 +16,7 @@ OBSERVATIONS_DIR = Path("data/observations")
 COMMENTARY_DIR = Path("data/commentary")
 HUMAN_SCORES_DIR = Path("data/human_scores")
 AUDIT_LOG = Path("data/audit.jsonl")
-DELIBERATION_DIR = Path("data/replay/deliberation")
+DELIBERATION_DIR = Path("data/deliberation")
 
 
 class TeamExport(BaseModel):
