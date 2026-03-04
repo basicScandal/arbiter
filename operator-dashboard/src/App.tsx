@@ -48,7 +48,7 @@ export default function App() {
   useOperatorSocket();
   useStateTheme();
 
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   useAudioFeedback(muted);
 
   return (
