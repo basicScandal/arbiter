@@ -28,21 +28,6 @@
   --color-event-commentary: #ffcc00;
   --color-event-tts: #555570;
 
-  /* Legacy compat (used in tests) */
-  --color-arbiter-bg: #06060c;
-  --color-arbiter-surface: #0c0c18;
-  --color-arbiter-accent: var(--color-accent-idle);
-  --color-arbiter-accent-dim: rgba(85, 136, 170, 0.2);
-  --color-arbiter-text: #e0e0f0;
-  --color-arbiter-muted: #8888aa;
-  --color-arbiter-gold: #ffd700;
-  --color-arbiter-orange: #ff8c00;
-  --color-arbiter-red: #ff4444;
-  --color-arbiter-green: #00ff88;
-  --color-arbiter-yellow: #ffaa00;
-  --color-arbiter-cyan: #00ccff;
-  --color-arbiter-purple: #bb88ff;
-
   --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
 }
 
@@ -111,11 +96,6 @@
   50% { border-color: var(--accent); box-shadow: 0 0 24px var(--glow); }
 }
 
-@keyframes orbPulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 8px var(--glow); }
-  50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 20px var(--glow), 0 0 40px var(--glow); }
-}
-
 @keyframes dotPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
@@ -132,10 +112,6 @@
 
 @utility animate-border-glow {
   animation: borderGlow var(--pulse-speed, 4s) ease-in-out infinite;
-}
-
-@utility animate-orb-pulse {
-  animation: orbPulse var(--pulse-speed, 4s) ease-in-out infinite;
 }
 
 @utility animate-dot-pulse {

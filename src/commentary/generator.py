@@ -240,12 +240,12 @@ class CommentaryGenerator:
             ),
         )
 
-    async def _stream_gemini_sentences(
-        self, user_prompt: str,
-    ) -> AsyncGenerator[tuple[str, str, int], None]:
-        """Stream sentences from Gemini, yielding each as its boundary is detected."""
-        temp = min(0.95, 0.8 + self._demo_count * 0.005)
+    def _build_demo_context(self) -> tuple[str, float]:
+        """Build demo-context string and temperature for the current demo number.
 
+        Returns:
+            (formatted_prompt, temperature) tuple ready for Gemini/Groq calls.
+        """
         if self._demo_count <= 7:
             demo_context = "Early in the event. Set the tone -- sharp, fair, and constructive."
         elif self._demo_count <= 15:
@@ -254,6 +254,14 @@ class CommentaryGenerator:
             demo_context = "Late in the event. Stay fresh -- every team deserves the same quality of feedback as the first."
 
         formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
+        temp = min(0.95, 0.8 + self._demo_count * 0.005)
+        return formatted_prompt, temp
+
+    async def _stream_gemini_sentences(
+        self, user_prompt: str,
+    ) -> AsyncGenerator[tuple[str, str, int], None]:
+        """Stream sentences from Gemini, yielding each as its boundary is detected."""
+        formatted_prompt, temp = self._build_demo_context()
 
         buffer = ""
         sentence_index = 0
@@ -294,20 +302,7 @@ class CommentaryGenerator:
         Retries up to 3 times with exponential backoff + jitter on network
         errors. Non-retryable errors propagate to generate() fallback logic.
         """
-        # Gradually increase temperature for later demos to boost variety
-        # Starts at 0.8, increases by 0.005 per demo, caps at 0.95
-        temp = min(0.95, 0.8 + self._demo_count * 0.005)
-
-        # Build demo context based on demo number
-        if self._demo_count <= 7:
-            demo_context = "Early in the event. Set the tone -- sharp, fair, and constructive."
-        elif self._demo_count <= 15:
-            demo_context = "Mid-event. You've seen a range. Draw comparisons where useful, stay consistent."
-        else:
-            demo_context = "Late in the event. Stay fresh -- every team deserves the same quality of feedback as the first."
-
-        # Format the persona prompt with demo context
-        formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
+        formatted_prompt, temp = self._build_demo_context()
 
         full_text = ""
         async with GeminiRateLimiter.default().acquire("commentary"):
@@ -328,16 +323,7 @@ class CommentaryGenerator:
         """Call Groq via OpenAI-compatible API and return the commentary text."""
         assert self._groq_client is not None
 
-        # Build the same formatted prompt that Gemini gets
-        if self._demo_count <= 7:
-            demo_context = "Early in the event. Set the tone -- sharp, fair, and constructive."
-        elif self._demo_count <= 15:
-            demo_context = "Mid-event. You've seen a range. Draw comparisons where useful, stay consistent."
-        else:
-            demo_context = "Late in the event. Stay fresh -- every team deserves the same quality of feedback as the first."
-        formatted_prompt = PERSONA_PROMPT.format(demo_context=demo_context)
-
-        temp = min(0.95, 0.8 + self._demo_count * 0.005)
+        formatted_prompt, temp = self._build_demo_context()
 
         response = await self._groq_client.chat.completions.create(
             model=_GROQ_MODEL,
