@@ -169,6 +169,15 @@ class DisplayServer:
                 name="operator-app",
             )
 
+        # Mount public static files (criteria pages, etc.)
+        public_dir = Path(__file__).parent / "../../public"
+        if public_dir.exists():
+            self._app.mount(
+                "/public",
+                StaticFiles(directory=str(public_dir.resolve()), html=True),
+                name="public-static",
+            )
+
         @self._app.websocket("/ws/display")
         async def websocket_endpoint(ws: WebSocket) -> None:
             await self._manager.connect(ws)
