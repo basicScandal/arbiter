@@ -5,11 +5,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "=== Operator Dashboard Tests ==="
-cd "$ROOT/operator-dashboard" && npx vitest run
+cd "$ROOT/operator-dashboard" && bun run test
 
 echo ""
 echo "=== Audience Display Tests ==="
-cd "$ROOT/audience-display" && npx vitest run
+cd "$ROOT/audience-display" && bun run test
 
 echo ""
 echo "All frontend tests passed."
