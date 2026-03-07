@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run test suite
+        run: uv run pytest --tb=short -m "not chaos"
+
+      - name: Run chaos tests
+        run: uv run pytest --tb=short -m chaos
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Test operator-dashboard
+        working-directory: operator-dashboard
+        run: |
+          bun install --frozen-lockfile
+          bun run test
+
+      - name: Test audience-display
+        working-directory: audience-display
+        run: |
+          bun install --frozen-lockfile
+          bun run test
