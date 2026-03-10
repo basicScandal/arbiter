@@ -19,6 +19,7 @@ from src.capture.camera import CameraCapture
 from src.capture.config import CaptureConfig
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
+from src.capture.event_logger import EventLogger
 from src.capture.gemini_session import GeminiSession
 from src.capture.models import (
     CaptureEvent,
@@ -297,6 +298,10 @@ class CapturePipeline:
 
         # Subscribe global logger for all events
         self.event_bus.subscribe_all(self._log_event)
+
+        # Subscribe persistent event logger for post-event replay
+        self._event_logger = EventLogger()
+        self.event_bus.subscribe_all(self._event_logger.on_event)
 
         # Subscribe to TTS events for audio capture mute coordination
         self.event_bus.subscribe("tts_speaking", self._on_tts_speaking)

@@ -16,6 +16,7 @@ OBSERVATIONS_DIR = Path("data/observations")
 COMMENTARY_DIR = Path("data/commentary")
 HUMAN_SCORES_DIR = Path("data/human_scores")
 AUDIT_LOG = Path("data/audit.jsonl")
+EVENTS_LOG = Path("data/events.jsonl")
 DELIBERATION_DIR = Path("data/deliberation")
 
 
@@ -38,12 +39,14 @@ class EventExport(BaseModel):
     teams: list[TeamExport]
     deliberation: dict | None = None
     audit_log: list[dict] = []
+    event_log: list[dict] = []
 
 
 async def export_event_data(
     *,
     include_audit: bool = False,
     include_observations: bool = True,
+    include_events: bool = False,
 ) -> EventExport:
     """Assemble comprehensive event data export.
 
@@ -119,6 +122,15 @@ async def export_event_data(
         except Exception:
             logger.debug("Failed to load audit log")
 
+    # Load event log
+    event_entries: list[dict] = []
+    if include_events and EVENTS_LOG.exists():
+        try:
+            from src.capture.event_logger import EventLogger
+            event_entries = await asyncio.to_thread(EventLogger.load, EVENTS_LOG)
+        except Exception:
+            logger.debug("Failed to load event log")
+
     return EventExport(
         event_name="NEBULA:FOG 2026",
         exported_at=time.time(),
@@ -126,6 +138,7 @@ async def export_event_data(
         teams=teams,
         deliberation=deliberation,
         audit_log=audit_entries,
+        event_log=event_entries,
     )
 
 

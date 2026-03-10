@@ -237,12 +237,14 @@ class WebOperator:
         async def export_all(
             include_audit: bool = Query(default=False),
             include_observations: bool = Query(default=True),
+            include_events: bool = Query(default=False),
         ):
             """Export all event data as JSON."""
             from src.reports.export import export_event_data
             result = await export_event_data(
                 include_audit=include_audit,
                 include_observations=include_observations,
+                include_events=include_events,
             )
             return result.model_dump()
 
