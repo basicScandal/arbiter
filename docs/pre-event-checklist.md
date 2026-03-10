@@ -61,6 +61,13 @@
 - [ ] Long team name (30+ chars) truncates cleanly on audience display
 - [ ] If server is down, clicking a button shows "Not connected" error immediately
 
+## Security Hardening Verification
+
+- [ ] Team name prompt injection blocked: try a name with newlines — should be sanitized
+- [ ] Invalid track defaults to ROGUE::AGENT: try a bogus track string
+- [ ] CSP headers present: `curl -I http://localhost:8080/ | grep Content-Security`
+- [ ] Unicode injection normalized: fullwidth "ｉｇｎｏｒｅ" should be detected same as "ignore"
+
 ## Day-of
 
 - [ ] `data/` directory exists and is writable

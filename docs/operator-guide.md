@@ -160,6 +160,21 @@ At 90% of MAX_DEMO_DURATION (default 10 min), operator gets a warning. The timer
 Team names are truncated with ellipsis on the audience display. Keep team names
 under ~30 characters for best appearance on the projected screen.
 
+## Quick-Reference: Failure → Recovery
+
+| Symptom | Cause | Recovery |
+|---------|-------|----------|
+| Scores all 5.0 | All LLM providers failed | Use human scoring API to override |
+| No audio from TTS | Cartesia down | Auto-fallback to OpenAI TTS → macOS `say` |
+| "Circuit breaker tripped" | Gemini rate limit | Auto-recovers in 60-120s; Claude fallback active |
+| Commentary empty | LLM streaming timeout | Partial text preserved; score reveal still fires |
+| Buttons stuck disabled | Command timeout | Auto-clears after 10s; check WebSocket connection |
+| Display frozen | WebSocket disconnect | Press backtick to open view switcher; audience auto-reconnects |
+| No camera/audio | Wrong device index | Check `CAMERA_DEVICE_INDEX` / `AUDIO_DEVICE_INDEX` in `.env` |
+| Score > 10.0 displayed | _(fixed)_ | Capped at 10.0 server-side since pre-event hardening |
+| Team name looks weird | Newlines in name | Sanitized at input; max 60 chars enforced |
+| Invalid track assigned | Typo in track name | Auto-defaults to ROGUE::AGENT with warning log |
+
 ## Emergency Procedures
 
 ### System crash mid-demo

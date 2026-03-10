@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 
 from src.defense.models import DetectionResult, InjectionPattern
 
@@ -124,6 +125,9 @@ class InjectionDetector:
         """
         if not text or not text.strip():
             return DetectionResult(is_injection=False, source=source)
+
+        # Normalize unicode to catch homoglyph evasion (e.g., fullwidth chars)
+        text = unicodedata.normalize("NFKC", text)
 
         matched_patterns: list[str] = []
         first_matched_text: str = ""
