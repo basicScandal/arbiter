@@ -165,20 +165,26 @@ class DeliberationPipeline:
         Rankings are revealed sequentially with 2-second spacing between
         teams. After all rankings, the overall narrative is shown.
         Display errors are caught and logged -- never crash.
+        Hard timeout of 120s prevents indefinite hangs if display is unresponsive.
         """
         try:
-            # Feature G: Send in reverse order for dramatic bottom-up reveal
-            # (worst rank first, rank 1 / winner last)
-            for ranking in reversed(result.rankings):
-                await self._display.push_deliberation_ranking(
-                    rank=ranking.rank,
-                    team_name=ranking.team_name,
-                    total_score=ranking.total_score,
-                    track=ranking.track,
-                    reasoning=ranking.reasoning,
-                )
-                await asyncio.sleep(2.0)
+            async with asyncio.timeout(120.0):
+                # Feature G: Send in reverse order for dramatic bottom-up reveal
+                # (worst rank first, rank 1 / winner last)
+                for ranking in reversed(result.rankings):
+                    await self._display.push_deliberation_ranking(
+                        rank=ranking.rank,
+                        team_name=ranking.team_name,
+                        total_score=ranking.total_score,
+                        track=ranking.track,
+                        reasoning=ranking.reasoning,
+                    )
+                    await asyncio.sleep(2.0)
 
-            await self._display.push_deliberation_narrative(result.overall_narrative)
+                await self._display.push_deliberation_narrative(result.overall_narrative)
+        except TimeoutError:
+            logger.warning(
+                "Deliberation display push timed out after 120s"
+            )
         except Exception:
             logger.warning("Error pushing deliberation to display", exc_info=True)

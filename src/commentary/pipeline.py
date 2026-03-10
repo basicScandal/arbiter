@@ -102,6 +102,7 @@ class CommentaryPipeline:
         self._event_bus: EventBus | None = None
         self._last_sanitized: SanitizedOutput | None = None
         self._last_quip_time: float = 0.0  # rate-limit injection reactions
+        self._commentary_cancelled = asyncio.Event()
         self._sounds = SoundEffects()
 
     async def setup(self, event_bus: EventBus) -> None:
@@ -218,11 +219,12 @@ class CommentaryPipeline:
         full_text = ""
         _commentary_start = time.monotonic()
 
-        # Clear cancellation flag from previous demo so new speaks work.
-        # cancel() in _on_demo_started sets the flag persistently — all
-        # old queued speaks see it. We clear here because this is the
+        # Clear cancellation flags from previous demo so new speaks work.
+        # cancel() in _on_demo_started sets flags persistently — all
+        # old queued speaks see them. We clear here because this is the
         # earliest point where new commentary will call speak().
         self._tts._cancelled.clear()
+        self._commentary_cancelled.clear()
 
         # Declared outside the timeout scope so partial sentences survive
         # both inner and outer timeouts.
@@ -246,6 +248,12 @@ class CommentaryPipeline:
                 try:
                     async with asyncio.timeout(_COMMENTARY_TIMEOUT):
                         async for sentence, emotion, i in self._generator.stream_sentences(event.output):
+                            if self._commentary_cancelled.is_set():
+                                logger.info(
+                                    "Commentary cancelled mid-stream for team %s "
+                                    "after %d sentences", team_name, len(sentences),
+                                )
+                                break
                             sentences.append(sentence)
                             await self._deliver_sentence(
                                 sentence, team_name, context_id,
@@ -345,11 +353,12 @@ class CommentaryPipeline:
             logger.exception("Q&A delivery failed")
 
     async def _on_demo_started(self, event: DemoStarted) -> None:
-        """Cancel any in-flight TTS and play start chime when a demo begins.
+        """Cancel any in-flight TTS and commentary when a new demo begins.
 
-        Cancels pending speak() calls from the previous demo's commentary
-        to prevent old audio from bleeding into the new demo.
+        Cancels pending speak() calls AND signals the commentary streaming
+        loop to stop, preventing old audio/text from bleeding into the new demo.
         """
+        self._commentary_cancelled.set()
         self._tts.cancel()
         try:
             await self._tts.play_sound(self._sounds.start_chime)
