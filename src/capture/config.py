@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 
 
@@ -80,3 +83,15 @@ def load_config() -> CaptureConfig:
         commentary_enrichment_enabled=os.getenv("COMMENTARY_ENRICHMENT_ENABLED", "").lower() in ("true", "1", "yes"),
         operator_token=os.getenv("OPERATOR_TOKEN", ""),
     )
+
+    if not config.operator_token:
+        logger.warning(
+            "OPERATOR_TOKEN is not set — operator WebSocket and human-score "
+            "endpoint are open to all connections. Set OPERATOR_TOKEN in .env "
+            "for production use."
+        )
+    if not os.getenv("DISPLAY_TOKEN", ""):
+        logger.warning(
+            "DISPLAY_TOKEN is not set — display WebSocket is open to all "
+            "connections. Set DISPLAY_TOKEN in .env for production use."
+        )
