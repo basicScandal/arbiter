@@ -152,7 +152,7 @@ class DeliberationPipeline:
             logger.info("Deliberation result saved to %s", result_path)
 
             # Push to display as detached task (same pattern as ScoringPipeline._reveal_score)
-            asyncio.create_task(self._push_deliberation_display(result))
+            asyncio.create_task(self._push_deliberation_display(result), name="deliberation-display")
 
             # Publish completion event
             if self._event_bus is not None:

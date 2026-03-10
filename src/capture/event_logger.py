@@ -89,6 +89,7 @@ class EventLogger:
         try:
             data = event.model_dump()
         except Exception:
+            logger.debug("model_dump() failed for %s, using minimal fallback", event.event_type, exc_info=True)
             data = {"event_type": event.event_type}
 
         cleaned = _strip_binary(data)

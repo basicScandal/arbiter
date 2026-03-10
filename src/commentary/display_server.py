@@ -304,7 +304,7 @@ class DisplayServer:
             log_level="warning",
         )
         self._server = uvicorn.Server(config)
-        self._serve_task = asyncio.create_task(self._server.serve())
+        self._serve_task = asyncio.create_task(self._server.serve(), name="display-server")
 
         # Wait briefly for uvicorn to actually bind
         for _ in range(20):

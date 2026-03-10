@@ -103,7 +103,7 @@ class WebOperator:
 
         self._register_routes()
         self._subscribe_events()
-        self._counter_task = asyncio.create_task(self._push_counters_loop())
+        self._counter_task = asyncio.create_task(self._push_counters_loop(), name="push-counters")
 
         logger.info("WebOperator started, waiting for commands via WebSocket")
         try:
@@ -344,7 +344,8 @@ class WebOperator:
                         confidence=confidence,
                         roast="",
                         team_name=team_name,
-                    )
+                    ),
+                    name="push-injection-blocked",
                 )
         elif event.event_type == "observation_verified":
             # Count clean observations
@@ -428,7 +429,7 @@ class WebOperator:
     def _start_demo_timer(self) -> None:
         """Start a background timer that warns operators as demo approaches max duration."""
         self._cancel_demo_timer()
-        self._demo_timer_task = asyncio.create_task(self._demo_timer_loop())
+        self._demo_timer_task = asyncio.create_task(self._demo_timer_loop(), name="demo-timer")
 
     def _cancel_demo_timer(self) -> None:
         """Cancel the running demo timer if any."""
@@ -648,7 +649,7 @@ class WebOperator:
                     except Exception:
                         logger.exception("Rehearsal failed")
 
-                asyncio.create_task(_run_rehearsal())
+                asyncio.create_task(_run_rehearsal(), name="rehearsal")
                 logger.info("Operator triggered rehearsal mode from dashboard")
                 log_command("rehearsal", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 

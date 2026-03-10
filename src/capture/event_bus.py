@@ -93,7 +93,7 @@ class EventBus:
         for callback in callbacks:
             self._pending_count += 1
             self._drain_event.clear()
-            asyncio.create_task(self._safe_call(callback, event))
+            asyncio.create_task(self._safe_call(callback, event), name=f"bus-{event.event_type}")
 
         if self._pending_count > BACKPRESSURE_THRESHOLD:
             logger.warning(

@@ -150,7 +150,7 @@ class ScoringPipeline:
             logger.info("Cancelled previous reveal task before starting new one")
 
         # Launch reveal as tracked task -- must NOT block the event bus callback
-        self._reveal_task = asyncio.create_task(self._reveal_score(scorecard))
+        self._reveal_task = asyncio.create_task(self._reveal_score(scorecard), name="score-reveal")
 
     def cancel_reveal(self) -> None:
         """Cancel any in-flight score reveal task.

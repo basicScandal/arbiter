@@ -13,6 +13,7 @@ import os
 import google.genai as genai
 from google.genai import types
 
+from src.config.models import CLAUDE_HAIKU_MODEL, GEMINI_FLASH_MODEL
 from src.defense.models import InjectionAttempt
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class RoastGenerator:
     then falls back to a canned roast if both fail.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
+    def __init__(self, api_key: str, model: str = GEMINI_FLASH_MODEL) -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         self._anthropic_client = None
@@ -89,7 +90,7 @@ class RoastGenerator:
         if self._anthropic_client:
             try:
                 response = await self._anthropic_client.messages.create(
-                    model="claude-haiku-4-5-20251001",
+                    model=CLAUDE_HAIKU_MODEL,
                     max_tokens=150,
                     messages=[{"role": "user", "content": prompt}],
                 )
