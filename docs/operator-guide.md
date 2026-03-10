@@ -150,6 +150,9 @@ Cartesia API is down. System degrades to text-only commentary (display still wor
 ### Circuit breaker tripped
 Gemini had repeated failures. Auto-recovers in 60-120s with half-open probing. Claude fallback is active for scoring during this time.
 
+### No audio/video from Zoom demo
+BlackHole or OBS Virtual Camera is misconfigured. See [zoom-capture-setup.md](zoom-capture-setup.md) for full setup and troubleshooting. Quick checks: verify OBS Virtual Camera is started, re-run device discovery scripts, confirm `.env` indices match.
+
 ### Demo timer warning
 At 90% of MAX_DEMO_DURATION (default 10 min), operator gets a warning. The timer does NOT auto-stop -- operator must click STOP manually.
 
@@ -204,7 +207,7 @@ Key environment variables (see `.env.example` for full list):
 | ANTHROPIC_API_KEY | (optional) | Claude fallback for scoring |
 | CARTESIA_API_KEY | (optional) | TTS engine |
 | CAMERA_DEVICE_INDEX | 0 | Camera device for capture |
-| AUDIO_DEVICE_INDEX | 0 | Microphone for audio capture |
+| AUDIO_DEVICE_INDEX | 0 | Microphone for audio capture (see [zoom-capture-setup.md](zoom-capture-setup.md) for Zoom demos) |
 | MAX_DEMO_DURATION | 600 | Max demo length in seconds |
 | ARBITER_AI_WEIGHT | 0.7 | AI score weight in blended score |
 | ARBITER_HUMAN_WEIGHT | 0.3 | Human score weight in blended score |
