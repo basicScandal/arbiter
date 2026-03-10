@@ -18,6 +18,7 @@ from src.commentary.models import CommentaryDelivered
 from src.capture.models import DemoStarted
 from src.config.tracks import VALID_TRACKS
 from src.defense.models import ObservationVerified
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.metrics import default_metrics
 from src.scoring.engine import ScoringEngine
 from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete, ScoringFailed
@@ -42,8 +43,9 @@ class ScoringPipeline:
         display: DisplayServer,
         scores_dir: str = "data/scores",
         moe_engine: MoEScoringEngine | None = None,
+        circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
-        self._engine = ScoringEngine(api_key=api_key)
+        self._engine = ScoringEngine(api_key=api_key, circuit_breaker=circuit_breaker)
         self._moe_engine = moe_engine
         self._store = ScoreStore(scores_dir=scores_dir)
         self._display = display

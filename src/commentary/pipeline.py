@@ -27,6 +27,7 @@ from src.commentary.sounds import SoundEffects
 from src.commentary.tts_engine import TTSEngine
 from src.defense.models import InjectionDetected, ObservationVerified, SanitizedOutput
 from src.providers.base import LLMProvider
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.health import default_health
 from src.resilience.metrics import default_metrics
 
@@ -82,8 +83,11 @@ class CommentaryPipeline:
         display_port: int = 8080,
         enrichment_provider: LLMProvider | None = None,
         groq_api_key: str = "",
+        circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
-        self._generator = CommentaryGenerator(api_key=api_key, groq_api_key=groq_api_key or None)
+        self._generator = CommentaryGenerator(
+            api_key=api_key, groq_api_key=groq_api_key or None, circuit_breaker=circuit_breaker,
+        )
         self._qa_generator = QAGenerator(api_key=api_key, groq_api_key=groq_api_key or None)
         self._enricher: CommentaryEnricher | None = (
             CommentaryEnricher(enrichment_provider) if enrichment_provider else None

@@ -38,6 +38,7 @@ from src.operator.tui import ArbiterTUI
 from src.operator.web import WebOperator
 from src.providers import create_provider
 from src.providers.base import LLMProvider
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.metrics import default_metrics
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.pipeline import ScoringPipeline
@@ -74,6 +75,9 @@ class CapturePipeline:
             api_key=config.gemini_api_key, gemini_session=self.gemini
         )
 
+        # Shared circuit breaker for Gemini availability across scoring + commentary
+        self._gemini_breaker = GeminiCircuitBreaker()
+
         # Build enrichment provider if configured
         enrichment_provider: LLMProvider | None = None
         if config.commentary_enrichment_enabled and config.anthropic_api_key:
@@ -90,6 +94,7 @@ class CapturePipeline:
             display_port=config.display_port,
             enrichment_provider=enrichment_provider,
             groq_api_key=config.groq_api_key,
+            circuit_breaker=self._gemini_breaker,
         )
 
         # Build MoE scoring providers if configured
@@ -117,6 +122,7 @@ class CapturePipeline:
             api_key=config.gemini_api_key,
             display=self.commentary._display,
             moe_engine=moe_engine,
+            circuit_breaker=self._gemini_breaker,
         )
         # Deliberation pipeline shares the same DisplayServer (display isolation
         # is about LLM paths, not the broadcast channel).

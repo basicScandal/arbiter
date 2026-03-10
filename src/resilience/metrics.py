@@ -8,7 +8,10 @@ as Prometheus text format for scraping.
 from __future__ import annotations
 
 import threading
-from collections import defaultdict
+from collections import defaultdict, deque
+
+
+_MAX_TIMER_SAMPLES = 1000
 
 
 class Metrics:
@@ -17,8 +20,7 @@ class Metrics:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._counters: dict[str, int] = defaultdict(int)
-        self._timers: dict[str, list[float]] = defaultdict(list)
-        self._max_timer_samples = 1000
+        self._timers: dict[str, deque[float]] = {}
 
     def inc(self, name: str, value: int = 1) -> None:
         """Increment a counter."""
@@ -28,10 +30,9 @@ class Metrics:
     def observe_seconds(self, name: str, seconds: float) -> None:
         """Record a duration for a named operation (keeps last N samples)."""
         with self._lock:
-            buf = self._timers[name]
-            buf.append(seconds)
-            if len(buf) > self._max_timer_samples:
-                buf.pop(0)
+            if name not in self._timers:
+                self._timers[name] = deque(maxlen=_MAX_TIMER_SAMPLES)
+            self._timers[name].append(seconds)
 
     def get_counters(self) -> dict[str, int]:
         """Return a snapshot of all counters."""
