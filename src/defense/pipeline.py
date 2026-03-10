@@ -125,6 +125,9 @@ class DefensePipeline:
         self._transcript_buffer = ""
         self._transcript_cooldown = 0
         self._logged_medium_in_window = False
+        for task in self._pending_roast_tasks:
+            if not task.done():
+                task.cancel()
         self._pending_roast_tasks.clear()
         self._logger.clear()
         logger.info("Defense pipeline active for team: %s", event.team_name)

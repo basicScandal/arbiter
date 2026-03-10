@@ -220,6 +220,6 @@ class MoEScoringEngine:
             track=track,
             criteria=aggregated_criteria,
             track_bonus=track_bonus,
-            total_score=round(total, 1),
+            total_score=round(min(total, 10.0), 1),
             scored_at=time.time(),
         )

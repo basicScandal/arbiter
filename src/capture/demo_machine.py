@@ -50,8 +50,13 @@ class DemoMachine(StateMachine):
         self.current_session: DemoSession | None = None
         super().__init__(**kwargs)
 
-    def on_enter_capturing(self, team_name: str = "Unknown", **kwargs) -> None:
-        """Create a new demo session and publish DemoStarted event."""
+    def on_start_demo(self, team_name: str = "Unknown", **kwargs) -> None:
+        """Create a new demo session on start_demo (idle -> capturing only).
+
+        Uses the transition-specific action (on_<transition>) rather than
+        on_enter_capturing so that resume_demo (paused -> capturing) does NOT
+        overwrite the existing session or fire a duplicate DemoStarted event.
+        """
         self.current_session = DemoSession(
             team_name=team_name,
             started_at=time.time(),

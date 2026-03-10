@@ -91,15 +91,19 @@ class AudioCapture:
 
         pya = pyaudio.PyAudio()
 
-        stream = await asyncio.to_thread(
-            pya.open,
-            format=pyaudio.paInt16,
-            channels=self._config.audio_channels,
-            rate=self._config.audio_sample_rate,
-            input=True,
-            input_device_index=self._config.audio_device_index,
-            frames_per_buffer=self._config.audio_chunk_size,
-        )
+        try:
+            stream = await asyncio.to_thread(
+                pya.open,
+                format=pyaudio.paInt16,
+                channels=self._config.audio_channels,
+                rate=self._config.audio_sample_rate,
+                input=True,
+                input_device_index=self._config.audio_device_index,
+                frames_per_buffer=self._config.audio_chunk_size,
+            )
+        except Exception:
+            pya.terminate()
+            raise
 
         try:
             while not self._stop_event.is_set():

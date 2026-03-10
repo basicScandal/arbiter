@@ -76,6 +76,7 @@ class WebOperator:
         self._quit_signal = asyncio.Event()
         self._operator_connections: set[WebSocket] = set()
         self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
+        self._total_injections: int = 0
         self._send_lock = asyncio.Lock()
         self._demo_timer_task: asyncio.Task | None = None
         self._scoring_phase: str | None = None
@@ -317,12 +318,15 @@ class WebOperator:
         elif event.event_type == "injection_detected":
             self._counters["attacks"] += 1
             # Feature C: Broadcast injection blocked notification to audience display
-            if hasattr(event, "attempt"):
+            # Only show during active capture — don't overwrite score reveal
+            if (
+                hasattr(event, "attempt")
+                and self._demo_machine.current_state.id == "capturing"
+            ):
                 attempt = event.attempt
                 category = getattr(attempt, "pattern", "injection_attempt")
                 confidence = getattr(attempt, "confidence", "medium")
                 team_name = getattr(attempt, "team_name", "")
-                # Use a roast if available via roasts field, otherwise empty string
                 asyncio.create_task(
                     self._display_server.push_injection_blocked(
                         category=category,
@@ -564,6 +568,12 @@ class WebOperator:
 
             elif action == "reset":
                 self._cancel_demo_timer()
+
+                # Cancel any in-flight score reveal before transitioning
+                if self._scoring_pipeline is not None:
+                    self._scoring_pipeline.cancel_reveal()
+                await self._display_server.clear()
+
                 self._demo_machine.send("reset")
 
                 # Feature A: Delete checkpoint when session completes (state → idle)
@@ -583,8 +593,8 @@ class WebOperator:
                         }
                         for sc in sorted(scorecards, key=lambda s: s.total_score, reverse=True)
                     ]
-                    total_injections = self._counters.get("attacks", 0)
-                    await self._display_server.push_intermission(leaderboard, total_injections)
+                    self._total_injections += self._counters.get("attacks", 0)
+                    await self._display_server.push_intermission(leaderboard, self._total_injections)
                 except Exception:
                     logger.warning("Failed to push intermission leaderboard", exc_info=True)
 

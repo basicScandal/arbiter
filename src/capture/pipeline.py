@@ -192,6 +192,17 @@ class CapturePipeline:
 
         self._capture_tasks.clear()
 
+        # Flush stale media chunks so the next demo starts with a clean queue
+        flushed = 0
+        while not self.media_queue.empty():
+            try:
+                self.media_queue.get_nowait()
+                flushed += 1
+            except asyncio.QueueEmpty:
+                break
+        if flushed:
+            logger.info("Flushed %d stale media chunks from queue", flushed)
+
         # Store Gemini observations in the demo session
         session = self.demo_machine.current_session
         if session is not None:

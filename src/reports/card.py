@@ -1,6 +1,7 @@
 """Per-team report card HTML generation."""
 from __future__ import annotations
 
+import html
 import json
 import logging
 from pathlib import Path
@@ -50,7 +51,7 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
         bar_width = c.score * 10  # 0-100%
         criteria_rows += f"""
         <tr>
-            <td class="criterion-name">{c.name}</td>
+            <td class="criterion-name">{html.escape(c.name)}</td>
             <td class="criterion-weight">×{c.weight}</td>
             <td class="criterion-score">
                 <div class="score-bar-bg">
@@ -60,7 +61,7 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
             </td>
         </tr>
         <tr class="justification-row">
-            <td colspan="3" class="justification">{c.justification}</td>
+            <td colspan="3" class="justification">{html.escape(c.justification)}</td>
         </tr>"""
 
     # Track bonus row
@@ -70,7 +71,7 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
         bar_width = tb.score * 10
         bonus_html = f"""
         <tr class="bonus-row">
-            <td class="criterion-name bonus">{tb.name}</td>
+            <td class="criterion-name bonus">{html.escape(tb.name)}</td>
             <td class="criterion-weight">×{tb.weight}</td>
             <td class="criterion-score">
                 <div class="score-bar-bg">
@@ -80,7 +81,7 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
             </td>
         </tr>
         <tr class="justification-row">
-            <td colspan="3" class="justification">{tb.justification}</td>
+            <td colspan="3" class="justification">{html.escape(tb.justification)}</td>
         </tr>"""
 
     # Commentary section
@@ -89,7 +90,7 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
         commentary_section = f"""
         <div class="section">
             <h2>ARBITER'S COMMENTARY</h2>
-            <blockquote class="commentary">{commentary}</blockquote>
+            <blockquote class="commentary">{html.escape(commentary)}</blockquote>
         </div>"""
 
     # Score tier label
@@ -111,7 +112,7 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Report Card — {scorecard.team_name}</title>
+<title>Report Card — {html.escape(scorecard.team_name)}</title>
 <style>
   @media print {{
     @page {{ size: A4; margin: 1.5cm; }}
@@ -255,8 +256,8 @@ def _render_html(scorecard: DemoScorecard, commentary: str) -> str:
 
 <div class="header">
     <h1>NEBULA:FOG 2026 — AI Judge Report Card</h1>
-    <div class="team-name">{scorecard.team_name}</div>
-    <div class="track-badge">{scorecard.track}</div>
+    <div class="team-name">{html.escape(scorecard.team_name)}</div>
+    <div class="track-badge">{html.escape(scorecard.track)}</div>
 </div>
 
 <div class="total-score-section">

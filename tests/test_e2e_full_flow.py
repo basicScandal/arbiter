@@ -84,6 +84,9 @@ class FakeScoringPipeline:
     def set_track(self, team_name: str, track: str) -> None:
         self._pending_tracks[team_name] = track
 
+    def cancel_reveal(self) -> None:
+        pass
+
 
 class FakeDeliberationPipeline:
     """Minimal DeliberationPipeline stand-in."""

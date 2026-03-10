@@ -434,6 +434,8 @@ def test_smoke_websocket_operator_lifecycle(tmp_path):
             self._pending_tracks: dict[str, str] = {}
         def set_track(self, team_name: str, track: str) -> None:
             self._pending_tracks[team_name] = track
+        def cancel_reveal(self) -> None:
+            pass
 
     class _FakeDeliberationPipeline:
         def __init__(self):
