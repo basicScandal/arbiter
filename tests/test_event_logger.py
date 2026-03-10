@@ -28,6 +28,7 @@ from src.scoring.models import (
     CriterionScore,
     DemoScorecard,
     ScoringComplete,
+    ScoringFailed,
 )
 
 
@@ -213,6 +214,17 @@ class TestEventLogger:
         entry = json.loads(log_path.read_text().strip())
         assert entry["event_type"] == "injection_detected"
         assert entry["attempt"]["injection_type"] == "verbal"
+
+
+    @pytest.mark.asyncio
+    async def test_logs_scoring_failed(self, logger: EventLogger, log_path: Path):
+        event = ScoringFailed(team_name="TeamBroken", error="API timeout after 30s")
+        await logger.on_event(event)
+
+        entry = json.loads(log_path.read_text().strip())
+        assert entry["event_type"] == "scoring_failed"
+        assert entry["team_name"] == "TeamBroken"
+        assert "API timeout" in entry["error"]
 
 
 class TestEventLoggerLoad:

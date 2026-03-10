@@ -12,6 +12,7 @@ const EVENT_CONFIG: Record<string, { icon: string; color: string; label?: string
   observation_verified: { icon: "\u2713", color: "text-event-verified",   label: "Verified" },
   commentary_delivered: { icon: "\u266b", color: "text-event-commentary", label: "Commentary" },
   scoring_complete:     { icon: "\u2605", color: "text-event-commentary", label: "Scored" },
+  scoring_failed:       { icon: "\u2716", color: "text-event-injection",  label: "Score FAILED" },
   qa_requested:         { icon: "?",      color: "text-accent-paused",    label: "Q&A" },
   tts_speaking:         { icon: "\u25b8", color: "text-event-tts",        label: "Speaking" },
   tts_finished:         { icon: "\u2014", color: "text-event-tts",        label: "TTS done" },
@@ -75,6 +76,10 @@ function formatEventData(eventType: string, data?: Record<string, unknown>): str
   if (eventType === "scoring_complete" && data.scorecard) {
     const sc = data.scorecard as Record<string, unknown>;
     return `${sc.team_name}: ${Number(sc.total_score).toFixed(1)}/10`;
+  }
+  if (eventType === "scoring_failed") {
+    const error = data.error ? String(data.error) : "unknown error";
+    return `${data.team_name}: ${error.length > 80 ? error.slice(0, 77) + "..." : error}`;
   }
   if (data.team_name) return String(data.team_name);
   return "";

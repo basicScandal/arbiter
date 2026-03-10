@@ -15,7 +15,7 @@ from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
 from src.defense.models import ObservationVerified, SanitizedOutput
-from src.scoring.models import CriterionScore, DemoScorecard, ScoreRevealed, ScoringComplete
+from src.scoring.models import CriterionScore, DemoScorecard, ScoreRevealed, ScoringComplete, ScoringFailed
 from src.scoring.pipeline import ScoringPipeline
 
 # ---------------------------------------------------------------------------
@@ -169,6 +169,28 @@ class TestOnObservationVerified:
 
         # No scorecard should be pending
         assert "TestTeam" not in pipeline._pending_scorecards
+
+    @pytest.mark.asyncio
+    async def test_scoring_failure_publishes_scoring_failed_event(self, sanitized, event_bus, mock_display):
+        pipeline = ScoringPipeline(api_key="key", display=mock_display)
+        await pipeline.setup(event_bus)
+
+        pipeline._engine.score = AsyncMock(side_effect=Exception("API timeout"))
+
+        received: list[ScoringFailed] = []
+
+        async def _capture(e: ScoringFailed) -> None:
+            received.append(e)
+
+        event_bus.subscribe("scoring_failed", _capture)
+
+        event = ObservationVerified(output=sanitized)
+        await pipeline._on_observation_verified(event)
+        await event_bus.drain()
+
+        assert len(received) == 1
+        assert received[0].team_name == "TestTeam"
+        assert "API timeout" in received[0].error
 
     @pytest.mark.asyncio
     async def test_uses_moe_engine_when_available(self, sanitized, scorecard, event_bus, mock_display):

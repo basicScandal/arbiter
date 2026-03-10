@@ -25,7 +25,7 @@ export interface OperatorState {
   lastCommandResult: { success: boolean; message: string; } | null;
   health: Record<string, boolean>;
   demoTimer: { level: 'warning' | 'critical'; message: string; elapsed: number } | null;
-  scoringPhase: 'sanitizing' | 'scoring' | 'revealing' | null;
+  scoringPhase: 'sanitizing' | 'scoring' | 'revealing' | 'failed' | null;
   lastScorecard: {
     team_name: string;
     track: string;
