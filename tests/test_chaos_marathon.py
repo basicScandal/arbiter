@@ -17,13 +17,13 @@ import pytest
 
 from src.capture.event_bus import BACKPRESSURE_THRESHOLD, EventBus
 from src.capture.models import DemoStarted, DemoStopped
-from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.resilience.metrics import default_metrics
-from src.scoring.models import CriterionScore, DemoScorecard
+from src.scoring.models import DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
+from tests.helpers.factories import make_mock_display, make_mock_gemini, make_scorecard
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -33,58 +33,6 @@ _TEST_OBSERVATIONS = [
     "The team built a network scanner",
     "It detected 3 open ports",
 ]
-
-
-def _make_scorecard(team_name: str = "TestTeam") -> DemoScorecard:
-    return DemoScorecard(
-        team_name=team_name,
-        track="ROGUE::AGENT",
-        criteria=[
-            CriterionScore(
-                name="Technical Execution", score=8.0, weight=0.40,
-                justification="Solid implementation",
-            ),
-            CriterionScore(
-                name="Innovation", score=7.0, weight=0.30,
-                justification="Novel approach",
-            ),
-            CriterionScore(
-                name="Demo Quality", score=6.0, weight=0.30,
-                justification="Good presentation",
-            ),
-        ],
-        track_bonus=None,
-        total_score=7.1,
-        scored_at=1000.0,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_gemini(observations: list[str]) -> MagicMock:
-    """Create a mock GeminiSession returning canned observations."""
-    gemini = MagicMock()
-    gemini.get_observations.return_value = observations
-    gemini.clear_observations = MagicMock()
-    return gemini
-
-
-def _make_mock_display() -> MagicMock:
-    """Create a mock DisplayServer with all async methods stubbed."""
-    display = MagicMock(spec=DisplayServer)
-    display.start = AsyncMock()
-    display.stop = AsyncMock()
-    display.push_commentary = AsyncMock()
-    display.push_score_intro = AsyncMock()
-    display.push_criterion_reveal = AsyncMock()
-    display.push_total_score = AsyncMock()
-    display.push_deliberation_ranking = AsyncMock()
-    display.push_deliberation_narrative = AsyncMock()
-    display.clear = AsyncMock()
-    return display
 
 
 async def _fake_stream_sentences(sanitized_output):
@@ -101,7 +49,7 @@ async def _setup_full_pipeline(
 ):
     """Wire all four sub-pipelines to a shared event bus with mocked I/O."""
     if scorecard is None:
-        scorecard = _make_scorecard()
+        scorecard = make_scorecard()
 
     # Defense pipeline
     defense = DefensePipeline(api_key="test", gemini_session=mock_gemini)
@@ -151,11 +99,11 @@ NUM_DEMOS = 20
 @pytest.mark.timeout(60)
 async def test_twenty_demo_sustained_marathon(event_bus, event_collector):
     """20 consecutive demos through all 4 pipelines complete cleanly."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
     teams = [f"Team{i:02d}" for i in range(1, NUM_DEMOS + 1)]
 
-    scorecard_by_team = {t: _make_scorecard(t) for t in teams}
+    scorecard_by_team = {t: make_scorecard(t) for t in teams}
 
     async def _score_for_team(sanitized, *args, **kwargs):
         return scorecard_by_team[sanitized.team_name]
@@ -205,11 +153,11 @@ async def test_twenty_demo_sustained_marathon(event_bus, event_collector):
 @pytest.mark.timeout(60)
 async def test_chaos_with_intermittent_failures(event_bus, event_collector):
     """Intermittent scoring/commentary failures across 20 demos with recovery."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
     teams = [f"Team{i:02d}" for i in range(1, NUM_DEMOS + 1)]
 
-    scorecard_by_team = {t: _make_scorecard(t) for t in teams}
+    scorecard_by_team = {t: make_scorecard(t) for t in teams}
 
     async def _score_for_team(sanitized, *args, **kwargs):
         return scorecard_by_team[sanitized.team_name]
@@ -285,11 +233,11 @@ async def test_chaos_with_intermittent_failures(event_bus, event_collector):
 @pytest.mark.timeout(60)
 async def test_asyncio_task_hygiene(event_bus, event_collector):
     """Monitor asyncio task counts across 20 demos — no leaks or backpressure."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
     teams = [f"Team{i:02d}" for i in range(1, NUM_DEMOS + 1)]
 
-    scorecard_by_team = {t: _make_scorecard(t) for t in teams}
+    scorecard_by_team = {t: make_scorecard(t) for t in teams}
 
     async def _score_for_team(sanitized, *args, **kwargs):
         return scorecard_by_team[sanitized.team_name]
@@ -338,11 +286,11 @@ async def test_asyncio_task_hygiene(event_bus, event_collector):
 @pytest.mark.timeout(60)
 async def test_correlated_failure_kill_switch(event_bus, event_collector):
     """Total network outage (scoring+commentary) for 3 demos, then full recovery."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
     teams = [f"Team{i:02d}" for i in range(1, NUM_DEMOS + 1)]
 
-    scorecard_by_team = {t: _make_scorecard(t) for t in teams}
+    scorecard_by_team = {t: make_scorecard(t) for t in teams}
 
     async def _score_for_team(sanitized, *args, **kwargs):
         return scorecard_by_team[sanitized.team_name]
@@ -411,11 +359,11 @@ async def test_correlated_failure_kill_switch(event_bus, event_collector):
 @pytest.mark.timeout(60)
 async def test_combined_health_signals(event_bus, event_collector):
     """20 demos with 2 chaos windows — validate ALL observability signals."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
     teams = [f"Team{i:02d}" for i in range(1, NUM_DEMOS + 1)]
 
-    scorecard_by_team = {t: _make_scorecard(t) for t in teams}
+    scorecard_by_team = {t: make_scorecard(t) for t in teams}
 
     async def _score_for_team(sanitized, *args, **kwargs):
         return scorecard_by_team[sanitized.team_name]

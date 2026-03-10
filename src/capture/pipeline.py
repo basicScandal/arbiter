@@ -75,21 +75,11 @@ class CapturePipeline:
         # Shared circuit breaker for Gemini availability across scoring + commentary
         self._gemini_breaker = GeminiCircuitBreaker()
 
-        # Build enrichment provider if configured
-        enrichment_provider: LLMProvider | None = None
-        if config.commentary_enrichment_enabled and config.anthropic_api_key:
-            enrichment_provider = create_provider("claude", config.anthropic_api_key)
-            logger.info("Commentary enrichment enabled via Claude")
-        elif config.commentary_enrichment_enabled and config.openai_api_key:
-            enrichment_provider = create_provider("openai", config.openai_api_key)
-            logger.info("Commentary enrichment enabled via OpenAI")
-
         self.commentary = CommentaryPipeline(
             api_key=config.gemini_api_key,
             voice_id=config.cartesia_voice_id,
             display_host=config.display_host,
             display_port=config.display_port,
-            enrichment_provider=enrichment_provider,
             groq_api_key=config.groq_api_key,
             circuit_breaker=self._gemini_breaker,
         )

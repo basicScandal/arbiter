@@ -23,8 +23,9 @@ from src.defense.models import (
 )
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
-from src.scoring.models import CriterionScore, DemoScorecard
+from src.scoring.models import DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
+from tests.helpers.factories import make_mock_gemini, make_scorecard
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -34,42 +35,6 @@ _TEST_OBSERVATIONS = [
     "The team built a network scanner",
     "It detected 3 open ports",
 ]
-
-
-def _make_scorecard(team_name: str = "TestTeam") -> DemoScorecard:
-    return DemoScorecard(
-        team_name=team_name,
-        track="ROGUE::AGENT",
-        criteria=[
-            CriterionScore(
-                name="Technical Execution", score=8.0, weight=0.40,
-                justification="Solid implementation",
-            ),
-            CriterionScore(
-                name="Innovation", score=7.0, weight=0.30,
-                justification="Novel approach",
-            ),
-            CriterionScore(
-                name="Demo Quality", score=6.0, weight=0.30,
-                justification="Good presentation",
-            ),
-        ],
-        track_bonus=None,
-        total_score=7.1,
-        scored_at=1000.0,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_gemini(observations: list[str]) -> MagicMock:
-    gemini = MagicMock()
-    gemini.get_observations.return_value = observations
-    gemini.clear_observations = MagicMock()
-    return gemini
 
 
 def _make_mock_display() -> MagicMock:
@@ -99,7 +64,7 @@ async def _setup_full_pipeline(
     scorecard: DemoScorecard | None = None,
 ):
     if scorecard is None:
-        scorecard = _make_scorecard()
+        scorecard = make_scorecard()
 
     defense = DefensePipeline(api_key="test", gemini_session=mock_gemini)
     await defense.setup(event_bus)
@@ -147,7 +112,7 @@ async def test_network_failure_mid_scoring(event_bus, event_collector):
     catches the error and logs it. Commentary is an independent subscriber
     and must still complete. The pipeline must not deadlock.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
     mock_display = _make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
@@ -186,7 +151,7 @@ async def test_injection_during_active_demo(event_bus, event_collector):
     audience holding up injection text). The commentary pipeline processes
     the quip. Subsequent demo_stopped -> score_revealed chain completes.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
     mock_display = _make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
@@ -234,11 +199,11 @@ async def test_rapid_stop_start_between_demos(event_bus, event_collector):
 
     Both team A and team B must receive score_revealed with no deadlock.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
     mock_display = _make_mock_display()
 
     async def _score_by_team(sanitized, *args, **kwargs):
-        return _make_scorecard(sanitized.team_name)
+        return make_scorecard(sanitized.team_name)
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
@@ -286,7 +251,7 @@ async def test_commentary_stall_doesnt_block_next_demo(event_bus, event_collecto
     team A times out with partial text. A subsequent demo for team B
     completes normally.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
     mock_display = _make_mock_display()
 
     async def _stalling_stream(sanitized_output):
@@ -302,7 +267,7 @@ async def test_commentary_stall_doesnt_block_next_demo(event_bus, event_collecto
     commentary._generator.stream_sentences = _stalling_stream
 
     async def _score_by_team(sanitized, *args, **kwargs):
-        return _make_scorecard(sanitized.team_name)
+        return make_scorecard(sanitized.team_name)
 
     scoring._engine.score = AsyncMock(side_effect=_score_by_team)
 
