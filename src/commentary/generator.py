@@ -29,6 +29,7 @@ from src.providers.groq_provider import GROQ_BASE_URL
 from src.resilience.retry import GEMINI_RETRY, DailyQuotaExhausted
 
 logger = logging.getLogger(__name__)
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 _GROQ_MODEL = "llama-3.3-70b-versatile"
 _GROQ_TIMEOUT = 20.0  # longer than QA since commentary is more text
 
@@ -274,7 +275,7 @@ class CommentaryGenerator:
                     buffer += chunk.text
                     # Extract complete sentences from buffer
                     while True:
-                        match = re.search(r'(?<=[.!?])\s+', buffer)
+                        match = _SENTENCE_BOUNDARY.search(buffer)
                         if match:
                             raw = buffer[:match.start()].strip()
                             buffer = buffer[match.end():]
@@ -403,7 +404,7 @@ class CommentaryGenerator:
         """
         if not text:
             return []
-        parts = re.split(r"(?<=[.!?])\s+", text)
+        parts = _SENTENCE_BOUNDARY.split(text)
         return [s.strip() for s in parts if s.strip()]
 
     @staticmethod

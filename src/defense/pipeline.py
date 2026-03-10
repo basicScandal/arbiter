@@ -170,7 +170,7 @@ class DefensePipeline:
         so additional patterns can accumulate to reach high confidence.
         """
         self._transcripts.append(event.segment.text)
-        self._transcript_buffer += event.segment.text
+        self._transcript_buffer = (self._transcript_buffer + event.segment.text)[-400:]
 
         # Skip scanning during cooldown after a high-confidence detection
         if self._transcript_cooldown > 0:
