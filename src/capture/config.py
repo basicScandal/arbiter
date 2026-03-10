@@ -7,8 +7,9 @@ import os
 
 from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__)
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 class CaptureConfig(BaseModel):
@@ -66,7 +67,7 @@ def load_config() -> CaptureConfig:
     audio_device_raw = os.getenv("AUDIO_DEVICE_INDEX")
     audio_device_index = int(audio_device_raw) if audio_device_raw else None
 
-    return CaptureConfig(
+    config = CaptureConfig(
         gemini_api_key=gemini_api_key,
         camera_device_index=int(os.getenv("CAMERA_DEVICE_INDEX", "0")),
         audio_device_index=audio_device_index,
@@ -95,3 +96,5 @@ def load_config() -> CaptureConfig:
             "DISPLAY_TOKEN is not set — display WebSocket is open to all "
             "connections. Set DISPLAY_TOKEN in .env for production use."
         )
+
+    return config

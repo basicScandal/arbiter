@@ -322,7 +322,8 @@ class CommentaryGenerator:
 
     async def _call_groq(self, user_prompt: str) -> str:
         """Call Groq via OpenAI-compatible API and return the commentary text."""
-        assert self._groq_client is not None
+        if self._groq_client is None:
+            raise RuntimeError("Groq client not configured (missing GROQ_API_KEY)")
 
         formatted_prompt, temp = self._build_demo_context()
 

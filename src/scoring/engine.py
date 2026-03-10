@@ -19,6 +19,7 @@ from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
 
+from src.config.models import CLAUDE_MODEL
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.retry import CLAUDE_RETRY, GEMINI_RETRY_BACKGROUND, DailyQuotaExhausted
@@ -195,10 +196,11 @@ class ScoringEngine:
         Uses the same prompt and expects the same JSON output format.
         Retries up to 3 times on transient network/rate-limit errors.
         """
-        assert self._claude_client is not None
+        if self._claude_client is None:
+            raise RuntimeError("Claude client not configured (missing ANTHROPIC_API_KEY)")
         message = await asyncio.wait_for(
             self._claude_client.messages.create(
-                model="claude-sonnet-4-5-20250929",
+                model=CLAUDE_MODEL,
                 max_tokens=1500,
                 temperature=0.3,
                 system=SCORING_SYSTEM_PROMPT,

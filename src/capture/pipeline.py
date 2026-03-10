@@ -33,8 +33,6 @@ from src.capture.models import (
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
-from src.operator.cli import OperatorCLI
-from src.operator.tui import ArbiterTUI
 from src.operator.web import WebOperator
 from src.providers import create_provider
 from src.providers.base import LLMProvider
@@ -56,7 +54,7 @@ class CapturePipeline:
         config: Capture configuration with device indexes, API keys, etc.
     """
 
-    def __init__(self, config: CaptureConfig, operator_mode: str = "web") -> None:
+    def __init__(self, config: CaptureConfig) -> None:
         self.event_bus = EventBus()
         self.media_queue: asyncio.Queue = asyncio.Queue(maxsize=config.max_queue_size)
 
@@ -70,7 +68,6 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
-        self._operator_mode = operator_mode
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
         )
@@ -131,25 +128,13 @@ class CapturePipeline:
             display=self.commentary._display,
         )
 
-        if operator_mode == "web":
-            self.operator: OperatorCLI | ArbiterTUI | WebOperator = WebOperator(
-                demo_machine=self.demo_machine,
-                event_bus=self.event_bus,
-                display_server=self.commentary._display,
-                scoring_pipeline=self.scoring,
-                deliberation_pipeline=self.deliberation,
-            )
-        elif operator_mode == "tui":
-            self.operator = ArbiterTUI(
-                demo_machine=self.demo_machine, event_bus=self.event_bus
-            )
-        else:
-            self.operator = OperatorCLI(
-                demo_machine=self.demo_machine,
-                event_bus=self.event_bus,
-                scoring_pipeline=self.scoring,
-                deliberation_pipeline=self.deliberation,
-            )
+        self.operator = WebOperator(
+            demo_machine=self.demo_machine,
+            event_bus=self.event_bus,
+            display_server=self.commentary._display,
+            scoring_pipeline=self.scoring,
+            deliberation_pipeline=self.deliberation,
+        )
 
         self._capture_tasks: list[asyncio.Task] = []
 
@@ -324,13 +309,6 @@ class CapturePipeline:
 
         # Wire the deliberation pipeline into the event bus
         await self.deliberation.setup(self.event_bus)
-
-        if self._operator_mode == "cli":
-            print("=" * 40)
-            print("  Arbiter Capture Layer v0.1")
-            print("  Type 'help' for commands")
-            print("=" * 40)
-            print()
 
         try:
             await self.operator.run()
