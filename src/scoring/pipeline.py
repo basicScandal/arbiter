@@ -20,7 +20,7 @@ from src.config.tracks import VALID_TRACKS
 from src.defense.models import ObservationVerified
 from src.resilience.metrics import default_metrics
 from src.scoring.engine import ScoringEngine
-from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete
+from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete, ScoringFailed
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.store import ScoreStore
 
@@ -106,12 +106,16 @@ class ScoringPipeline:
                 scorecard.total_score,
                 track,
             )
-        except Exception:
+        except Exception as exc:
             logger.warning(
                 "Scoring failed for team %s, no scorecard available for reveal",
                 team_name,
                 exc_info=True,
             )
+            if self._event_bus is not None:
+                self._event_bus.publish(
+                    ScoringFailed(team_name=team_name, error=str(exc)[:200])
+                )
             return
 
         # Publish scoring complete event

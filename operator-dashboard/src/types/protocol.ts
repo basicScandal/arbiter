@@ -51,7 +51,7 @@ export interface DemoTimerMessage {
 
 export interface ScoringPhaseMessage {
   type: 'scoring_phase';
-  phase: 'sanitizing' | 'scoring' | 'revealing' | null;
+  phase: 'sanitizing' | 'scoring' | 'revealing' | 'failed' | null;
 }
 
 export type ServerMessage = StateMessage | EventMessage | CountersMessage | CommandResultMessage | HealthMessage | DemoTimerMessage | ScoringPhaseMessage;

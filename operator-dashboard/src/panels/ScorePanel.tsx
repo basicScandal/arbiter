@@ -5,10 +5,12 @@ const PHASE_CONFIG = {
   sanitizing: { label: "SANITIZING OBSERVATIONS", step: 1 },
   scoring: { label: "SCORING DEMO", step: 2 },
   revealing: { label: "FINALIZING VERDICT", step: 3 },
+  failed: { label: "SCORING FAILED", step: 0 },
 } as const;
 
-function JudgmentProgress({ phase }: { phase: 'sanitizing' | 'scoring' | 'revealing' }) {
+function JudgmentProgress({ phase }: { phase: 'sanitizing' | 'scoring' | 'revealing' | 'failed' }) {
   const config = PHASE_CONFIG[phase];
+  const isFailed = phase === 'failed';
   return (
     <motion.div
       key={phase}
@@ -18,29 +20,40 @@ function JudgmentProgress({ phase }: { phase: 'sanitizing' | 'scoring' | 'reveal
       transition={{ duration: 0.3 }}
       className="text-center py-8 space-y-3"
     >
-      <div className="text-sm font-bold tracking-wider" style={{ color: 'var(--accent)' }}>
+      <div
+        className="text-sm font-bold tracking-wider"
+        style={{ color: isFailed ? 'var(--color-event-injection)' : 'var(--accent)' }}
+      >
         <span>{config.label}</span>
-        <motion.span
-          animate={{ opacity: [1, 0.2, 1] }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          ...
-        </motion.span>
+        {!isFailed && (
+          <motion.span
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            ...
+          </motion.span>
+        )}
       </div>
-      <div className="flex justify-center items-center gap-1.5">
-        {[1, 2, 3].map((s) => (
-          <div
-            key={s}
-            className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
-            style={{
-              backgroundColor: s <= config.step
-                ? 'var(--accent)'
-                : 'rgba(var(--accent-rgb), 0.2)',
-            }}
-          />
-        ))}
-        <span className="text-text-dim text-xs ml-1.5">{config.step}/3</span>
-      </div>
+      {isFailed ? (
+        <div className="text-text-dim text-xs">
+          Score unavailable — check server logs
+        </div>
+      ) : (
+        <div className="flex justify-center items-center gap-1.5">
+          {[1, 2, 3].map((s) => (
+            <div
+              key={s}
+              className="w-1.5 h-1.5 rounded-full transition-colors duration-300"
+              style={{
+                backgroundColor: s <= config.step
+                  ? 'var(--accent)'
+                  : 'rgba(var(--accent-rgb), 0.2)',
+              }}
+            />
+          ))}
+          <span className="text-text-dim text-xs ml-1.5">{config.step}/3</span>
+        </div>
+      )}
     </motion.div>
   );
 }

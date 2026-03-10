@@ -393,6 +393,8 @@ class WebOperator:
             await self._push_scoring_phase("scoring")
         elif event.event_type == "scoring_complete":
             await self._push_scoring_phase("revealing")
+        elif event.event_type == "scoring_failed":
+            await self._push_scoring_phase("failed")
         elif event.event_type == "demo_started":
             await self._push_scoring_phase(None)
 

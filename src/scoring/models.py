@@ -66,6 +66,14 @@ class ScoringComplete(CaptureEvent):
     scorecard: DemoScorecard
 
 
+class ScoringFailed(CaptureEvent):
+    """Emitted when scoring fails for a demo."""
+
+    event_type: str = "scoring_failed"
+    team_name: str
+    error: str
+
+
 class ScoreRevealed(CaptureEvent):
     """Emitted when a score reveal sequence completes on the display."""
 
