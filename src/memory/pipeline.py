@@ -124,8 +124,10 @@ class DeliberationPipeline:
         disk, and pushes rankings to the display server.
         """
         try:
-            memories = await self._memory_store.load_all()
-            scorecards = await self._score_store.load_all()
+            memories, scorecards = await asyncio.gather(
+                self._memory_store.load_all(),
+                self._score_store.load_all(),
+            )
 
             # Guard: no demos recorded
             if len(memories) == 0:

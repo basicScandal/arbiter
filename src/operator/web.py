@@ -273,6 +273,11 @@ class WebOperator:
                 )
                 await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
                 return
+            max_operator = int(os.environ.get("MAX_OPERATOR_CONNECTIONS", "10"))
+            if len(self._operator_connections) >= max_operator:
+                logger.warning("Operator connection cap reached (%d), rejecting", max_operator)
+                await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Too many connections")
+                return
             await ws.accept()
             self._operator_connections.add(ws)
             logger.info("Operator client connected (%d active)", len(self._operator_connections))
@@ -528,7 +533,7 @@ class WebOperator:
 
                 # Feature E: Broadcast capture_started to audience display
                 resolved_track = track or (
-                    self._scoring_pipeline._pending_tracks.get(team_name, "")
+                    self._scoring_pipeline.get_track(team_name)
                     if self._scoring_pipeline else ""
                 )
                 await self._display_server.clear()
@@ -743,7 +748,7 @@ class WebOperator:
         team_name = session.team_name if session else ""
         track = ""
         if team_name and self._scoring_pipeline:
-            track = self._scoring_pipeline._pending_tracks.get(team_name, "")
+            track = self._scoring_pipeline.get_track(team_name)
 
         state_data = {
             "type": "state",
@@ -765,7 +770,7 @@ class WebOperator:
         team_name = session.team_name if session else ""
         track = ""
         if team_name and self._scoring_pipeline:
-            track = self._scoring_pipeline._pending_tracks.get(team_name, "")
+            track = self._scoring_pipeline.get_track(team_name)
 
         checkpoint = {
             "team_name": team_name,

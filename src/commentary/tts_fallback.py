@@ -41,6 +41,7 @@ class OpenAITTSFallback:
         self._model = model
         self._api_key = os.environ.get("OPENAI_API_KEY", "")
         self._available = bool(self._api_key) and shutil.which("afplay") is not None
+        self._client = None  # Lazy-init, cached across calls
 
     @property
     def available(self) -> bool:
@@ -62,17 +63,17 @@ class OpenAITTSFallback:
 
         temp_audio = None
         try:
-            # Import here to avoid hard dependency if API key not set
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=self._api_key)
+            # Lazy-init client to avoid import if API key not set
+            if self._client is None:
+                from openai import AsyncOpenAI
+                self._client = AsyncOpenAI(api_key=self._api_key)
 
             # Create temp file for audio output
             fd, temp_audio = tempfile.mkstemp(suffix=".mp3")
             os.close(fd)
 
             # Generate speech and stream to file
-            response = await client.audio.speech.create(
+            response = await self._client.audio.speech.create(
                 model=self._model,
                 voice=self._voice,
                 input=text,
@@ -135,11 +136,14 @@ class MacOSSayFallback:
             return
 
         try:
+            # Strip macOS say embedded speech commands (e.g. [[rate 1]], [[volm 0]])
+            import re as _re
+            clean_text = _re.sub(r"\[\[.*?\]\]", "", text)
             proc = await asyncio.create_subprocess_exec(
                 "say",
                 "-v", self._voice,
                 "-r", str(self._rate),
-                "--", text,
+                "--", clean_text,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )

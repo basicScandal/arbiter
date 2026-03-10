@@ -75,6 +75,9 @@ class FakeScoringPipeline:
     def __init__(self) -> None:
         self._pending_tracks: dict[str, str] = {}
 
+    def get_track(self, team_name: str) -> str:
+        return self._pending_tracks.get(team_name, "")
+
     def set_track(self, team_name: str, track: str) -> None:
         self._pending_tracks[team_name] = track
 

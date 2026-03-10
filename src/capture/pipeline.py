@@ -107,7 +107,7 @@ class CapturePipeline:
         # Isolation requirement (SCORE-03) is about the LLM path, not the display path.
         self.scoring = ScoringPipeline(
             api_key=config.gemini_api_key,
-            display=self.commentary._display,
+            display=self.commentary.display_server,
             moe_engine=moe_engine,
             circuit_breaker=self._gemini_breaker,
         )
@@ -115,13 +115,13 @@ class CapturePipeline:
         # is about LLM paths, not the broadcast channel).
         self.deliberation = DeliberationPipeline(
             api_key=config.gemini_api_key,
-            display=self.commentary._display,
+            display=self.commentary.display_server,
         )
 
         self.operator = WebOperator(
             demo_machine=self.demo_machine,
             event_bus=self.event_bus,
-            display_server=self.commentary._display,
+            display_server=self.commentary.display_server,
             scoring_pipeline=self.scoring,
             deliberation_pipeline=self.deliberation,
         )

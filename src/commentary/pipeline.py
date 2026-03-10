@@ -103,6 +103,11 @@ class CommentaryPipeline:
         self._commentary_cancelled = asyncio.Event()
         self._sounds = SoundEffects()
 
+    @property
+    def display_server(self) -> DisplayServer:
+        """Public access to the shared DisplayServer instance."""
+        return self._display
+
     async def setup(self, event_bus: EventBus) -> None:
         """Wire into the event bus and start output components.
 
