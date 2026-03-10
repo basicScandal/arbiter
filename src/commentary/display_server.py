@@ -23,7 +23,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,22 @@ class ConnectionManager:
                 self.disconnect(ws)
 
 
+class CSPMiddleware(BaseHTTPMiddleware):
+    """Add Content-Security-Policy header to all HTTP responses."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "connect-src 'self' ws: wss:; "
+            "frame-ancestors 'none'"
+        )
+        return response
+
+
 class DisplayServer:
     """Async display server pushing commentary to browser clients.
 
@@ -156,6 +174,7 @@ class DisplayServer:
         self._server: uvicorn.Server | None = None
         self._serve_task: asyncio.Task | None = None
 
+        self._app.add_middleware(CSPMiddleware)
         self._register_routes()
 
     @property

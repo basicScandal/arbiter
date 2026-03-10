@@ -16,6 +16,7 @@ from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
 from src.capture.models import DemoStarted
+from src.config.tracks import VALID_TRACKS
 from src.defense.models import ObservationVerified
 from src.resilience.metrics import default_metrics
 from src.scoring.engine import ScoringEngine
@@ -68,7 +69,15 @@ class ScoringPipeline:
         """Store track assignment for a team.
 
         Called by operator CLI when starting a demo with a track argument.
+        Validates track against canonical list to prevent prompt injection
+        via crafted track strings.
         """
+        if track not in VALID_TRACKS:
+            logger.warning(
+                "Invalid track %r for team %s, defaulting to ROGUE::AGENT",
+                track, team_name,
+            )
+            track = "ROGUE::AGENT"
         self._pending_tracks[team_name] = track
 
     async def _on_observation_verified(self, event: ObservationVerified) -> None:

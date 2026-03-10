@@ -211,6 +211,11 @@ class ScoringEngine:
         return ""
 
     @staticmethod
+    def _sanitize_team_name(name: str) -> str:
+        """Strip newlines and limit length to prevent prompt injection."""
+        return name.replace("\n", " ").replace("\r", " ").strip()[:60]
+
+    @staticmethod
     def _build_prompt(
         sanitized: SanitizedOutput,
         track: str,
@@ -225,10 +230,13 @@ class ScoringEngine:
         """
         sections: list[str] = []
 
+        # Sanitize team name to prevent prompt injection via newlines
+        safe_team = ScoringEngine._sanitize_team_name(sanitized.team_name)
+
         # Header
         sections.append(
             f"## Scoring Request\n"
-            f"Team: {sanitized.team_name}\n"
+            f"Team: {safe_team}\n"
             f"Track: {track}"
         )
 
