@@ -80,6 +80,7 @@ class AudioCapture:
         is needed between reads.
         """
         self._stop_event.clear()
+        self._muted = False  # Reset mute state for new demo
 
         logger.info(
             "Starting audio capture: %dHz, %d channels, chunk_size=%d, device=%s",

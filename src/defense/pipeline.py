@@ -194,6 +194,8 @@ class DefensePipeline:
                 )
                 # Cooldown after high confidence — we got the roast-worthy detection
                 self._transcript_cooldown = 20
+                # Reset medium flag so new medium detections after cooldown are logged
+                self._logged_medium_in_window = False
                 self._logger.log(attempt)
                 if self._event_bus is not None:
                     self._event_bus.publish(InjectionDetected(attempt=attempt))
@@ -240,6 +242,10 @@ class DefensePipeline:
                     "Timed out waiting for %d pending roast tasks",
                     len(self._pending_roast_tasks),
                 )
+                # Cancel orphaned tasks to prevent cross-demo corruption
+                for task in self._pending_roast_tasks:
+                    if not task.done():
+                        task.cancel()
             self._pending_roast_tasks.clear()
 
         # Get raw observations from the Gemini session

@@ -257,7 +257,14 @@ class CapturePipeline:
         logger.info("Audio capture muted for TTS playback")
 
     async def _on_tts_finished(self, event: CaptureEvent) -> None:
-        """Unmute audio capture when TTS finishes speaking."""
+        """Unmute audio capture when TTS finishes speaking.
+
+        Does NOT unmute if the demo is paused — the pause mute takes
+        precedence over TTS mute to prevent audio leaking during pause.
+        """
+        if self.demo_machine.current_state.id == "paused":
+            logger.info("TTS finished but demo is paused — keeping audio muted")
+            return
         self.audio.unmute()
         logger.info("Audio capture unmuted after TTS playback")
 
