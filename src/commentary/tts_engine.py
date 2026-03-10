@@ -250,7 +250,13 @@ class TTSEngine:
                 await asyncio.to_thread(self._stream.write, processed)
 
     async def _try_fallback(self, sentence: str) -> None:
-        """Attempt macOS say fallback for a sentence."""
+        """Attempt macOS say fallback for a sentence.
+
+        Respects cancellation — does not speak if cancelled, preventing
+        audio bleed from a previous demo's sentence after cancel.
+        """
+        if self._cancelled.is_set():
+            return
         try:
             if self._fallback.available:
                 logger.warning("Cartesia TTS failed, attempting macOS say fallback")

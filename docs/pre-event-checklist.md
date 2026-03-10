@@ -33,6 +33,12 @@
 - [ ] `AUDIO_DEVICE_INDEX` set to correct microphone
 - [ ] Test camera capture manually if possible
 
+### Zoom-Based Demos (see [zoom-capture-setup.md](zoom-capture-setup.md))
+
+- [ ] BlackHole installed and Multi-Output Device configured
+- [ ] OBS running with Virtual Camera started
+- [ ] Verify device indices with discovery script
+
 ## Verification
 
 - [ ] Start server: `uv run arbiter`

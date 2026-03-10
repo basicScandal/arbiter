@@ -133,19 +133,19 @@ class ScoringPipeline:
         # Launch reveal as tracked task -- must NOT block the event bus callback
         self._reveal_task = asyncio.create_task(self._reveal_score(scorecard))
 
-    async def _on_demo_started(self, event: DemoStarted) -> None:
-        """Cancel in-flight score reveals when a new demo starts.
+    def cancel_reveal(self) -> None:
+        """Cancel any in-flight score reveal task.
 
-        Prevents stale criterion messages from bleeding into the next
-        team's display if the operator cycles teams before the reveal
-        sequence finishes.
+        Called by the operator on reset to prevent stale score cards
+        from appearing on top of the intermission screen.
         """
         if self._reveal_task is not None and not self._reveal_task.done():
             self._reveal_task.cancel()
-            logger.info(
-                "Cancelled in-flight score reveal due to new demo start: %s",
-                event.team_name,
-            )
+            logger.info("Cancelled in-flight score reveal")
+
+    async def _on_demo_started(self, event: DemoStarted) -> None:
+        """Cancel in-flight score reveals when a new demo starts."""
+        self.cancel_reveal()
 
     async def _reveal_score(self, scorecard: DemoScorecard) -> None:
         """Execute the theatrical score reveal sequence.
@@ -203,6 +203,9 @@ class ScoringPipeline:
 
             logger.info("Score reveal complete for team: %s", scorecard.team_name)
 
+        except asyncio.CancelledError:
+            logger.info("Score reveal cancelled for team %s", scorecard.team_name)
+            raise
         except Exception:
             logger.warning(
                 "Error during score reveal for team %s",

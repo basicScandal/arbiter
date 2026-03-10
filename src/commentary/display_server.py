@@ -39,6 +39,7 @@ class ConnectionManager:
         # Feature B: State cache for replaying current screen state to new clients
         self._last_screen_state: dict | None = None
         self._criteria_sequence: list[dict] = []
+        self._score_intro: dict | None = None
 
     async def connect(self, ws: WebSocket) -> None:
         """Accept and register a new WebSocket connection.
@@ -53,10 +54,19 @@ class ConnectionManager:
         # Feature B: Replay cached state to the newly connected client
         if self._last_screen_state:
             try:
-                await ws.send_json(self._last_screen_state)
-                if self._last_screen_state.get("type") == "score_intro":
+                state_type = self._last_screen_state.get("type")
+                if state_type == "score_total" and self._score_intro:
+                    # Replay full score sequence: intro → criteria → total
+                    await ws.send_json(self._score_intro)
                     for criterion in self._criteria_sequence:
                         await ws.send_json(criterion)
+                    await ws.send_json(self._last_screen_state)
+                elif state_type == "score_intro":
+                    await ws.send_json(self._last_screen_state)
+                    for criterion in self._criteria_sequence:
+                        await ws.send_json(criterion)
+                else:
+                    await ws.send_json(self._last_screen_state)
             except Exception:
                 logger.debug("Failed to replay state to new display client", exc_info=True)
 
@@ -70,10 +80,18 @@ class ConnectionManager:
         """Re-send cached screen state to a specific client (e.g. on request_state)."""
         if self._last_screen_state:
             try:
-                await ws.send_json(self._last_screen_state)
-                if self._last_screen_state.get("type") == "score_intro":
+                state_type = self._last_screen_state.get("type")
+                if state_type == "score_total" and self._score_intro:
+                    await ws.send_json(self._score_intro)
                     for criterion in self._criteria_sequence:
                         await ws.send_json(criterion)
+                    await ws.send_json(self._last_screen_state)
+                elif state_type == "score_intro":
+                    await ws.send_json(self._last_screen_state)
+                    for criterion in self._criteria_sequence:
+                        await ws.send_json(criterion)
+                else:
+                    await ws.send_json(self._last_screen_state)
             except Exception:
                 logger.debug("Failed to replay state on request", exc_info=True)
 
@@ -90,11 +108,15 @@ class ConnectionManager:
         if msg_type == "clear":
             self._last_screen_state = None
             self._criteria_sequence = []
+            self._score_intro = None
         elif msg_type == "score_intro":
             self._last_screen_state = message
             self._criteria_sequence = []
+            self._score_intro = message
         elif msg_type == "score_criterion":
             self._criteria_sequence.append(message)
+        elif msg_type == "score_total":
+            self._last_screen_state = message
         elif msg_type in (
             "deliberation_ranking",
             "deliberation_narrative",
@@ -105,6 +127,7 @@ class ConnectionManager:
             "injection_blocked",
         ):
             self._last_screen_state = message
+            self._criteria_sequence = []
 
         async with self._broadcast_lock:
             disconnected: list[WebSocket] = []

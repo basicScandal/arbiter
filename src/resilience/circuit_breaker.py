@@ -63,11 +63,19 @@ class GeminiCircuitBreaker:
     def available(self) -> bool:
         """Whether Gemini should be attempted.
 
-        Returns True when closed or half-open (probe allowed).
-        Returns False when open (still in cooldown).
+        Returns True when closed or when half-open AND no probe is already
+        in flight. This prevents thundering herd: only the first caller
+        after cooldown gets to probe, others wait for the next cycle.
         """
         self._maybe_transition_to_half_open()
-        return self._state in ("closed", "half_open")
+        if self._state == "closed":
+            return True
+        if self._state == "half_open":
+            if not self._probe_in_flight:
+                self._probe_in_flight = True
+                return True
+            return False
+        return False
 
     def trip(self) -> None:
         """Trip the breaker due to a transient failure.

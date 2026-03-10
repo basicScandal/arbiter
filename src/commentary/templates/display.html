@@ -110,6 +110,187 @@
     text-transform: uppercase;
   }
 
+  /* Capture started / analyzing screen */
+  #capture-screen {
+    display: none;
+    text-align: center;
+  }
+
+  #capture-screen.visible { display: block; }
+
+  .capture-team {
+    font-size: 40px;
+    font-weight: 700;
+    color: #00d4ff;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .capture-track {
+    font-size: 18px;
+    color: #a8b2d0;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+  }
+
+  .capture-status {
+    font-size: 28px;
+    color: #f0f0f0;
+    letter-spacing: 2px;
+    animation: analyzePulse 2s ease-in-out infinite;
+  }
+
+  .capture-visualizer {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 32px;
+  }
+
+  .capture-bar {
+    width: 4px;
+    height: 40px;
+    background: #00d4ff;
+    border-radius: 2px;
+    animation: barBounce 1.2s ease-in-out infinite;
+  }
+
+  .capture-bar:nth-child(1) { animation-delay: 0s; }
+  .capture-bar:nth-child(2) { animation-delay: 0.1s; }
+  .capture-bar:nth-child(3) { animation-delay: 0.2s; }
+  .capture-bar:nth-child(4) { animation-delay: 0.3s; }
+  .capture-bar:nth-child(5) { animation-delay: 0.4s; }
+  .capture-bar:nth-child(6) { animation-delay: 0.5s; }
+  .capture-bar:nth-child(7) { animation-delay: 0.6s; }
+  .capture-bar:nth-child(8) { animation-delay: 0.7s; }
+  .capture-bar:nth-child(9) { animation-delay: 0.8s; }
+  .capture-bar:nth-child(10) { animation-delay: 0.9s; }
+  .capture-bar:nth-child(11) { animation-delay: 1.0s; }
+  .capture-bar:nth-child(12) { animation-delay: 1.1s; }
+
+  @keyframes barBounce {
+    0%, 100% { transform: scaleY(0.3); opacity: 0.4; }
+    50% { transform: scaleY(1); opacity: 1; }
+  }
+
+  @keyframes analyzePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Injection blocked screen */
+  #injection-screen {
+    display: none;
+    text-align: center;
+  }
+
+  #injection-screen.visible { display: block; }
+
+  .injection-alert {
+    font-size: 48px;
+    font-weight: 700;
+    color: #e74c3c;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    text-shadow: 0 0 30px rgba(231, 76, 60, 0.6), 0 0 60px rgba(231, 76, 60, 0.3);
+    animation: alertFlash 0.8s ease-in-out 3;
+    margin-bottom: 24px;
+  }
+
+  .injection-team {
+    font-size: 28px;
+    color: #f39c12;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .injection-category {
+    font-size: 18px;
+    color: #a8b2d0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .injection-roast {
+    font-size: 32px;
+    line-height: 1.5;
+    color: #f0f0f0;
+    max-width: 1200px;
+    font-style: italic;
+  }
+
+  @keyframes alertFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* Intermission leaderboard */
+  #intermission-screen {
+    display: none;
+    text-align: center;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  #intermission-screen.visible { display: block; }
+
+  .intermission-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #00d4ff;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+    margin-bottom: 32px;
+  }
+
+  .intermission-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 24px;
+    border-bottom: 1px solid #1e2a4a;
+    opacity: 0;
+    transform: translateX(-20px);
+    animation: slideIn 0.5s ease-out forwards;
+  }
+
+  .intermission-rank {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffd700;
+    min-width: 50px;
+    text-align: center;
+  }
+
+  .intermission-team-name {
+    flex: 1;
+    font-size: 22px;
+    font-weight: 600;
+    color: #f0f0f0;
+    letter-spacing: 1px;
+    text-align: left;
+  }
+
+  .intermission-score {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 70px;
+    text-align: right;
+  }
+
+  .intermission-injections {
+    font-size: 14px;
+    color: #e74c3c;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 24px;
+  }
+
   footer {
     padding: 16px 48px;
     border-top: 1px solid #1e2a4a;
@@ -369,6 +550,28 @@
   <div class="team-name" id="teamName"></div>
   <div class="commentary-text" id="commentaryText"></div>
   <div class="idle-message" id="idleMessage">Awaiting next demo...</div>
+  <div id="capture-screen">
+    <div class="capture-team" id="captureTeam"></div>
+    <div class="capture-track" id="captureTrack"></div>
+    <div class="capture-status">LISTENING // ANALYZING</div>
+    <div class="capture-visualizer">
+      <div class="capture-bar"></div><div class="capture-bar"></div><div class="capture-bar"></div>
+      <div class="capture-bar"></div><div class="capture-bar"></div><div class="capture-bar"></div>
+      <div class="capture-bar"></div><div class="capture-bar"></div><div class="capture-bar"></div>
+      <div class="capture-bar"></div><div class="capture-bar"></div><div class="capture-bar"></div>
+    </div>
+  </div>
+  <div id="injection-screen">
+    <div class="injection-alert">INJECTION BLOCKED</div>
+    <div class="injection-team" id="injectionTeam"></div>
+    <div class="injection-category" id="injectionCategory"></div>
+    <div class="injection-roast" id="injectionRoast"></div>
+  </div>
+  <div id="intermission-screen">
+    <div class="intermission-title">LEADERBOARD</div>
+    <div id="intermissionRows"></div>
+    <div class="intermission-injections" id="intermissionInjections"></div>
+  </div>
   <div id="deliberation-card">
     <div class="deliberation-title">FINAL RANKINGS</div>
     <div id="deliberationRankings"></div>
@@ -402,6 +605,39 @@
   var deliberationCard = document.getElementById('deliberation-card');
   var deliberationRankings = document.getElementById('deliberationRankings');
   var deliberationNarrative = document.getElementById('deliberationNarrative');
+  var captureScreen = document.getElementById('capture-screen');
+  var captureTeam = document.getElementById('captureTeam');
+  var captureTrack = document.getElementById('captureTrack');
+  var injectionScreen = document.getElementById('injection-screen');
+  var injectionTeam = document.getElementById('injectionTeam');
+  var injectionCategory = document.getElementById('injectionCategory');
+  var injectionRoast = document.getElementById('injectionRoast');
+  var intermissionScreen = document.getElementById('intermission-screen');
+  var intermissionRows = document.getElementById('intermissionRows');
+  var intermissionInjections = document.getElementById('intermissionInjections');
+
+  function hideAllScreens() {
+    idleMessage.style.display = 'none';
+    captureScreen.classList.remove('visible');
+    injectionScreen.classList.remove('visible');
+    intermissionScreen.classList.remove('visible');
+    teamName.textContent = '';
+    teamName.classList.remove('visible');
+    commentaryText.textContent = '';
+    commentaryText.classList.remove('visible', 'question');
+    scoreCard.style.display = 'none';
+    scoreCard.classList.remove('visible');
+    deliberationCard.style.display = 'none';
+    deliberationCard.classList.remove('visible');
+    // Clear accumulated dynamic children to prevent stale DOM after many demos
+    while (intermissionRows.firstChild) intermissionRows.removeChild(intermissionRows.firstChild);
+    while (deliberationRankings.firstChild) deliberationRankings.removeChild(deliberationRankings.firstChild);
+    deliberationNarrative.textContent = '';
+    deliberationNarrative.classList.remove('visible');
+    while (scoreCriteria.firstChild) scoreCriteria.removeChild(scoreCriteria.firstChild);
+    scoreTotalSection.style.display = 'none';
+    while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
+  }
 
   function connect() {
     ws = new WebSocket(wsUrl);
@@ -418,7 +654,7 @@
     };
 
     ws.onerror = function() {
-      ws.close();
+      // onerror is always followed by onclose per WebSocket spec; let onclose handle reconnect
     };
 
     ws.onmessage = function(event) {
@@ -433,8 +669,65 @@
   }
 
   function handleMessage(msg) {
-    if (msg.type === 'commentary') {
-      idleMessage.style.display = 'none';
+    if (msg.type === 'ping') {
+      try { ws.send(JSON.stringify({type: 'pong'})); } catch(e) {}
+      return;
+    }
+
+    if (msg.type === 'capture_started') {
+      hideAllScreens();
+      captureTeam.textContent = msg.team_name || '';
+      captureTrack.textContent = msg.track ? 'TRACK: ' + msg.track : '';
+      captureScreen.classList.add('visible');
+
+    } else if (msg.type === 'injection_blocked') {
+      hideAllScreens();
+      injectionTeam.textContent = msg.team_name || '';
+      injectionCategory.textContent = msg.category || '';
+      injectionRoast.textContent = msg.roast || '';
+      // Reset alertFlash animation so it replays on repeated injections
+      var alertEl = injectionScreen.querySelector('.injection-alert');
+      alertEl.style.animation = 'none';
+      void alertEl.offsetWidth;
+      alertEl.style.animation = '';
+      injectionScreen.classList.add('visible');
+
+    } else if (msg.type === 'intermission') {
+      hideAllScreens();
+      while (intermissionRows.firstChild) intermissionRows.removeChild(intermissionRows.firstChild);
+      var lb = msg.leaderboard || [];
+      for (var i = 0; i < lb.length; i++) {
+        var entry = lb[i];
+        var row = document.createElement('div');
+        row.className = 'intermission-row';
+        row.style.animationDelay = (i * 0.3) + 's';
+
+        var rankEl = document.createElement('span');
+        rankEl.className = 'intermission-rank';
+        rankEl.textContent = '#' + (i + 1);
+
+        var nameEl = document.createElement('span');
+        nameEl.className = 'intermission-team-name';
+        nameEl.textContent = entry.team_name || '';
+
+        var scoreEl = document.createElement('span');
+        scoreEl.className = 'intermission-score';
+        scoreEl.textContent = entry.score != null ? entry.score.toFixed(1) : '—';
+
+        row.appendChild(rankEl);
+        row.appendChild(nameEl);
+        row.appendChild(scoreEl);
+        intermissionRows.appendChild(row);
+      }
+      if (msg.total_injections > 0) {
+        intermissionInjections.textContent = msg.total_injections + ' INJECTION ATTEMPT' + (msg.total_injections !== 1 ? 'S' : '') + ' BLOCKED';
+      } else {
+        intermissionInjections.textContent = '';
+      }
+      intermissionScreen.classList.add('visible');
+
+    } else if (msg.type === 'commentary') {
+      hideAllScreens();
 
       teamName.textContent = msg.team_name || '';
       teamName.classList.remove('visible');
@@ -447,7 +740,7 @@
       commentaryText.classList.add('visible');
 
     } else if (msg.type === 'question') {
-      idleMessage.style.display = 'none';
+      hideAllScreens();
 
       teamName.textContent = msg.team_name || '';
       teamName.classList.remove('visible');
@@ -455,20 +748,14 @@
       teamName.classList.add('visible');
 
       commentaryText.classList.remove('visible');
+      void commentaryText.offsetWidth;
       commentaryText.textContent = msg.text || '';
       commentaryText.classList.add('question');
-      void commentaryText.offsetWidth;
       commentaryText.classList.add('visible');
 
     } else if (msg.type === 'score_intro') {
-      idleMessage.style.display = 'none';
-      commentaryText.textContent = '';
-      commentaryText.classList.remove('visible', 'question');
-
+      hideAllScreens();
       scoreHeader.textContent = msg.team_name || '';
-      while (scoreCriteria.firstChild) scoreCriteria.removeChild(scoreCriteria.firstChild);
-      scoreTotalSection.style.display = 'none';
-      while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
       scoreCard.style.display = 'block';
       void scoreCard.offsetWidth;
       scoreCard.classList.add('visible');
@@ -541,12 +828,10 @@
       scoreTotalSection.appendChild(trackLabel);
 
     } else if (msg.type === 'deliberation_ranking') {
-      idleMessage.style.display = 'none';
-      commentaryText.textContent = '';
-      commentaryText.classList.remove('visible', 'question');
-      scoreCard.style.display = 'none';
-      scoreCard.classList.remove('visible');
-
+      // Only reset screens on the first ranking; subsequent ones accumulate
+      if (deliberationRankings.children.length === 0) {
+        hideAllScreens();
+      }
       deliberationCard.style.display = 'block';
       void deliberationCard.offsetWidth;
       deliberationCard.classList.add('visible');
@@ -589,20 +874,7 @@
       deliberationNarrative.classList.add('visible');
 
     } else if (msg.type === 'clear') {
-      teamName.textContent = '';
-      teamName.classList.remove('visible');
-      commentaryText.textContent = '';
-      commentaryText.classList.remove('visible', 'question');
-      scoreCard.style.display = 'none';
-      scoreCard.classList.remove('visible');
-      while (scoreCriteria.firstChild) scoreCriteria.removeChild(scoreCriteria.firstChild);
-      scoreTotalSection.style.display = 'none';
-      while (scoreTotalSection.firstChild) scoreTotalSection.removeChild(scoreTotalSection.firstChild);
-      deliberationCard.style.display = 'none';
-      deliberationCard.classList.remove('visible');
-      while (deliberationRankings.firstChild) deliberationRankings.removeChild(deliberationRankings.firstChild);
-      deliberationNarrative.textContent = '';
-      deliberationNarrative.classList.remove('visible');
+      hideAllScreens();
       idleMessage.style.display = '';
     }
   }

@@ -108,6 +108,7 @@ class CameraCapture:
             RuntimeError: If the camera device cannot be opened.
         """
         self._stop_event.clear()
+        self._paused = False  # Reset pause state for new demo
 
         logger.info(
             "Starting camera capture on device %d at %.1f FPS",

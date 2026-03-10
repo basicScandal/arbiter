@@ -9,6 +9,7 @@ weighted totals -- never trusts LLM arithmetic.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -169,17 +170,21 @@ class ScoringEngine:
 
         Retries up to 5 times with exponential backoff + jitter on
         per-minute rate limits. Daily quota exhaustion raises immediately
-        (no retry) so the caller can fall back to Claude.
+        (no retry) so the caller can fall back to Claude. Each attempt
+        times out after 60 seconds to prevent indefinite hangs.
         """
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SCORING_SYSTEM_PROMPT,
-                max_output_tokens=1500,
-                temperature=0.3,
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
+        response = await asyncio.wait_for(
+            self._client.aio.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=SCORING_SYSTEM_PROMPT,
+                    max_output_tokens=1500,
+                    temperature=0.3,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                ),
             ),
+            timeout=60.0,
         )
         return response.text or ""
 
@@ -191,12 +196,15 @@ class ScoringEngine:
         Retries up to 3 times on transient network/rate-limit errors.
         """
         assert self._claude_client is not None
-        message = await self._claude_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=1500,
-            temperature=0.3,
-            system=SCORING_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
+        message = await asyncio.wait_for(
+            self._claude_client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=1500,
+                temperature=0.3,
+                system=SCORING_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+            ),
+            timeout=60.0,
         )
         if message.content and len(message.content) > 0:
             return message.content[0].text
@@ -350,7 +358,7 @@ class ScoringEngine:
             track=track,
             criteria=criteria_scores,
             track_bonus=track_bonus,
-            total_score=round(total, 1),
+            total_score=round(min(total, 10.0), 1),
             scored_at=time.time(),
         )
 

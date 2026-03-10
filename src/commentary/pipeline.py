@@ -96,6 +96,7 @@ class CommentaryPipeline:
             )
 
         self._tts = TTSEngine(api_key=cartesia_api_key, voice_id=voice_id)
+        # event_bus wired in setup() once available
         self._display = DisplayServer(host=display_host, port=display_port)
 
         self._event_bus: EventBus | None = None
@@ -114,6 +115,9 @@ class CommentaryPipeline:
             event_bus: The shared event bus from the capture pipeline.
         """
         self._event_bus = event_bus
+        # Wire event_bus into TTS so it publishes tts_speaking/tts_finished
+        # for audio capture mute coordination (Bug fix: was None before)
+        self._tts._event_bus = event_bus
         event_bus.subscribe("observation_verified", self._on_observation_verified)
         event_bus.subscribe("qa_requested", self._on_qa_requested)
         event_bus.subscribe("injection_detected", self._on_injection_detected)
