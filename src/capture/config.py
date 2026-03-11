@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from pydantic import BaseModel
 
-from src.config.models import GEMINI_AUDIO_MODEL
+from src.config.models import GEMINI_LIVE_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class CaptureConfig(BaseModel):
     audio_device_index: int | None = None
     frame_rate: float = 1.0
     key_frame_threshold: float = 0.4
-    gemini_model: str = GEMINI_AUDIO_MODEL
+    gemini_model: str = GEMINI_LIVE_MODEL
     max_queue_size: int = 5
     frame_max_dimension: int = 1024
     audio_sample_rate: int = 16000
