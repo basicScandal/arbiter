@@ -36,31 +36,49 @@ def _make_session(api_key: str = "test-key") -> GeminiSession:
 
 
 class _FakeAsyncTurn:
-    """Fake async iterable that yields responses, then raises to exit the loop."""
+    """Fake async iterable that yields responses, then signals stop.
 
-    def __init__(self, responses: list) -> None:
+    After all responses are consumed, sets the session's stop_event to
+    cleanly exit the receive loop. This avoids timing-dependent tests
+    where we'd race between backoff retry and stop_event.
+    """
+
+    def __init__(self, responses: list, stop_event: asyncio.Event) -> None:
         self._responses = responses
+        self._stop_event = stop_event
 
     def __aiter__(self):
         return self
 
     async def __anext__(self):
         if not self._responses:
-            # Raise an exception to break out of the receive loop's
-            # inner `async for` and trigger the except clause which
-            # checks stop_event
-            raise ConnectionError("fake turn exhausted")
+            # Signal stop before raising so the receive loop exits
+            # cleanly instead of retrying with backoff
+            self._stop_event.set()
+            raise StopAsyncIteration
         return self._responses.pop(0)
 
 
 class _FakeSession:
-    """Fake Gemini session whose receive() returns a _FakeAsyncTurn."""
+    """Fake Gemini session whose receive() yields responses exactly once.
 
-    def __init__(self, responses: list) -> None:
+    On second call to receive() (after the first turn is exhausted),
+    sets stop_event and returns an empty turn. This prevents the receive
+    loop from re-processing responses and avoids timing dependencies.
+    """
+
+    def __init__(self, responses: list, stop_event: asyncio.Event) -> None:
         self._responses = responses
+        self._stop_event = stop_event
+        self._called = False
 
     def receive(self):
-        return _FakeAsyncTurn(list(self._responses))
+        if self._called:
+            # Second call: loop retried after first turn — stop immediately
+            self._stop_event.set()
+            return _FakeAsyncTurn([], self._stop_event)
+        self._called = True
+        return _FakeAsyncTurn(list(self._responses), self._stop_event)
 
 
 def _make_response(
@@ -107,28 +125,20 @@ def _make_response(
 
 
 async def _run_receive_loop(session: GeminiSession, responses: list) -> None:
-    """Run the receive loop with fake responses and auto-stop.
+    """Run the receive loop with fake responses and deterministic stop.
 
-    Sets up a FakeSession, runs the receive loop with a timeout to prevent
-    hangs, then stops. The FakeAsyncTurn raises ConnectionError when
-    exhausted, which the receive loop catches and retries -- we use the
-    stop event + timeout to cleanly exit.
+    The _FakeSession/_FakeAsyncTurn set stop_event when responses are
+    exhausted, so the receive loop exits cleanly without timing deps.
+    A 5s safety timeout prevents hangs if something goes wrong.
     """
-    session._session = _FakeSession(responses)
     session._stop_event.clear()
+    session._session = _FakeSession(responses, session._stop_event)
 
-    async def _stop_soon():
-        await asyncio.sleep(0.3)
-        session._stop_event.set()
-
-    # Timeout as safety net -- tests should complete in <1s
     try:
-        await asyncio.wait_for(
-            asyncio.gather(session._receive_loop(), _stop_soon()),
-            timeout=3.0,
-        )
+        await asyncio.wait_for(session._receive_loop(), timeout=5.0)
     except TimeoutError:
         session._stop_event.set()
+        raise AssertionError("receive loop did not stop within 5s — likely a test infrastructure bug")
 
 
 class TestBuildConfig:
@@ -293,6 +303,42 @@ class TestReceiveLoopObservations:
         ])
 
         assert session._resumption_handle == "handle-abc123-long-enough-for-slice"
+
+
+    @pytest.mark.asyncio
+    async def test_no_responses_produces_no_observations(self):
+        """Verify zero responses = zero observations (not vacuously passing).
+
+        CoVe check: ensures the test infrastructure doesn't pre-populate
+        observations — the count starts at 0 and stays at 0.
+        """
+        session = _make_session()
+        assert len(session._observations) == 0  # precondition
+        await _run_receive_loop(session, [])
+        assert len(session._observations) == 0
+
+    @pytest.mark.asyncio
+    async def test_response_without_model_turn_or_transcription(self):
+        """A response with only turn_complete should not create observations."""
+        session = _make_session()
+        await _run_receive_loop(session, [
+            _make_response(turn_complete=True),
+        ])
+        assert len(session._observations) == 0
+
+    @pytest.mark.asyncio
+    async def test_observations_not_duplicated_on_retry(self):
+        """Observations must be captured exactly once, not re-processed on retry.
+
+        CoVe check: the _FakeSession yields responses only on the first
+        receive() call. If the loop retries, it gets an empty turn.
+        This guards against the timing-dependent duplication bug.
+        """
+        session = _make_session()
+        await _run_receive_loop(session, [
+            _make_response(model_turn_texts=["unique observation"]),
+        ])
+        assert session._observations.count("unique observation") == 1
 
 
 class TestObservationLifecycle:
