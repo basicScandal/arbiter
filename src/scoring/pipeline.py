@@ -67,6 +67,10 @@ class ScoringPipeline:
         event_bus.subscribe("demo_started", self._on_demo_started)
         logger.info("Scoring pipeline armed")
 
+    def get_track(self, team_name: str) -> str:
+        """Return the track assigned to a team, or empty string if unset."""
+        return self._pending_tracks.get(team_name, "")
+
     def set_track(self, team_name: str, track: str) -> None:
         """Store track assignment for a team.
 
@@ -146,7 +150,7 @@ class ScoringPipeline:
             logger.info("Cancelled previous reveal task before starting new one")
 
         # Launch reveal as tracked task -- must NOT block the event bus callback
-        self._reveal_task = asyncio.create_task(self._reveal_score(scorecard))
+        self._reveal_task = asyncio.create_task(self._reveal_score(scorecard), name="score-reveal")
 
     def cancel_reveal(self) -> None:
         """Cancel any in-flight score reveal task.

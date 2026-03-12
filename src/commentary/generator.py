@@ -20,6 +20,7 @@ from google import genai
 from google.genai import types
 from openai import AsyncOpenAI
 
+from src.config.models import GEMINI_MODEL
 from src.commentary.models import Commentary
 from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
@@ -97,7 +98,7 @@ class CommentaryGenerator:
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-2.5-flash",
+        model: str = GEMINI_MODEL,
         groq_api_key: str | None = None,
         circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:

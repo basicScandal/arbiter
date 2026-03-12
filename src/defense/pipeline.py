@@ -154,7 +154,7 @@ class DefensePipeline:
             if self._event_bus is not None:
                 self._event_bus.publish(InjectionDetected(attempt=attempt))
             if result.confidence == "high":
-                task = asyncio.create_task(self._generate_roast(attempt))
+                task = asyncio.create_task(self._generate_roast(attempt), name="roast-visual")
                 self._pending_roast_tasks.append(task)
 
     async def _on_transcript(self, event: TranscriptReceived) -> None:
@@ -199,7 +199,7 @@ class DefensePipeline:
                 self._logger.log(attempt)
                 if self._event_bus is not None:
                     self._event_bus.publish(InjectionDetected(attempt=attempt))
-                task = asyncio.create_task(self._generate_roast(attempt))
+                task = asyncio.create_task(self._generate_roast(attempt), name="roast-verbal")
                 self._pending_roast_tasks.append(task)
             elif not self._logged_medium_in_window:
                 # Log first medium detection but keep scanning for more patterns

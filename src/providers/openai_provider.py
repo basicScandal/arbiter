@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 
+from src.config.models import OPENAI_MODEL
 from openai import (
     APIConnectionError,
     APITimeoutError,
@@ -50,7 +51,7 @@ class OpenAIProvider(LLMProvider):
     Returns empty string on failure.
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4o") -> None:
+    def __init__(self, api_key: str, model: str = OPENAI_MODEL) -> None:
         """Initialize OpenAI provider.
 
         Args:

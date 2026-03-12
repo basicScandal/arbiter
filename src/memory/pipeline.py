@@ -124,8 +124,10 @@ class DeliberationPipeline:
         disk, and pushes rankings to the display server.
         """
         try:
-            memories = await self._memory_store.load_all()
-            scorecards = await self._score_store.load_all()
+            memories, scorecards = await asyncio.gather(
+                self._memory_store.load_all(),
+                self._score_store.load_all(),
+            )
 
             # Guard: no demos recorded
             if len(memories) == 0:
@@ -150,7 +152,7 @@ class DeliberationPipeline:
             logger.info("Deliberation result saved to %s", result_path)
 
             # Push to display as detached task (same pattern as ScoringPipeline._reveal_score)
-            asyncio.create_task(self._push_deliberation_display(result))
+            asyncio.create_task(self._push_deliberation_display(result), name="deliberation-display")
 
             # Publish completion event
             if self._event_bus is not None:

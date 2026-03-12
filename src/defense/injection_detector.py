@@ -126,6 +126,9 @@ class InjectionDetector:
         if not text or not text.strip():
             return DetectionResult(is_injection=False, source=source)
 
+        # Replace zero-width and invisible characters with spaces so word
+        # boundaries survive (attackers insert these to break regex patterns)
+        text = re.sub(r"[\u200b\u200c\u200d\u00ad\u034f\ufeff\u2060]", " ", text)
         # Normalize unicode to catch homoglyph evasion (e.g., fullwidth chars)
         text = unicodedata.normalize("NFKC", text)
 

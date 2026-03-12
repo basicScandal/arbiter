@@ -19,7 +19,7 @@ from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
 
-from src.config.models import CLAUDE_MODEL
+from src.config.models import CLAUDE_MODEL, GEMINI_MODEL
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.retry import CLAUDE_RETRY, GEMINI_RETRY_BACKGROUND, DailyQuotaExhausted
@@ -65,7 +65,7 @@ class ScoringEngine:
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-2.5-flash",
+        model: str = GEMINI_MODEL,
         anthropic_api_key: str | None = None,
         circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:

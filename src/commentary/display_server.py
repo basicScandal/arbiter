@@ -158,8 +158,8 @@ class ConnectionManager:
                 self.disconnect(ws)
 
 
-class CSPMiddleware(BaseHTTPMiddleware):
-    """Add Content-Security-Policy header to all HTTP responses."""
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all HTTP responses."""
 
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
         response = await call_next(request)
@@ -171,6 +171,10 @@ class CSPMiddleware(BaseHTTPMiddleware):
             "connect-src 'self' ws: wss:; "
             "frame-ancestors 'none'"
         )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         return response
 
 
@@ -190,7 +194,7 @@ class DisplayServer:
         self._server: uvicorn.Server | None = None
         self._serve_task: asyncio.Task | None = None
 
-        self._app.add_middleware(CSPMiddleware)
+        self._app.add_middleware(SecurityHeadersMiddleware)
         self._register_routes()
 
     @property
@@ -300,7 +304,7 @@ class DisplayServer:
             log_level="warning",
         )
         self._server = uvicorn.Server(config)
-        self._serve_task = asyncio.create_task(self._server.serve())
+        self._serve_task = asyncio.create_task(self._server.serve(), name="display-server")
 
         # Wait briefly for uvicorn to actually bind
         for _ in range(20):
