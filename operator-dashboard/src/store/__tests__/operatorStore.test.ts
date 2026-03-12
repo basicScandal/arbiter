@@ -451,6 +451,7 @@ describe("operatorStore", () => {
         level: "warning",
         message: "5:00 elapsed",
         elapsed: 300,
+        max_duration: 420,
       });
       expect(useOperatorStore.getState().demoTimer).not.toBeNull();
 
@@ -470,6 +471,7 @@ describe("operatorStore", () => {
         level: "critical",
         message: "7:00 elapsed",
         elapsed: 420,
+        max_duration: 420,
       });
       expect(useOperatorStore.getState().demoTimer).not.toBeNull();
 
@@ -489,6 +491,7 @@ describe("operatorStore", () => {
         level: "critical",
         message: "8:00 — TIME IS UP",
         elapsed: 480,
+        max_duration: 420,
       });
       expect(useOperatorStore.getState().demoTimer).not.toBeNull();
 
@@ -508,6 +511,7 @@ describe("operatorStore", () => {
         level: "warning",
         message: "5:00 elapsed",
         elapsed: 300,
+        max_duration: 420,
       });
       expect(useOperatorStore.getState().demoTimer).not.toBeNull();
 
