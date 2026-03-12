@@ -103,7 +103,7 @@ class WebOperator:
 
         self._register_routes()
         self._subscribe_events()
-        self._counter_task = asyncio.create_task(self._push_counters_loop())
+        self._counter_task = asyncio.create_task(self._push_counters_loop(), name="push-counters")
 
         logger.info("WebOperator started, waiting for commands via WebSocket")
         try:
@@ -173,11 +173,17 @@ class WebOperator:
             ]
 
         @app.post("/api/human-score")
-        async def submit_human_score(score: dict):
-            """Submit a human judge's score for a team."""
+        async def submit_human_score(score: dict, token: str = Query(default="")):
+            """Submit a human judge's score for a team (requires operator token)."""
             import time as _time
 
+            from fastapi.responses import JSONResponse
+
             from src.scoring.human import HumanScore, HumanScoreStore
+
+            required_token = os.environ.get("OPERATOR_TOKEN", "")
+            if required_token and token != required_token:
+                return JSONResponse(status_code=403, content={"error": "Forbidden"})
 
             try:
                 human_score = HumanScore(
@@ -188,11 +194,9 @@ class WebOperator:
                     submitted_at=_time.time(),
                 )
             except Exception as e:
-                from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=400, content={"error": str(e)})
 
             if not human_score.judge_name or not human_score.team_name:
-                from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=400, content={"error": "judge_name and team_name are required"})
 
             store = HumanScoreStore()
@@ -269,6 +273,11 @@ class WebOperator:
                 )
                 await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
                 return
+            max_operator = int(os.environ.get("MAX_OPERATOR_CONNECTIONS", "10"))
+            if len(self._operator_connections) >= max_operator:
+                logger.warning("Operator connection cap reached (%d), rejecting", max_operator)
+                await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Too many connections")
+                return
             await ws.accept()
             self._operator_connections.add(ws)
             logger.info("Operator client connected (%d active)", len(self._operator_connections))
@@ -335,7 +344,8 @@ class WebOperator:
                         confidence=confidence,
                         roast="",
                         team_name=team_name,
-                    )
+                    ),
+                    name="push-injection-blocked",
                 )
         elif event.event_type == "observation_verified":
             # Count clean observations
@@ -419,7 +429,7 @@ class WebOperator:
     def _start_demo_timer(self) -> None:
         """Start a background timer that warns operators as demo approaches max duration."""
         self._cancel_demo_timer()
-        self._demo_timer_task = asyncio.create_task(self._demo_timer_loop())
+        self._demo_timer_task = asyncio.create_task(self._demo_timer_loop(), name="demo-timer")
 
     def _cancel_demo_timer(self) -> None:
         """Cancel the running demo timer if any."""
@@ -533,7 +543,7 @@ class WebOperator:
 
                 # Feature E: Broadcast capture_started to audience display
                 resolved_track = track or (
-                    self._scoring_pipeline._pending_tracks.get(team_name, "")
+                    self._scoring_pipeline.get_track(team_name)
                     if self._scoring_pipeline else ""
                 )
                 await self._display_server.clear()
@@ -648,7 +658,7 @@ class WebOperator:
                     except Exception:
                         logger.exception("Rehearsal failed")
 
-                asyncio.create_task(_run_rehearsal())
+                asyncio.create_task(_run_rehearsal(), name="rehearsal")
                 logger.info("Operator triggered rehearsal mode from dashboard")
                 log_command("rehearsal", success=True, state_before=state_before, state_after=self._demo_machine.current_state.id)
 
@@ -752,7 +762,7 @@ class WebOperator:
         team_name = session.team_name if session else ""
         track = ""
         if team_name and self._scoring_pipeline:
-            track = self._scoring_pipeline._pending_tracks.get(team_name, "")
+            track = self._scoring_pipeline.get_track(team_name)
 
         state_data = {
             "type": "state",
@@ -774,7 +784,7 @@ class WebOperator:
         team_name = session.team_name if session else ""
         track = ""
         if team_name and self._scoring_pipeline:
-            track = self._scoring_pipeline._pending_tracks.get(team_name, "")
+            track = self._scoring_pipeline.get_track(team_name)
 
         checkpoint = {
             "team_name": team_name,

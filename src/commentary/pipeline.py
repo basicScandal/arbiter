@@ -19,14 +19,13 @@ import uuid
 from src.capture.event_bus import EventBus
 from src.capture.models import DemoStarted, DemoStopped
 from src.commentary.display_server import DisplayServer
-from src.commentary.enricher import CommentaryEnricher
 from src.commentary.generator import CommentaryGenerator
 from src.commentary.models import CommentaryDelivered, QARequested
 from src.commentary.qa_generator import QAGenerator
 from src.commentary.sounds import SoundEffects
 from src.commentary.tts_engine import TTSEngine
 from src.defense.models import InjectionDetected, ObservationVerified, SanitizedOutput
-from src.providers.base import LLMProvider
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.health import default_health
 from src.resilience.metrics import default_metrics
 
@@ -80,14 +79,13 @@ class CommentaryPipeline:
         voice_id: str,
         display_host: str = "0.0.0.0",
         display_port: int = 8080,
-        enrichment_provider: LLMProvider | None = None,
         groq_api_key: str = "",
+        circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
-        self._generator = CommentaryGenerator(api_key=api_key, groq_api_key=groq_api_key or None)
-        self._qa_generator = QAGenerator(api_key=api_key, groq_api_key=groq_api_key or None)
-        self._enricher: CommentaryEnricher | None = (
-            CommentaryEnricher(enrichment_provider) if enrichment_provider else None
+        self._generator = CommentaryGenerator(
+            api_key=api_key, groq_api_key=groq_api_key or None, circuit_breaker=circuit_breaker,
         )
+        self._qa_generator = QAGenerator(api_key=api_key, groq_api_key=groq_api_key or None)
 
         cartesia_api_key = os.environ.get("CARTESIA_API_KEY", "")
         if not cartesia_api_key:
@@ -104,6 +102,11 @@ class CommentaryPipeline:
         self._last_quip_time: float = 0.0  # rate-limit injection reactions
         self._commentary_cancelled = asyncio.Event()
         self._sounds = SoundEffects()
+
+    @property
+    def display_server(self) -> DisplayServer:
+        """Public access to the shared DisplayServer instance."""
+        return self._display
 
     async def setup(self, event_bus: EventBus) -> None:
         """Wire into the event bus and start output components.

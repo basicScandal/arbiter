@@ -154,7 +154,7 @@ class DefensePipeline:
             if self._event_bus is not None:
                 self._event_bus.publish(InjectionDetected(attempt=attempt))
             if result.confidence == "high":
-                task = asyncio.create_task(self._generate_roast(attempt))
+                task = asyncio.create_task(self._generate_roast(attempt), name="roast-visual")
                 self._pending_roast_tasks.append(task)
 
     async def _on_transcript(self, event: TranscriptReceived) -> None:
@@ -170,7 +170,7 @@ class DefensePipeline:
         so additional patterns can accumulate to reach high confidence.
         """
         self._transcripts.append(event.segment.text)
-        self._transcript_buffer += event.segment.text
+        self._transcript_buffer = (self._transcript_buffer + event.segment.text)[-400:]
 
         # Skip scanning during cooldown after a high-confidence detection
         if self._transcript_cooldown > 0:
@@ -199,7 +199,7 @@ class DefensePipeline:
                 self._logger.log(attempt)
                 if self._event_bus is not None:
                     self._event_bus.publish(InjectionDetected(attempt=attempt))
-                task = asyncio.create_task(self._generate_roast(attempt))
+                task = asyncio.create_task(self._generate_roast(attempt), name="roast-verbal")
                 self._pending_roast_tasks.append(task)
             elif not self._logged_medium_in_window:
                 # Log first medium detection but keep scanning for more patterns
@@ -235,6 +235,18 @@ class DefensePipeline:
 
     async def _on_demo_stopped(self, event: DemoStopped) -> None:
         """Sanitize observations and publish verified output on demo stop."""
+        try:
+            await self._process_demo_stopped(event)
+        except Exception:
+            logger.exception(
+                "CRITICAL: _on_demo_stopped failed for team '%s' — "
+                "ObservationVerified may not have been published, "
+                "downstream scoring/commentary will be skipped",
+                event.team_name,
+            )
+
+    async def _process_demo_stopped(self, event: DemoStopped) -> None:
+        """Inner implementation of demo-stop processing."""
         # Wait for any pending roast tasks to complete (short timeout)
         if self._pending_roast_tasks:
             try:

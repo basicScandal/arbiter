@@ -11,6 +11,7 @@ Thread-safe via asyncio.to_thread for file I/O.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -64,12 +65,16 @@ class EventLogger:
         try:
             entry = self._serialize(event)
             line = json.dumps(entry, default=str) + "\n"
-            self._file.write(line)
-            self._file.flush()
+            await asyncio.to_thread(self._write_line, line)
         except Exception:
             logger.debug(
                 "Failed to log event %s", event.event_type, exc_info=True,
             )
+
+    def _write_line(self, line: str) -> None:
+        """Write and flush a line to the log file (runs in thread pool)."""
+        self._file.write(line)
+        self._file.flush()
 
     def _serialize(self, event: CaptureEvent) -> dict:
         """Convert an event to a JSON-serializable dict."""
@@ -84,6 +89,7 @@ class EventLogger:
         try:
             data = event.model_dump()
         except Exception:
+            logger.debug("model_dump() failed for %s, using minimal fallback", event.event_type, exc_info=True)
             data = {"event_type": event.event_type}
 
         cleaned = _strip_binary(data)

@@ -167,7 +167,7 @@ async def export_team_data(team_name: str) -> TeamExport | None:
             raw = await asyncio.to_thread(commentary_path.read_text)
             team.commentary = json.loads(raw)
         except Exception:
-            pass
+            logger.debug("Failed to load commentary for %s", team_name, exc_info=True)
 
     # Observations
     obs_path = OBSERVATIONS_DIR / f"{sanitized}.json"
@@ -176,7 +176,7 @@ async def export_team_data(team_name: str) -> TeamExport | None:
             raw = await asyncio.to_thread(obs_path.read_text)
             team.observations = json.loads(raw)
         except Exception:
-            pass
+            logger.debug("Failed to load observations for %s", team_name, exc_info=True)
 
     # Human scores
     human_path = HUMAN_SCORES_DIR / f"{sanitized}.json"
@@ -185,6 +185,6 @@ async def export_team_data(team_name: str) -> TeamExport | None:
             raw = await asyncio.to_thread(human_path.read_text)
             team.human_scores = json.loads(raw)
         except Exception:
-            pass
+            logger.debug("Failed to load human scores for %s", team_name, exc_info=True)
 
     return team

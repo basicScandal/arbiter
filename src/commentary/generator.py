@@ -20,6 +20,7 @@ from google import genai
 from google.genai import types
 from openai import AsyncOpenAI
 
+from src.config.models import GEMINI_MODEL
 from src.commentary.models import Commentary
 from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
@@ -29,6 +30,7 @@ from src.providers.groq_provider import GROQ_BASE_URL
 from src.resilience.retry import GEMINI_RETRY, DailyQuotaExhausted
 
 logger = logging.getLogger(__name__)
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 _GROQ_MODEL = "llama-3.3-70b-versatile"
 _GROQ_TIMEOUT = 20.0  # longer than QA since commentary is more text
 
@@ -96,7 +98,7 @@ class CommentaryGenerator:
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-2.5-flash",
+        model: str = GEMINI_MODEL,
         groq_api_key: str | None = None,
         circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
@@ -274,7 +276,7 @@ class CommentaryGenerator:
                     buffer += chunk.text
                     # Extract complete sentences from buffer
                     while True:
-                        match = re.search(r'(?<=[.!?])\s+', buffer)
+                        match = _SENTENCE_BOUNDARY.search(buffer)
                         if match:
                             raw = buffer[:match.start()].strip()
                             buffer = buffer[match.end():]
@@ -321,7 +323,8 @@ class CommentaryGenerator:
 
     async def _call_groq(self, user_prompt: str) -> str:
         """Call Groq via OpenAI-compatible API and return the commentary text."""
-        assert self._groq_client is not None
+        if self._groq_client is None:
+            raise RuntimeError("Groq client not configured (missing GROQ_API_KEY)")
 
         formatted_prompt, temp = self._build_demo_context()
 
@@ -403,7 +406,7 @@ class CommentaryGenerator:
         """
         if not text:
             return []
-        parts = re.split(r"(?<=[.!?])\s+", text)
+        parts = _SENTENCE_BOUNDARY.split(text)
         return [s.strip() for s in parts if s.strip()]
 
     @staticmethod

@@ -91,12 +91,11 @@ class GeminiSession:
         """Build the LiveConnectConfig with compression, resumption, and transcription.
 
         Returns:
-            A LiveConnectConfig configured for AUDIO response (required by native
-            audio model) with both input and output audio transcription to capture
-            presenter speech and Gemini observations as text.
+            A LiveConnectConfig configured for TEXT response with input audio
+            transcription to capture presenter speech as text.
         """
         return types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
+            response_modalities=["TEXT"],
             system_instruction=(
                 "You are observing a live hackathon demo. Describe what you see "
                 "on screen (slides, code, demos, terminal output) and what the "
@@ -104,7 +103,6 @@ class GeminiSession:
                 "Do not speculate or editorialize."
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
-            output_audio_transcription=types.AudioTranscriptionConfig(),
             context_window_compression=types.ContextWindowCompressionConfig(
                 trigger_tokens=self._config.compression_trigger_tokens,
                 sliding_window=types.SlidingWindow(
@@ -183,7 +181,19 @@ class GeminiSession:
                                 self._resumption_handle[:20] + "...",
                             )
 
-                    # Handle output transcription (Gemini's spoken observations as text)
+                    # Handle model text turn (primary observation source)
+                    if (
+                        response.server_content
+                        and response.server_content.model_turn
+                    ):
+                        for part in response.server_content.model_turn.parts or []:
+                            if part.text:
+                                self._observations.append(part.text)
+                                logger.info(
+                                    "Gemini observation (text): %s", part.text[:200]
+                                )
+
+                    # Handle output transcription (audio-to-text of Gemini speech)
                     if (
                         response.server_content
                         and response.server_content.output_transcription
@@ -194,7 +204,7 @@ class GeminiSession:
                         if obs_text:
                             self._observations.append(obs_text)
                             logger.info(
-                                "Gemini observation: %s", obs_text[:200]
+                                "Gemini observation (audio): %s", obs_text[:200]
                             )
 
                     # Handle audio input transcription (presenter speech)

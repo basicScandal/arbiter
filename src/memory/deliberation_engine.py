@@ -18,6 +18,7 @@ from anthropic import AsyncAnthropic
 from google import genai
 from google.genai import types
 
+from src.config.models import CLAUDE_MODEL, GEMINI_MODEL
 from src.memory.models import DeliberationResult, DemoMemory, TeamRanking
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.retry import CLAUDE_RETRY, GEMINI_RETRY_BACKGROUND, DailyQuotaExhausted
@@ -88,7 +89,7 @@ class DeliberationEngine:
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-2.5-flash",
+        model: str = GEMINI_MODEL,
         anthropic_api_key: str | None = None,
         circuit_breaker: GeminiCircuitBreaker | None = None,
     ) -> None:
@@ -196,11 +197,12 @@ class DeliberationEngine:
         since Claude doesn't support response_schema natively. Parses
         the response with Pydantic for validation.
         """
-        assert self._claude_client is not None
+        if self._claude_client is None:
+            raise RuntimeError("Claude client not configured (missing ANTHROPIC_API_KEY)")
         full_prompt = prompt + "\n\n" + _DELIBERATION_JSON_SCHEMA
 
         message = await self._claude_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model=CLAUDE_MODEL,
             max_tokens=16000,
             temperature=0.4,
             system=DELIBERATION_SYSTEM_PROMPT,

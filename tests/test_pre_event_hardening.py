@@ -138,11 +138,11 @@ class TestUnicodeNormalization:
 
 
 class TestCSPMiddleware:
-    """Verify CSP middleware class exists and is configured."""
+    """Verify security headers middleware class exists and is configured."""
 
     def test_csp_middleware_importable(self):
-        from src.commentary.display_server import CSPMiddleware
-        assert CSPMiddleware is not None
+        from src.commentary.display_server import SecurityHeadersMiddleware
+        assert SecurityHeadersMiddleware is not None
 
     @pytest.mark.asyncio
     async def test_csp_header_on_response(self):

@@ -15,42 +15,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.capture.event_bus import EventBus
-from src.commentary.display_server import DisplayServer
 from src.commentary.models import CommentaryDelivered
 from src.defense.models import ObservationVerified, SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.scoring.engine import ScoringEngine
-from src.scoring.models import CriterionScore, DemoScorecard, ScoreRevealed, ScoringComplete
+from src.scoring.models import DemoScorecard, ScoreRevealed, ScoringComplete
 from src.scoring.pipeline import ScoringPipeline
 from src.scoring.rubric import GENERAL_CRITERIA
+from tests.helpers.factories import make_mock_display, make_scorecard
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
-
-def _make_scorecard(team_name: str = "TestTeam") -> DemoScorecard:
-    return DemoScorecard(
-        team_name=team_name,
-        track="ROGUE::AGENT",
-        criteria=[
-            CriterionScore(
-                name="Technical Execution", score=8.0, weight=0.40,
-                justification="Solid implementation",
-            ),
-            CriterionScore(
-                name="Innovation", score=7.0, weight=0.30,
-                justification="Novel approach",
-            ),
-            CriterionScore(
-                name="Demo Quality", score=6.0, weight=0.30,
-                justification="Good presentation",
-            ),
-        ],
-        track_bonus=None,
-        total_score=7.1,
-        scored_at=1000.0,
-    )
 
 
 def _make_sanitized_output(team_name: str = "TestTeam") -> SanitizedOutput:
@@ -65,21 +41,6 @@ def _make_sanitized_output(team_name: str = "TestTeam") -> SanitizedOutput:
 
 def _make_observation_verified(team_name: str = "TestTeam") -> ObservationVerified:
     return ObservationVerified(output=_make_sanitized_output(team_name))
-
-
-def _make_mock_display() -> MagicMock:
-    """Create a mock DisplayServer with all async methods stubbed."""
-    display = MagicMock(spec=DisplayServer)
-    display.start = AsyncMock()
-    display.stop = AsyncMock()
-    display.push_commentary = AsyncMock()
-    display.push_score_intro = AsyncMock()
-    display.push_criterion_reveal = AsyncMock()
-    display.push_total_score = AsyncMock()
-    display.push_deliberation_ranking = AsyncMock()
-    display.push_deliberation_narrative = AsyncMock()
-    display.clear = AsyncMock()
-    return display
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +111,7 @@ async def test_scoring_pipeline_ten_demos_with_alternating_failures(
     Verifies exactly 5 scoring_complete events, _pending_scorecards only has
     entries for successful demos, and no exceptions propagate.
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
     pipeline = ScoringPipeline(api_key="test", display=mock_display)
     pipeline._store.save = AsyncMock()
     await pipeline.setup(event_bus)
@@ -163,7 +124,7 @@ async def test_scoring_pipeline_ten_demos_with_alternating_failures(
         call_count += 1
         if idx % 2 != 0:
             raise ConnectionError(f"chaos: scoring down for demo {idx}")
-        return _make_scorecard(sanitized.team_name)
+        return make_scorecard(sanitized.team_name)
 
     pipeline._engine.score = AsyncMock(side_effect=_alternating_score)
 
@@ -192,7 +153,7 @@ async def test_reveal_cancel_stress(event_bus: EventBus, event_collector):
     Verifies no score_revealed events are published, no orphaned tasks remain,
     and _reveal_task is always properly managed.
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
     pipeline = ScoringPipeline(api_key="test", display=mock_display)
     pipeline._store.save = AsyncMock()
     await pipeline.setup(event_bus)
@@ -205,7 +166,7 @@ async def test_reveal_cancel_stress(event_bus: EventBus, event_collector):
 
     for i in range(10):
         team = f"Team{i:02d}"
-        scorecard = _make_scorecard(team)
+        scorecard = make_scorecard(team)
 
         # Manually inject a pending scorecard and trigger commentary_delivered
         pipeline._pending_scorecards[team] = scorecard
@@ -240,7 +201,7 @@ async def test_scoring_pipeline_rapid_commentary_delivered(
     Verifies no reveals are triggered, no exceptions, and _pending_scorecards
     stays empty.
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
     pipeline = ScoringPipeline(api_key="test", display=mock_display)
     pipeline._store.save = AsyncMock()
     await pipeline.setup(event_bus)
@@ -277,13 +238,13 @@ async def test_concurrent_score_and_reveal(event_bus: EventBus, event_collector)
     1. commentary_delivered arrives before scoring completes -> no pending scorecard -> reveal skipped
     2. scoring completes before commentary_delivered -> reveal starts normally
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
     pipeline = ScoringPipeline(api_key="test", display=mock_display)
     pipeline._store.save = AsyncMock()
     await pipeline.setup(event_bus)
 
     team_a = "TeamA"
-    scorecard_a = _make_scorecard(team_a)
+    scorecard_a = make_scorecard(team_a)
 
     # --- Scenario 1: commentary_delivered arrives BEFORE scoring completes ---
     # Make scoring slow -- use a Future so we can resolve it manually
@@ -328,7 +289,7 @@ async def test_concurrent_score_and_reveal(event_bus: EventBus, event_collector)
 
     # --- Scenario 2: scoring completes BEFORE commentary_delivered ---
     team_b = "TeamB"
-    scorecard_b = _make_scorecard(team_b)
+    scorecard_b = make_scorecard(team_b)
     pipeline._engine.score = AsyncMock(return_value=scorecard_b)
 
     # Fire observation_verified and wait for scoring to complete

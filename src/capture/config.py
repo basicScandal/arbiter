@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from dotenv import load_dotenv
+
 from pydantic import BaseModel
+
+from src.config.models import GEMINI_LIVE_MODEL
+
+logger = logging.getLogger(__name__)
 
 
 class CaptureConfig(BaseModel):
@@ -20,7 +26,7 @@ class CaptureConfig(BaseModel):
     audio_device_index: int | None = None
     frame_rate: float = 1.0
     key_frame_threshold: float = 0.4
-    gemini_model: str = "gemini-2.5-flash-native-audio-preview-12-2025"
+    gemini_model: str = GEMINI_LIVE_MODEL
     max_queue_size: int = 5
     frame_max_dimension: int = 1024
     audio_sample_rate: int = 16000
@@ -32,12 +38,11 @@ class CaptureConfig(BaseModel):
     cartesia_voice_id: str = ""
     display_host: str = "0.0.0.0"
     display_port: int = 8080
-    # MoE multi-model scoring and commentary enrichment
+    # MoE multi-model scoring
     anthropic_api_key: str = ""
     openai_api_key: str = ""
     groq_api_key: str = ""
     moe_scoring_enabled: bool = False
-    commentary_enrichment_enabled: bool = False
     # Shared secret for operator WebSocket authentication.
     # When set, clients must pass ?token=<value> on the WS upgrade URL.
     # When empty, all connections are allowed (dev mode).
@@ -63,7 +68,7 @@ def load_config() -> CaptureConfig:
     audio_device_raw = os.getenv("AUDIO_DEVICE_INDEX")
     audio_device_index = int(audio_device_raw) if audio_device_raw else None
 
-    return CaptureConfig(
+    config = CaptureConfig(
         gemini_api_key=gemini_api_key,
         camera_device_index=int(os.getenv("CAMERA_DEVICE_INDEX", "0")),
         audio_device_index=audio_device_index,
@@ -77,6 +82,19 @@ def load_config() -> CaptureConfig:
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         groq_api_key=os.getenv("GROQ_API_KEY", ""),
         moe_scoring_enabled=os.getenv("MOE_SCORING_ENABLED", "").lower() in ("true", "1", "yes"),
-        commentary_enrichment_enabled=os.getenv("COMMENTARY_ENRICHMENT_ENABLED", "").lower() in ("true", "1", "yes"),
         operator_token=os.getenv("OPERATOR_TOKEN", ""),
     )
+
+    if not config.operator_token:
+        logger.warning(
+            "OPERATOR_TOKEN is not set — operator WebSocket and human-score "
+            "endpoint are open to all connections. Set OPERATOR_TOKEN in .env "
+            "for production use."
+        )
+    if not os.getenv("DISPLAY_TOKEN", ""):
+        logger.warning(
+            "DISPLAY_TOKEN is not set — display WebSocket is open to all "
+            "connections. Set DISPLAY_TOKEN in .env for production use."
+        )
+
+    return config

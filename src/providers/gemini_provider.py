@@ -11,6 +11,7 @@ import logging
 from google import genai
 from google.genai import types
 
+from src.config.models import GEMINI_MODEL
 from src.providers.base import LLMProvider
 from src.resilience.rate_limiter import GeminiRateLimiter
 from src.resilience.retry import GEMINI_RETRY_BACKGROUND
@@ -25,7 +26,7 @@ class GeminiProvider(LLMProvider):
     for transient network errors. Returns empty string on failure.
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
+    def __init__(self, api_key: str, model: str = GEMINI_MODEL) -> None:
         """Initialize Gemini provider.
 
         Args:

@@ -18,6 +18,8 @@ from google import genai
 from google.genai import types
 from openai import AsyncOpenAI
 
+from src.config.models import GEMINI_MODEL
+
 from src.commentary.models import QAQuestion
 from src.commentary.prompts import QA_PROMPT
 from src.defense.models import SanitizedOutput
@@ -49,7 +51,7 @@ class QAGenerator:
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-2.5-flash",
+        model: str = GEMINI_MODEL,
         groq_api_key: str | None = None,
     ) -> None:
         self._client = genai.Client(api_key=api_key)
@@ -138,7 +140,8 @@ class QAGenerator:
 
     async def _call_groq(self, user_prompt: str) -> str:
         """Call Groq via OpenAI-compatible API and return the response text."""
-        assert self._groq_client is not None
+        if self._groq_client is None:
+            raise RuntimeError("Groq client not initialized")
         response = await self._groq_client.chat.completions.create(
             model=_GROQ_MODEL,
             messages=[

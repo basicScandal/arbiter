@@ -17,13 +17,13 @@ import pytest
 
 from src.capture.event_bus import EventBus
 from src.capture.models import DemoStarted, DemoStopped
-from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.resilience.metrics import default_metrics
-from src.scoring.models import CriterionScore, DemoScorecard
+from src.scoring.models import DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
+from tests.helpers.factories import make_mock_display, make_mock_gemini, make_scorecard
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -33,58 +33,6 @@ _TEST_OBSERVATIONS = [
     "The team built a network scanner",
     "It detected 3 open ports",
 ]
-
-
-def _make_scorecard(team_name: str = "TestTeam") -> DemoScorecard:
-    return DemoScorecard(
-        team_name=team_name,
-        track="ROGUE::AGENT",
-        criteria=[
-            CriterionScore(
-                name="Technical Execution", score=8.0, weight=0.40,
-                justification="Solid implementation",
-            ),
-            CriterionScore(
-                name="Innovation", score=7.0, weight=0.30,
-                justification="Novel approach",
-            ),
-            CriterionScore(
-                name="Demo Quality", score=6.0, weight=0.30,
-                justification="Good presentation",
-            ),
-        ],
-        track_bonus=None,
-        total_score=7.1,
-        scored_at=1000.0,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_gemini(observations: list[str]) -> MagicMock:
-    """Create a mock GeminiSession returning canned observations."""
-    gemini = MagicMock()
-    gemini.get_observations.return_value = observations
-    gemini.clear_observations = MagicMock()
-    return gemini
-
-
-def _make_mock_display() -> MagicMock:
-    """Create a mock DisplayServer with all async methods stubbed."""
-    display = MagicMock(spec=DisplayServer)
-    display.start = AsyncMock()
-    display.stop = AsyncMock()
-    display.push_commentary = AsyncMock()
-    display.push_score_intro = AsyncMock()
-    display.push_criterion_reveal = AsyncMock()
-    display.push_total_score = AsyncMock()
-    display.push_deliberation_ranking = AsyncMock()
-    display.push_deliberation_narrative = AsyncMock()
-    display.clear = AsyncMock()
-    return display
 
 
 async def _fake_stream_sentences(sanitized_output):
@@ -101,7 +49,7 @@ async def _setup_full_pipeline(
 ):
     """Wire all four sub-pipelines to a shared event bus with mocked I/O."""
     if scorecard is None:
-        scorecard = _make_scorecard()
+        scorecard = make_scorecard()
 
     # Defense pipeline
     defense = DefensePipeline(api_key="test", gemini_session=mock_gemini)
@@ -148,8 +96,8 @@ async def _drive_demo(event_bus: EventBus, team_name: str) -> None:
 @pytest.mark.timeout(15)
 async def test_full_cycle_timing_under_budget(event_bus, event_collector):
     """Wall-clock from demo_stopped to score_revealed must be < 10s with mocked I/O."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     await _setup_full_pipeline(event_bus, mock_gemini, mock_display)
 
@@ -168,12 +116,12 @@ async def test_full_cycle_timing_under_budget(event_bus, event_collector):
 @pytest.mark.timeout(30)
 async def test_five_demo_sequence(event_bus, event_collector):
     """Run 5 sequential demos: all produce score_revealed, no subscriber leaks."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
     teams = [f"Team{i}" for i in range(1, 6)]
 
     # Track initial subscriber counts after setup
-    scorecard_by_team = {t: _make_scorecard(t) for t in teams}
+    scorecard_by_team = {t: make_scorecard(t) for t in teams}
 
     async def _score_for_team(sanitized, *args, **kwargs):
         return scorecard_by_team[sanitized.team_name]
@@ -233,13 +181,13 @@ async def test_scoring_and_commentary_parallel_completion(event_bus, event_colle
     Both fire on observation_verified. Total wall-clock should be roughly
     max(scoring, commentary) not sum(scoring, commentary).
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     # Add a small delay to scoring to make it measurably slow
     async def _slow_score(sanitized, *args, **kwargs):
         await asyncio.sleep(0.2)
-        return _make_scorecard()
+        return make_scorecard()
 
     # Add a small delay to commentary streaming
     async def _slow_stream(sanitized_output):

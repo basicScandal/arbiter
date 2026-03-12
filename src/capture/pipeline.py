@@ -33,11 +33,10 @@ from src.capture.models import (
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
-from src.operator.cli import OperatorCLI
-from src.operator.tui import ArbiterTUI
 from src.operator.web import WebOperator
 from src.providers import create_provider
 from src.providers.base import LLMProvider
+from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.metrics import default_metrics
 from src.scoring.moe_engine import MoEScoringEngine
 from src.scoring.pipeline import ScoringPipeline
@@ -55,7 +54,7 @@ class CapturePipeline:
         config: Capture configuration with device indexes, API keys, etc.
     """
 
-    def __init__(self, config: CaptureConfig, operator_mode: str = "web") -> None:
+    def __init__(self, config: CaptureConfig) -> None:
         self.event_bus = EventBus()
         self.media_queue: asyncio.Queue = asyncio.Queue(maxsize=config.max_queue_size)
 
@@ -69,27 +68,20 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
-        self._operator_mode = operator_mode
         self.defense = DefensePipeline(
             api_key=config.gemini_api_key, gemini_session=self.gemini
         )
 
-        # Build enrichment provider if configured
-        enrichment_provider: LLMProvider | None = None
-        if config.commentary_enrichment_enabled and config.anthropic_api_key:
-            enrichment_provider = create_provider("claude", config.anthropic_api_key)
-            logger.info("Commentary enrichment enabled via Claude")
-        elif config.commentary_enrichment_enabled and config.openai_api_key:
-            enrichment_provider = create_provider("openai", config.openai_api_key)
-            logger.info("Commentary enrichment enabled via OpenAI")
+        # Shared circuit breaker for Gemini availability across scoring + commentary
+        self._gemini_breaker = GeminiCircuitBreaker()
 
         self.commentary = CommentaryPipeline(
             api_key=config.gemini_api_key,
             voice_id=config.cartesia_voice_id,
             display_host=config.display_host,
             display_port=config.display_port,
-            enrichment_provider=enrichment_provider,
             groq_api_key=config.groq_api_key,
+            circuit_breaker=self._gemini_breaker,
         )
 
         # Build MoE scoring providers if configured
@@ -115,35 +107,24 @@ class CapturePipeline:
         # Isolation requirement (SCORE-03) is about the LLM path, not the display path.
         self.scoring = ScoringPipeline(
             api_key=config.gemini_api_key,
-            display=self.commentary._display,
+            display=self.commentary.display_server,
             moe_engine=moe_engine,
+            circuit_breaker=self._gemini_breaker,
         )
         # Deliberation pipeline shares the same DisplayServer (display isolation
         # is about LLM paths, not the broadcast channel).
         self.deliberation = DeliberationPipeline(
             api_key=config.gemini_api_key,
-            display=self.commentary._display,
+            display=self.commentary.display_server,
         )
 
-        if operator_mode == "web":
-            self.operator: OperatorCLI | ArbiterTUI | WebOperator = WebOperator(
-                demo_machine=self.demo_machine,
-                event_bus=self.event_bus,
-                display_server=self.commentary._display,
-                scoring_pipeline=self.scoring,
-                deliberation_pipeline=self.deliberation,
-            )
-        elif operator_mode == "tui":
-            self.operator = ArbiterTUI(
-                demo_machine=self.demo_machine, event_bus=self.event_bus
-            )
-        else:
-            self.operator = OperatorCLI(
-                demo_machine=self.demo_machine,
-                event_bus=self.event_bus,
-                scoring_pipeline=self.scoring,
-                deliberation_pipeline=self.deliberation,
-            )
+        self.operator = WebOperator(
+            demo_machine=self.demo_machine,
+            event_bus=self.event_bus,
+            display_server=self.commentary._display,
+            scoring_pipeline=self.scoring,
+            deliberation_pipeline=self.deliberation,
+        )
 
         self._capture_tasks: list[asyncio.Task] = []
 
@@ -318,13 +299,6 @@ class CapturePipeline:
 
         # Wire the deliberation pipeline into the event bus
         await self.deliberation.setup(self.event_bus)
-
-        if self._operator_mode == "cli":
-            print("=" * 40)
-            print("  Arbiter Capture Layer v0.1")
-            print("  Type 'help' for commands")
-            print("=" * 40)
-            print()
 
         try:
             await self.operator.run()

@@ -12,13 +12,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.capture.models import DemoStarted, DemoStopped
-from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.resilience.metrics import default_metrics
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
+from tests.helpers.factories import make_mock_display, make_mock_gemini
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -52,40 +52,14 @@ _TEST_SCORECARD = DemoScorecard(
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_gemini(observations: list[str]) -> MagicMock:
-    gemini = MagicMock()
-    gemini.get_observations.return_value = observations
-    gemini.clear_observations = MagicMock()
-    return gemini
-
-
-def _make_mock_display() -> MagicMock:
-    display = MagicMock(spec=DisplayServer)
-    display.start = AsyncMock()
-    display.stop = AsyncMock()
-    display.push_commentary = AsyncMock()
-    display.push_score_intro = AsyncMock()
-    display.push_criterion_reveal = AsyncMock()
-    display.push_total_score = AsyncMock()
-    display.push_deliberation_ranking = AsyncMock()
-    display.push_deliberation_narrative = AsyncMock()
-    display.clear = AsyncMock()
-    return display
-
-
 async def _fake_stream_sentences(sanitized_output):
     yield ("Commentary delivered.", "confident", 0)
 
 
 async def _setup_and_drive(event_bus, event_collector):
     """Wire full pipeline, drive one demo, and wait for score_revealed."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     # Defense pipeline
     defense = DefensePipeline(api_key="test", gemini_session=mock_gemini)
