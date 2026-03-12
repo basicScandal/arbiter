@@ -121,7 +121,7 @@ class CapturePipeline:
         self.operator = WebOperator(
             demo_machine=self.demo_machine,
             event_bus=self.event_bus,
-            display_server=self.commentary.display_server,
+            display_server=self.commentary._display,
             scoring_pipeline=self.scoring,
             deliberation_pipeline=self.deliberation,
         )

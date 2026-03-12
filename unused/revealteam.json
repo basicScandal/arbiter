@@ -1,0 +1,33 @@
+{
+  "team_name": "RevealTeam",
+  "track": "SHADOW::VECTOR",
+  "criteria": [
+    {
+      "name": "Technical Execution",
+      "score": 8.5,
+      "weight": 0.4,
+      "justification": "Solid CVE exploit with edge case handling"
+    },
+    {
+      "name": "Innovation",
+      "score": 7.0,
+      "weight": 0.3,
+      "justification": "Novel fuzzing approach"
+    },
+    {
+      "name": "Demo Quality",
+      "score": 9.0,
+      "weight": 0.3,
+      "justification": "Clear live demo with compelling narrative"
+    }
+  ],
+  "track_bonus": {
+    "name": "Attack Effectiveness",
+    "score": 8.0,
+    "weight": 0.1,
+    "justification": "Effective exploit chain"
+  },
+  "total_score": 9.0,
+  "scored_at": 1773319413.102477,
+  "is_fallback": false
+}
