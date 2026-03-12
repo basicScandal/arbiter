@@ -474,6 +474,15 @@ class WebOperator:
                         "Demo timer critical: demo exceeded max duration of %.0fs",
                         MAX_DEMO_DURATION,
                     )
+                    # Auto-stop: prevent capture from running indefinitely
+                    try:
+                        self._demo_machine.send("stop_demo")
+                        logger.warning("Demo auto-stopped after exceeding max duration")
+                    except Exception:
+                        logger.warning(
+                            "Could not auto-stop demo (may already be stopping)",
+                            exc_info=True,
+                        )
                     return
 
         except asyncio.CancelledError:
@@ -684,7 +693,11 @@ class WebOperator:
                     "message": message,
                 }), timeout=5.0)
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to send command result to operator (success=%s, message=%s)",
+                    success, message[:100],
+                    exc_info=True,
+                )
 
     async def _push_scoring_phase(self, phase: str | None) -> None:
         """Broadcast a scoring_phase message to all operator clients.

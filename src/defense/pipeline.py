@@ -219,6 +219,13 @@ class DefensePipeline:
     async def _generate_roast(self, attempt: InjectionAttempt) -> None:
         """Generate a roast for a high-confidence injection attempt."""
         roast = await self._roaster.generate(attempt)
+        # Guard: discard roast if the demo has moved to a different team
+        if attempt.team_name != self._current_team:
+            logger.debug(
+                "Discarding stale roast for team %s (current team: %s)",
+                attempt.team_name, self._current_team,
+            )
+            return
         self._roasts.append(roast)
         if self._event_bus is not None:
             self._event_bus.publish(

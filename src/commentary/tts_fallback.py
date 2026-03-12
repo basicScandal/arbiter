@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -135,11 +136,14 @@ class MacOSSayFallback:
             return
 
         try:
+            # Strip macOS speech commands (e.g., [[rate 1]], [[volm 0.5]])
+            # to prevent injected text from altering voice parameters
+            cleaned = re.sub(r"\[\[.*?\]\]", "", text).strip()
             proc = await asyncio.create_subprocess_exec(
                 "say",
                 "-v", self._voice,
                 "-r", str(self._rate),
-                "--", text,
+                "--", cleaned,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
