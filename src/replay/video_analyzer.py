@@ -11,6 +11,7 @@ import os
 import cv2
 from anthropic import AsyncAnthropic
 
+from src.config.models import CLAUDE_MODEL
 from src.replay.config import VideoEntry, duration_seconds
 from src.resilience.retry import CLAUDE_RETRY_BACKGROUND
 from src.utils import strip_markdown_fences
@@ -224,7 +225,7 @@ class VideoAnalyzer:
         content.append({"type": "text", "text": prompt_text})
 
         message = await self._client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model=CLAUDE_MODEL,
             max_tokens=4096,
             temperature=0.2,
             system=ANALYSIS_SYSTEM_PROMPT,

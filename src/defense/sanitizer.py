@@ -4,7 +4,7 @@ This is the critical security boundary of the defense pipeline. Observations
 from Gemini may faithfully transcribe injection text from slides or speech
 (Pitfall 4: quoted injection passthrough). The sanitizer scans each observation
 and transcript segment, excluding entire entries that match injection patterns
-at medium or high confidence. Per research anti-pattern guidance, we flag and
+at any confidence level. Per research anti-pattern guidance, we flag and
 exclude whole observations rather than attempting word-level redaction.
 """
 
@@ -28,11 +28,11 @@ class ObservationSanitizer:
         self,
         observations: list[str],
     ) -> list[str]:
-        """Remove tainted observations at medium or high confidence.
+        """Remove tainted observations at any confidence level.
 
         Each observation is scanned individually. If injection patterns are
-        detected with medium or high confidence, the entire observation is
-        excluded -- no partial redaction.
+        detected at any confidence level, the entire observation is excluded
+        -- no partial redaction.
 
         Args:
             observations: Raw Gemini observations to sanitize.
@@ -45,7 +45,7 @@ class ObservationSanitizer:
 
         for observation in observations:
             result = self._detector.scan_observation(observation)
-            if result.is_injection and result.confidence in ("medium", "high"):
+            if result.is_injection:
                 removed += 1
                 logger.warning(
                     "Removed tainted observation: confidence=%s, patterns=%s, text=%r",
@@ -63,10 +63,11 @@ class ObservationSanitizer:
         self,
         transcripts: list[str],
     ) -> list[str]:
-        """Remove tainted transcript segments at medium or high confidence.
+        """Remove tainted transcript segments at any confidence level.
 
         Same approach as observation sanitization -- filter out segments
-        that match injection patterns rather than attempting redaction.
+        that match injection patterns at any confidence rather than
+        attempting redaction.
 
         Args:
             transcripts: Raw transcript text segments to sanitize.
@@ -79,7 +80,7 @@ class ObservationSanitizer:
 
         for transcript in transcripts:
             result = self._detector.scan(transcript, source="verbal")
-            if result.is_injection and result.confidence in ("medium", "high"):
+            if result.is_injection:
                 removed += 1
                 logger.warning(
                     "Removed tainted transcript: confidence=%s, patterns=%s, text=%r",

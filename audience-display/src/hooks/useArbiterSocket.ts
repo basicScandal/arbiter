@@ -18,7 +18,8 @@ export function useArbiterSocket() {
       if (unmounted) return;
 
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const url = `${protocol}//${window.location.host}/ws/display`;
+      const displayToken = new URLSearchParams(window.location.search).get("display_token") ?? "";
+      const url = `${protocol}//${window.location.host}/ws/display${displayToken ? `?token=${encodeURIComponent(displayToken)}` : ""}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 

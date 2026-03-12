@@ -16,12 +16,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.models import ObservationVerified, SanitizedOutput
 from src.memory.pipeline import DeliberationPipeline
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
+from tests.helpers.factories import make_mock_display
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -58,26 +58,6 @@ _SCORECARD = DemoScorecard(
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_display() -> MagicMock:
-    """Create a mock DisplayServer with all async methods stubbed."""
-    display = MagicMock(spec=DisplayServer)
-    display.start = AsyncMock()
-    display.stop = AsyncMock()
-    display.push_commentary = AsyncMock()
-    display.push_score_intro = AsyncMock()
-    display.push_criterion_reveal = AsyncMock()
-    display.push_total_score = AsyncMock()
-    display.push_deliberation_ranking = AsyncMock()
-    display.push_deliberation_narrative = AsyncMock()
-    display.clear = AsyncMock()
-    return display
-
-
 async def _fake_stream_sentences(sanitized_output):
     """Async generator yielding test commentary sentences."""
     yield ("Bold strategy.", "sarcastic", 0)
@@ -97,7 +77,7 @@ async def test_two_level_chain_observation_to_scoring(event_bus, event_collector
     Level 2: Inside the handler, event_bus.publish(ScoringComplete) dispatches
     another create_task for ScoringComplete subscribers.
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
 
     scoring = ScoringPipeline(api_key="test", display=mock_display)
     scoring._engine.score = AsyncMock(return_value=_SCORECARD)
@@ -134,7 +114,7 @@ async def test_three_level_chain_observation_to_score_revealed(
              the scorecard and launches _reveal_score as a detached task that
              publishes score_revealed.
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
 
     # Setup scoring pipeline
     scoring = ScoringPipeline(api_key="test", display=mock_display)
@@ -187,7 +167,7 @@ async def test_parallel_subscribers_all_complete(event_bus, event_collector):
     Three pipelines subscribe to observation_verified: commentary, scoring,
     and deliberation. All three must complete their work.
     """
-    mock_display = _make_mock_display()
+    mock_display = make_mock_display()
 
     # Scoring pipeline
     scoring = ScoringPipeline(api_key="test", display=mock_display)

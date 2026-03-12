@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 
+MAX_DISPLAY_CONNECTIONS = int(os.environ.get("MAX_DISPLAY_CONNECTIONS", "50"))
+
+
 class ConnectionManager:
     """Manage active WebSocket connections and broadcast messages."""
 
@@ -43,12 +46,21 @@ class ConnectionManager:
         self._criteria_sequence: list[dict] = []
         self._score_intro: dict | None = None
 
-    async def connect(self, ws: WebSocket) -> None:
+    async def connect(self, ws: WebSocket) -> bool:
         """Accept and register a new WebSocket connection.
 
         After accepting, replays the current screen state so the new client
         sees the same thing as existing connected clients (Feature B).
+
+        Returns False (and closes) if the connection cap is reached.
         """
+        if len(self.active) >= MAX_DISPLAY_CONNECTIONS:
+            logger.warning(
+                "Display connection cap reached (%d), rejecting client",
+                MAX_DISPLAY_CONNECTIONS,
+            )
+            await ws.close(code=1008, reason="Too many connections")
+            return False
         await ws.accept()
         self.active.append(ws)
         logger.info("Display client connected (%d active)", len(self.active))
@@ -71,6 +83,7 @@ class ConnectionManager:
                     await ws.send_json(self._last_screen_state)
             except Exception:
                 logger.debug("Failed to replay state to new display client", exc_info=True)
+        return True
 
     def disconnect(self, ws: WebSocket) -> None:
         """Remove a disconnected WebSocket."""
@@ -132,12 +145,15 @@ class ConnectionManager:
             self._criteria_sequence = []
 
         async with self._broadcast_lock:
-            disconnected: list[WebSocket] = []
-            for ws in self.active:
-                try:
-                    await ws.send_json(message)
-                except Exception:
-                    disconnected.append(ws)
+            results = await asyncio.gather(
+                *[ws.send_json(message) for ws in self.active],
+                return_exceptions=True,
+            )
+            disconnected = [
+                ws
+                for ws, result in zip(self.active, results)
+                if isinstance(result, Exception)
+            ]
             for ws in disconnected:
                 self.disconnect(ws)
 
@@ -221,8 +237,17 @@ class DisplayServer:
             )
 
         @self._app.websocket("/ws/display")
-        async def websocket_endpoint(ws: WebSocket) -> None:
-            await self._manager.connect(ws)
+        async def websocket_endpoint(ws: WebSocket, token: str = "") -> None:
+            required_token = os.environ.get("DISPLAY_TOKEN", "")
+            if required_token and token != required_token:
+                logger.warning(
+                    "Display WebSocket rejected: invalid token (origin: %s)",
+                    ws.headers.get("origin", "unknown"),
+                )
+                await ws.close(code=1008, reason="Invalid token")
+                return
+            if not await self._manager.connect(ws):
+                return
             try:
                 while True:
                     # Send ping to detect silent disconnections

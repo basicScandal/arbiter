@@ -218,21 +218,22 @@ class TestScoringPromptInjectionImmunity:
 class TestSanitizerConfidenceBoundaries:
     """Verify sanitizer handles low vs. high confidence injection correctly."""
 
-    def test_low_confidence_injection_passes_sanitizer(self):
+    def test_low_confidence_injection_blocked_by_sanitizer(self):
         """An observation matching a single medium-severity pattern yields
-        low confidence and should NOT be removed by the sanitizer.
+        low confidence and SHOULD be removed by the sanitizer (tightened
+        for security hackathon — block all confidence levels).
         """
         detector = InjectionDetector()
         sanitizer = ObservationSanitizer(detector=detector)
 
         # "you are now" matches identity_reset (medium severity, single match)
-        # Single medium pattern -> low confidence -> should pass through
+        # Single medium pattern -> low confidence -> now blocked
         observations = [
             "The presenter said you are now looking at the dashboard",
         ]
         clean = sanitizer.sanitize_observations(observations)
-        assert len(clean) == 1, (
-            "Low-confidence injection (single medium pattern) should NOT be removed"
+        assert len(clean) == 0, (
+            "Low-confidence injection should be removed (all confidence levels blocked)"
         )
 
     def test_all_observations_tainted_returns_empty(self):

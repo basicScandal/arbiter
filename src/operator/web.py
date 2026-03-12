@@ -173,11 +173,17 @@ class WebOperator:
             ]
 
         @app.post("/api/human-score")
-        async def submit_human_score(score: dict):
-            """Submit a human judge's score for a team."""
+        async def submit_human_score(score: dict, token: str = Query(default="")):
+            """Submit a human judge's score for a team (requires operator token)."""
             import time as _time
 
+            from fastapi.responses import JSONResponse
+
             from src.scoring.human import HumanScore, HumanScoreStore
+
+            required_token = os.environ.get("OPERATOR_TOKEN", "")
+            if required_token and token != required_token:
+                return JSONResponse(status_code=403, content={"error": "Forbidden"})
 
             try:
                 human_score = HumanScore(
@@ -188,11 +194,9 @@ class WebOperator:
                     submitted_at=_time.time(),
                 )
             except Exception as e:
-                from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=400, content={"error": str(e)})
 
             if not human_score.judge_name or not human_score.team_name:
-                from fastapi.responses import JSONResponse
                 return JSONResponse(status_code=400, content={"error": "judge_name and team_name are required"})
 
             store = HumanScoreStore()

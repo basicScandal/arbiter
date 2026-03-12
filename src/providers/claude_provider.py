@@ -23,6 +23,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from src.config.models import CLAUDE_MODEL
 from src.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
@@ -51,13 +52,13 @@ class ClaudeProvider(LLMProvider):
     """
 
     def __init__(
-        self, api_key: str, model: str = "claude-sonnet-4-5-20250929"
+        self, api_key: str, model: str = CLAUDE_MODEL
     ) -> None:
         """Initialize Claude provider.
 
         Args:
             api_key: Anthropic API key
-            model: Model identifier (default: claude-sonnet-4-5-20250929)
+            model: Model identifier (default from CLAUDE_MODEL env/constant)
         """
         self._client = AsyncAnthropic(api_key=api_key)
         self._model = model

@@ -17,12 +17,12 @@ import pytest
 
 from src.capture.event_bus import EventBus
 from src.capture.models import DemoStarted, DemoStopped
-from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.scoring.models import CriterionScore, DemoScorecard
 from src.scoring.pipeline import ScoringPipeline
+from tests.helpers.factories import make_mock_display, make_mock_gemini
 
 # ---------------------------------------------------------------------------
 # Shared test data
@@ -54,34 +54,6 @@ _TEST_SCORECARD = DemoScorecard(
     total_score=7.1,
     scored_at=1000.0,
 )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_gemini(observations: list[str]) -> MagicMock:
-    """Create a mock GeminiSession returning canned observations."""
-    gemini = MagicMock()
-    gemini.get_observations.return_value = observations
-    gemini.clear_observations = MagicMock()
-    return gemini
-
-
-def _make_mock_display() -> MagicMock:
-    """Create a mock DisplayServer with all async methods stubbed."""
-    display = MagicMock(spec=DisplayServer)
-    display.start = AsyncMock()
-    display.stop = AsyncMock()
-    display.push_commentary = AsyncMock()
-    display.push_score_intro = AsyncMock()
-    display.push_criterion_reveal = AsyncMock()
-    display.push_total_score = AsyncMock()
-    display.push_deliberation_ranking = AsyncMock()
-    display.push_deliberation_narrative = AsyncMock()
-    display.clear = AsyncMock()
-    return display
 
 
 async def _fake_stream_sentences(sanitized_output):
@@ -141,8 +113,8 @@ async def test_full_pipeline_chain(event_bus, event_collector):
     Chain: demo_started -> demo_stopped -> observation_verified ->
     (parallel: commentary_delivered, scoring_complete, deliberation memory save)
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
@@ -192,8 +164,8 @@ async def test_full_chain_publishes_score_revealed_after_reveal(
     when commentary_delivered fires, it pops the scorecard and launches
     _reveal_score as a detached task which publishes score_revealed.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
@@ -232,8 +204,8 @@ async def test_pipeline_chain_handles_empty_observations_gracefully(
     When Gemini returns no observations, observation_verified still fires
     with empty data and downstream pipelines handle it gracefully.
     """
-    mock_gemini = _make_mock_gemini([])  # empty observations
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini([])  # empty observations
+    mock_display = make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
@@ -279,8 +251,8 @@ async def test_commentary_failure_still_publishes_delivered(
     This is the critical fix for issue #4: without the fallback event, the
     scoring pipeline never reveals scores because it waits on commentary_delivered.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
@@ -311,8 +283,8 @@ async def test_commentary_failure_still_triggers_score_reveal(
 
     End-to-end proof that the fix unblocks the scoring pipeline.
     """
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
@@ -347,8 +319,8 @@ async def test_commentary_timeout_still_publishes_delivered(
     event_bus, event_collector,
 ):
     """When commentary generation hangs, the timeout fires and delivers partial text."""
-    mock_gemini = _make_mock_gemini(_TEST_OBSERVATIONS)
-    mock_display = _make_mock_display()
+    mock_gemini = make_mock_gemini(_TEST_OBSERVATIONS)
+    mock_display = make_mock_display()
 
     defense, commentary, scoring, deliberation = await _setup_full_pipeline(
         event_bus, mock_gemini, mock_display,
