@@ -124,6 +124,7 @@ class CapturePipeline:
             display_server=self.commentary._display,
             scoring_pipeline=self.scoring,
             deliberation_pipeline=self.deliberation,
+            capture_config=config,
         )
 
         self._capture_tasks: list[asyncio.Task] = []

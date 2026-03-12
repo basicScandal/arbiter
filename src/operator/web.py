@@ -18,9 +18,11 @@ from typing import TYPE_CHECKING
 from fastapi import Query, WebSocket, WebSocketDisconnect, status
 from statemachine.exceptions import TransitionNotAllowed
 
+from src.capture.config import CaptureConfig
 from src.capture.demo_machine import DemoMachine
 from src.capture.event_bus import EventBus
 from src.capture.models import CaptureEvent
+from src.capture.preflight import run_preflight
 from src.commentary.display_server import DisplayServer
 from src.commentary.models import QARequested
 from src.config.tracks import VALID_TRACKS
@@ -66,12 +68,14 @@ class WebOperator:
         display_server: DisplayServer,
         scoring_pipeline: ScoringPipeline | None = None,
         deliberation_pipeline: DeliberationPipeline | None = None,
+        capture_config: CaptureConfig | None = None,
     ) -> None:
         self._demo_machine = demo_machine
         self._event_bus = event_bus
         self._display_server = display_server
         self._scoring_pipeline = scoring_pipeline
         self._deliberation_pipeline = deliberation_pipeline
+        self._capture_config = capture_config
 
         self._quit_signal = asyncio.Event()
         self._operator_connections: set[WebSocket] = set()
@@ -133,6 +137,19 @@ class WebOperator:
             return {
                 "status": "ok" if all(status.values()) or not status else "degraded",
                 "services": status,
+            }
+
+        @app.get("/api/preflight")
+        async def preflight_endpoint():
+            """Run pre-flight hardware checks and return results."""
+            if self._capture_config is None:
+                return {"ok": False, "errors": ["No capture config available"], "warnings": []}
+            result = await run_preflight(self._capture_config)
+            return {
+                "ok": result.ok,
+                "errors": result.errors,
+                "warnings": result.warnings,
+                "summary": result.summary,
             }
 
         @app.get("/api/metrics")
@@ -531,6 +548,19 @@ class WebOperator:
                         )
                 elif not track:
                     logger.info("No track specified -- defaulting to ROGUE::AGENT for scoring")
+
+                # Pre-flight checks: validate hardware before starting
+                if self._capture_config is not None:
+                    preflight = await run_preflight(self._capture_config)
+                    if not preflight.ok:
+                        await self._send_result(
+                            ws, False,
+                            f"Pre-flight failed: {'; '.join(preflight.errors)}"
+                        )
+                        log_command("start", success=False, team_name=team_name, track=track or "", state_before=state_before, state_after=state_before)
+                        return
+                    if preflight.warnings:
+                        logger.warning("Pre-flight warnings: %s", preflight.warnings)
 
                 # Reset counters on demo start
                 self._counters = {"frames": 0, "transcripts": 0, "attacks": 0, "clean": 0}
