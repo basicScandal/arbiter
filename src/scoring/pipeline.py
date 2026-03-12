@@ -144,9 +144,16 @@ class ScoringPipeline:
             )
             return
 
-        # Cancel any prior reveal still running (prevents bleed on rapid cycling)
+        # Cancel any prior reveal still running (prevents bleed on rapid cycling).
+        # We must await the cancelled task to ensure it fully terminates before
+        # launching the replacement -- otherwise the old task can interleave
+        # display pushes with the new one (race condition on rapid cycling).
         if self._reveal_task is not None and not self._reveal_task.done():
             self._reveal_task.cancel()
+            try:
+                await self._reveal_task
+            except (asyncio.CancelledError, Exception):
+                pass
             logger.info("Cancelled previous reveal task before starting new one")
 
         # Launch reveal as tracked task -- must NOT block the event bus callback
