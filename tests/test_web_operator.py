@@ -10,6 +10,7 @@ and EventBus. Follows patterns from test_tui.py.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -28,6 +29,7 @@ from src.defense.models import (
     InjectionAttempt,
     InjectionDetected,
     ObservationVerified,
+    RoastGenerated,
     SanitizedOutput,
 )
 from src.operator.web import WebOperator
@@ -1276,3 +1278,43 @@ async def test_pong_message_is_ignored_by_command_handler():
 
     # No command result should have been sent
     assert len(results) == 0
+
+
+# ---------------------------------------------------------------------------
+# Roast propagation to audience display
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_roast_generated_pushes_to_display_during_capture():
+    """roast_generated event pushes roast text to audience display when capturing."""
+    op, machine, bus, ds = _make_operator()
+    machine.send("start_demo", team_name="TestTeam")
+
+    attempt = _attempt()
+    event = RoastGenerated(roast="Nice try, script kiddie!", attempt=attempt)
+
+    await op._on_event(event)
+    # Let the create_task fire
+    await asyncio.sleep(0.05)
+
+    assert len(ds.injection_blocked_calls) == 1
+    call = ds.injection_blocked_calls[0]
+    assert call["roast"] == "Nice try, script kiddie!"
+    assert call["category"] == "instruction_override"
+    assert call["confidence"] == "high"
+    assert call["team_name"] == "TestTeam"
+
+
+@pytest.mark.asyncio
+async def test_roast_generated_ignored_outside_capture():
+    """roast_generated event does NOT push to display when not in capturing state."""
+    op, machine, bus, ds = _make_operator()
+    # Machine is in idle state by default
+
+    event = RoastGenerated(roast="You failed!", attempt=_attempt())
+
+    await op._on_event(event)
+    await asyncio.sleep(0.05)
+
+    assert len(ds.injection_blocked_calls) == 0
