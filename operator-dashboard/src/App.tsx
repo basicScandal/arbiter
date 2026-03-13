@@ -59,28 +59,29 @@ export default function App() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
+        className="shrink-0"
       >
         <Header muted={muted} onToggleMute={() => setMuted((m) => !m)} />
       </motion.div>
-      <main className="flex-1 flex gap-4 p-4 overflow-hidden">
+      <main className="flex-1 flex gap-4 p-4 min-h-0">
         {/* Left column — Neural Feed + Defense Strip */}
-        <div className="flex-[2] flex flex-col gap-3">
-          <motion.div className="flex-1 flex flex-col" {...panelEntrance(0.05)}>
+        <div className="flex-[2] flex flex-col gap-3 min-h-0">
+          <motion.div className="flex-1 flex flex-col min-h-0" {...panelEntrance(0.05)}>
             <NeuralFeed />
           </motion.div>
-          <motion.div {...panelEntrance(0.12)}>
+          <motion.div className="shrink-0" {...panelEntrance(0.12)}>
             <DefenseStrip />
           </motion.div>
         </div>
-        {/* Right column — Vitals sidebar */}
-        <div className="w-80 flex flex-col gap-3">
-          <motion.div className="flex-1 flex flex-col" {...panelEntrance(0.08)}>
+        {/* Right column — Vitals sidebar (scrollable) */}
+        <div className="w-80 flex flex-col gap-3 min-h-0 overflow-y-auto">
+          <motion.div className="shrink-0" {...panelEntrance(0.08)}>
             <VitalsPanel />
           </motion.div>
-          <motion.div {...panelEntrance(0.16)}>
+          <motion.div className="shrink-0" {...panelEntrance(0.16)}>
             <HealthPanel />
           </motion.div>
-          <motion.div {...panelEntrance(0.22)}>
+          <motion.div className="shrink-0" {...panelEntrance(0.22)}>
             <ScorePanel />
           </motion.div>
         </div>
@@ -89,6 +90,7 @@ export default function App() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25, duration: 0.3 }}
+        className="shrink-0"
       >
         <NeuralPrompt />
       </motion.div>

@@ -48,7 +48,27 @@ class PreflightResult:
 
 
 def _check_camera(config: CaptureConfig) -> tuple[bool, str]:
-    """Synchronous camera check. Opens device, reads one frame, releases."""
+    """Synchronous camera check. Opens device, reads one frame, releases.
+
+    If camera_device_index is -1 (auto-detect), scans devices 0-4 and picks
+    the first one producing non-black frames (skips virtual cameras like OBS).
+    Updates config.camera_device_index in-place with the selected device.
+    """
+    import numpy as np
+
+    if config.camera_device_index == -1:
+        # Auto-detect: find first real camera (non-black frames)
+        for i in range(5):
+            cap = cv2.VideoCapture(i)
+            if not cap.isOpened():
+                continue
+            ret, frame = cap.read()
+            cap.release()
+            if ret and frame is not None and np.std(frame) > 10:
+                config.camera_device_index = i
+                return True, f"Auto-detected camera device {i} ({frame.shape[1]}x{frame.shape[0]})"
+        return False, "No real camera found (all devices returned black frames)"
+
     cap = cv2.VideoCapture(config.camera_device_index)
     if not cap.isOpened():
         return False, f"Cannot open camera device {config.camera_device_index}"
@@ -56,6 +76,13 @@ def _check_camera(config: CaptureConfig) -> tuple[bool, str]:
         ret, frame = cap.read()
         if not ret or frame is None:
             return False, f"Camera device {config.camera_device_index} opened but returned no frames"
+        # Warn if frames are black (likely a virtual camera with no source)
+        if np.std(frame) < 10:
+            return False, (
+                f"Camera device {config.camera_device_index} returns black frames "
+                f"(likely OBS Virtual Camera with no source). "
+                f"Try CAMERA_DEVICE_INDEX=-1 for auto-detect."
+            )
         return True, f"Camera OK ({frame.shape[1]}x{frame.shape[0]})"
     finally:
         cap.release()

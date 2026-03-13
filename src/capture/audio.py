@@ -106,13 +106,36 @@ class AudioCapture:
             pya.terminate()
             raise
 
+        consecutive_failures = 0
+        max_consecutive_failures = 10
+
         try:
             while not self._stop_event.is_set():
-                data = await asyncio.to_thread(
-                    stream.read,
-                    self._config.audio_chunk_size,
-                    exception_on_overflow=False,
-                )
+                try:
+                    data = await asyncio.to_thread(
+                        stream.read,
+                        self._config.audio_chunk_size,
+                        exception_on_overflow=False,
+                    )
+                except Exception as e:
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.error(
+                            "Audio read failed %d times consecutively, ending capture: %s",
+                            consecutive_failures,
+                            e,
+                        )
+                        break
+                    logger.warning(
+                        "Audio read error (%d/%d): %s",
+                        consecutive_failures,
+                        max_consecutive_failures,
+                        e,
+                    )
+                    await asyncio.sleep(0.1)
+                    continue
+
+                consecutive_failures = 0  # Reset on successful read
 
                 # When muted, discard audio data (keep reading to prevent buffer overflow)
                 if self._muted:
