@@ -104,8 +104,8 @@ class CameraCapture:
     async def run(self) -> None:
         """Main capture loop. Opens camera and captures frames until stopped.
 
-        Raises:
-            RuntimeError: If the camera device cannot be opened.
+        Retries camera open up to 3 times with a 1-second delay between attempts
+        to handle macOS camera driver release timing (e.g., after preflight check).
         """
         self._stop_event.clear()
         self._paused = False  # Reset pause state for new demo
@@ -116,15 +116,34 @@ class CameraCapture:
             self._config.frame_rate,
         )
 
-        cap = await asyncio.to_thread(cv2.VideoCapture, self._config.camera_device_index)
+        # Retry camera open — macOS may not have released the device yet
+        # after preflight check or a previous demo.
+        cap = None
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            cap = await asyncio.to_thread(cv2.VideoCapture, self._config.camera_device_index)
+            if cap.isOpened():
+                break
+            logger.warning(
+                "Camera device %d not ready (attempt %d/%d), retrying in 1s...",
+                self._config.camera_device_index,
+                attempt,
+                max_retries,
+            )
+            await asyncio.to_thread(cap.release)
+            await asyncio.sleep(1.0)
 
-        if not cap.isOpened():
+        if cap is None or not cap.isOpened():
             logger.error(
-                "Cannot open camera device %d. "
+                "Cannot open camera device %d after %d attempts. "
                 "Check that the device is connected and not in use by another application.",
                 self._config.camera_device_index,
+                max_retries,
             )
             return
+
+        consecutive_failures = 0
+        max_consecutive_failures = 5
 
         try:
             while not self._stop_event.is_set():
@@ -136,8 +155,22 @@ class CameraCapture:
 
                 result = await asyncio.to_thread(self._capture_and_encode, cap)
                 if result is None:
-                    logger.warning("Camera read failed, ending capture loop")
-                    break
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.error(
+                            "Camera read failed %d times consecutively, ending capture loop",
+                            consecutive_failures,
+                        )
+                        break
+                    logger.warning(
+                        "Camera read failed (%d/%d), retrying...",
+                        consecutive_failures,
+                        max_consecutive_failures,
+                    )
+                    await asyncio.sleep(0.5)
+                    continue
+
+                consecutive_failures = 0  # Reset on successful read
 
                 frame_data, raw_frame = result
 

@@ -364,6 +364,26 @@ class WebOperator:
                     ),
                     name="push-injection-blocked",
                 )
+        elif event.event_type == "roast_generated":
+            # Push the roast to the audience display so it shows the witty text
+            if (
+                hasattr(event, "roast")
+                and hasattr(event, "attempt")
+                and self._demo_machine.current_state.id == "capturing"
+            ):
+                attempt = event.attempt
+                category = getattr(attempt, "pattern", "injection_attempt")
+                confidence = getattr(attempt, "confidence", "medium")
+                team_name = getattr(attempt, "team_name", "")
+                asyncio.create_task(
+                    self._display_server.push_injection_blocked(
+                        category=category,
+                        confidence=confidence,
+                        roast=event.roast,
+                        team_name=team_name,
+                    ),
+                    name="push-roast-to-display",
+                )
         elif event.event_type == "observation_verified":
             # Count clean observations
             if hasattr(event, "output") and hasattr(event.output, "observations"):

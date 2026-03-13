@@ -60,6 +60,11 @@ CONTRACTS: dict[str, dict[str, type]] = {
         "is_final": bool,
         # "emotion" is optional — tested separately
     },
+    "question": {
+        "type": str,
+        "text": str,
+        "team_name": str,
+    },
     "score_intro": {
         "type": str,
         "team_name": str,
@@ -170,6 +175,16 @@ async def test_commentary_defaults(server: DisplayServer, captured_messages: lis
     msg = captured_messages[0]
     assert msg["sentence_index"] == 0
     assert msg["is_final"] is False
+
+
+@pytest.mark.asyncio
+async def test_question_contract(server: DisplayServer, captured_messages: list[dict]) -> None:
+    await server.push_question("What was your approach to privilege escalation?", "TeamAlpha")
+    assert len(captured_messages) == 1
+    msg = captured_messages[0]
+    _assert_contract(msg, "question")
+    assert msg["text"] == "What was your approach to privilege escalation?"
+    assert msg["team_name"] == "TeamAlpha"
 
 
 @pytest.mark.asyncio
