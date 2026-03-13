@@ -34,14 +34,15 @@ from src.config.models import GEMINI_LIVE_MODEL
 # Update this list when Google adds new Live-compatible models.
 # ---------------------------------------------------------------------------
 BIDI_COMPATIBLE_MODELS = {
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash-live-001",
+    "gemini-live-2.5-flash-native-audio",
+    "gemini-2.5-flash-native-audio-preview-12-2025",
 }
 
 # Models known to NOT support bidiGenerateContent
 BIDI_INCOMPATIBLE_MODELS = {
     "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
     "gemini-1.5-flash",
     "gemini-1.5-pro",
 }
