@@ -263,6 +263,44 @@
       .hero h1 { font-size: 1.5rem; }
       .page-container { padding: 2rem 1rem 3rem; }
     }
+
+    @media print {
+      body {
+        background: white !important;
+        color: #1a1a1a !important;
+        font-size: 11pt;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .page-container { padding: 0.5rem; max-width: 100%; }
+      .hero {
+        background: #f0f0f0 !important;
+        border-bottom-color: #ccc;
+        padding: 1.5rem 1rem;
+      }
+      .hero h1 { color: #000 !important; font-size: 1.3rem; }
+      .hero .tagline { color: #555 !important; }
+      .section-title { color: #000 !important; border-bottom-color: #ccc; margin-top: 1.5rem; }
+      .criteria-card, .track-card, .tier-card {
+        background: #f8f8f8 !important;
+        border: 1px solid #ccc !important;
+        break-inside: avoid;
+        backdrop-filter: none;
+      }
+      .criteria-card h3, .track-card h3 { color: #000 !important; }
+      .weight-pill, .track-badge {
+        background: #eee !important;
+        color: #333 !important;
+        border-color: #999 !important;
+      }
+      * {
+        color: #1a1a1a !important;
+        text-shadow: none !important;
+      }
+      .section-title, .hero h1, .criteria-card h3, .track-card h3 {
+        color: #000 !important;
+      }
+    }
   </style>
 </head>
 <body>
