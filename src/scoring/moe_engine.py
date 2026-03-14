@@ -20,7 +20,7 @@ from src.scoring.rubric import GENERAL_CRITERIA, TRACK_CRITERIA
 
 logger = logging.getLogger(__name__)
 
-MOE_TIMEOUT = 15.0  # seconds — hard cap per Phase 9 success criterion
+MOE_TIMEOUT = 30.0  # seconds — increased from 15s to avoid Claude timeouts
 
 
 class MoEScoringEngine:
