@@ -249,32 +249,42 @@ class CommentaryPipeline:
                 # Timeout prevents indefinite hangs from stalled LLM streams.
                 # Both timeouts and mid-stream crashes are caught here so that
                 # partial sentences are preserved in full_text.
+                # Phase 1: Buffer all sentences from the LLM stream.
+                # This prevents TTS playback (~8s per sentence) from
+                # blocking the generator and causing the Gemini stream
+                # to close after idle timeout.
+                buffered: list[tuple[str, str, int]] = []
                 try:
                     async with asyncio.timeout(_COMMENTARY_TIMEOUT):
                         async for sentence, emotion, i in self._generator.stream_sentences(event.output):
                             if self._commentary_cancelled.is_set():
                                 logger.info(
                                     "Commentary cancelled mid-stream for team %s "
-                                    "after %d sentences", team_name, len(sentences),
+                                    "after %d sentences", team_name, len(buffered),
                                 )
                                 break
-                            sentences.append(sentence)
-                            await self._deliver_sentence(
-                                sentence, team_name, context_id,
-                                emotion, is_continuation=(i > 0),
-                                sentence_index=i,
-                            )
+                            buffered.append((sentence, emotion, i))
                 except TimeoutError:
                     logger.warning(
                         "Commentary generation timed out after %ds for team: %s "
-                        "(delivered %d sentences before timeout)",
-                        _COMMENTARY_TIMEOUT, team_name, len(sentences),
+                        "(buffered %d sentences before timeout)",
+                        _COMMENTARY_TIMEOUT, team_name, len(buffered),
                     )
                 except Exception:
                     logger.exception(
                         "Commentary streaming failed for team: %s "
-                        "(delivered %d sentences before failure)",
-                        team_name, len(sentences),
+                        "(buffered %d sentences before failure)",
+                        team_name, len(buffered),
+                    )
+
+                # Phase 2: Deliver all buffered sentences via TTS + display.
+                # Always runs — delivers whatever was collected, even partial.
+                for sentence, emotion, i in buffered:
+                    sentences.append(sentence)
+                    await self._deliver_sentence(
+                        sentence, team_name, context_id,
+                        emotion, is_continuation=(i > 0),
+                        sentence_index=i,
                     )
                 full_text = " ".join(sentences)
 
@@ -286,6 +296,9 @@ class CommentaryPipeline:
                 "commentary handler took too long (inner timeout may have missed)",
                 _PIPELINE_TIMEOUT, team_name,
             )
+            # Preserve any buffered sentences that weren't delivered yet
+            if not sentences and buffered:
+                sentences = [s for s, _, _ in buffered]
             full_text = " ".join(sentences)
 
         except Exception:

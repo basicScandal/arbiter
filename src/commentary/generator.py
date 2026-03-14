@@ -195,8 +195,11 @@ class CommentaryGenerator:
 
         # Primary: Gemini streaming (yields sentences as they complete)
         try:
+            gemini_sentence_count = 0
             async for item in self._stream_gemini_sentences(user_prompt):
+                gemini_sentence_count += 1
                 yield item
+            logger.info("Gemini streaming produced %d sentences", gemini_sentence_count)
             return
         except DailyQuotaExhausted:
             if self._circuit_breaker:
@@ -221,6 +224,10 @@ class CommentaryGenerator:
             full_text = "Technical difficulties. Even Arbiter needs a moment."
 
         sentences = self._split_sentences(full_text.strip())
+        logger.info(
+            "Commentary fallback produced %d sentences (%d chars): %s",
+            len(sentences), len(full_text), full_text[:200],
+        )
         for i, sentence in enumerate(sentences):
             clean, emotion = self._parse_emotion_tag(sentence)
             if not emotion:
