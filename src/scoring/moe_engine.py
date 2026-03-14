@@ -179,7 +179,10 @@ class MoEScoringEngine:
             # Use the longest justification (usually most detailed)
             best_justification = max(provider_justifications, key=len) if provider_justifications else ""
             if metadata.get("outliers"):
-                best_justification += f" [MoE: {len(parsed)} models, outliers: {metadata['outliers']}]"
+                logger.info(
+                    "MoE outlier detected for %s: %d models, outliers: %s",
+                    criterion.name, len(parsed), metadata["outliers"],
+                )
 
             aggregated_criteria.append(
                 CriterionScore(
