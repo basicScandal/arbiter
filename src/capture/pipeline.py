@@ -134,6 +134,15 @@ class CapturePipeline:
         default_metrics.inc("demos_started")
         logger.info("Demo started for team: %s", event.team_name)
 
+        # Stop any lingering Q&A capture tasks from the previous team
+        if self._capture_tasks:
+            await self.audio.stop()
+            await self.gemini.stop()
+            for task in self._capture_tasks:
+                if not task.done():
+                    task.cancel()
+            self._capture_tasks.clear()
+
         self._capture_tasks = [
             asyncio.create_task(self.camera.run(), name="camera-capture"),
             asyncio.create_task(self.audio.run(), name="audio-capture"),
@@ -251,6 +260,22 @@ class CapturePipeline:
         self.audio.unmute()
         logger.info("Audio capture unmuted after TTS playback")
 
+    async def _on_qa_requested(self, event: CaptureEvent) -> None:
+        """Restart audio capture + Gemini during Q&A so the system can hear answers.
+
+        Only starts if no capture tasks are already running (i.e., demo is stopped).
+        The tasks are stored in _capture_tasks so they get cleaned up on reset.
+        """
+        if self._capture_tasks:
+            logger.info("Q&A listening: capture already running, skipping")
+            return
+
+        logger.info("Q&A listening: starting audio + Gemini to hear contestant answers")
+        self._capture_tasks = [
+            asyncio.create_task(self.audio.run(), name="qa-audio-capture"),
+            asyncio.create_task(self.gemini.run(), name="qa-gemini-session"),
+        ]
+
     async def _log_event(self, event: CaptureEvent) -> None:
         """Log all events at DEBUG level for observability."""
         logger.debug(
@@ -288,6 +313,9 @@ class CapturePipeline:
         # Subscribe to TTS events for audio capture mute coordination
         self.event_bus.subscribe("tts_speaking", self._on_tts_speaking)
         self.event_bus.subscribe("tts_finished", self._on_tts_finished)
+
+        # Subscribe to Q&A events for listening during Q&A
+        self.event_bus.subscribe("qa_requested", self._on_qa_requested)
 
         # Wire the defense pipeline into the event bus
         await self.defense.setup(self.event_bus)
