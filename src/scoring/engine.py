@@ -262,19 +262,38 @@ class ScoringEngine:
                 f"Score this on the same 0-10 scale."
             )
 
-        # Observations
-        if sanitized.observations:
+        # Observations (cap at 50 to prevent prompt overflow)
+        _MAX_OBS = 50
+        observations = sanitized.observations
+        if len(observations) > _MAX_OBS:
+            # Take first 20, last 20, and 10 evenly spaced from the middle
+            step = max(1, (len(observations) - 40) // 10)
+            middle = observations[20:len(observations) - 20:step][:10]
+            observations = observations[:20] + middle + observations[-20:]
+            logger.info(
+                "Truncated %d observations to %d for scoring prompt",
+                len(sanitized.observations), len(observations),
+            )
+        if observations:
             obs_text = "\n".join(
                 f"{i + 1}. {obs}"
-                for i, obs in enumerate(sanitized.observations)
+                for i, obs in enumerate(observations)
             )
             sections.append(f"## Demo Observations\n{obs_text}")
 
-        # Transcripts
-        if sanitized.transcripts:
+        # Transcripts (cap at 30)
+        _MAX_TRANS = 30
+        transcripts = sanitized.transcripts
+        if len(transcripts) > _MAX_TRANS:
+            transcripts = transcripts[:15] + transcripts[-15:]
+            logger.info(
+                "Truncated %d transcripts to %d for scoring prompt",
+                len(sanitized.transcripts), len(transcripts),
+            )
+        if transcripts:
             sections.append(
                 f"## Presenter Transcripts\n"
-                + "\n".join(sanitized.transcripts)
+                + "\n".join(transcripts)
             )
 
         # Metadata

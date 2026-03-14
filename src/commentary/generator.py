@@ -235,7 +235,7 @@ class CommentaryGenerator:
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=formatted_prompt,
-                max_output_tokens=1000,
+                max_output_tokens=400,
                 temperature=temp,
             ),
         )
@@ -311,7 +311,7 @@ class CommentaryGenerator:
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=formatted_prompt,
-                    max_output_tokens=1000,
+                    max_output_tokens=400,
                     temperature=temp,
                 ),
             ):
@@ -332,7 +332,7 @@ class CommentaryGenerator:
                 {"role": "system", "content": formatted_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=1000,
+            max_tokens=400,
             temperature=temp,
         )
         if response.choices:
@@ -364,14 +364,20 @@ class CommentaryGenerator:
         """
         sections: list[str] = [f"## Demo: {sanitized.team_name}", f"Demo #{demo_number} of the day"]
 
-        # Observations
-        if sanitized.observations:
-            obs_lines = [f"{i + 1}. {obs}" for i, obs in enumerate(sanitized.observations)]
+        # Observations (cap at 30 to keep prompt manageable)
+        observations = sanitized.observations
+        if len(observations) > 30:
+            observations = observations[:15] + observations[-15:]
+        if observations:
+            obs_lines = [f"{i + 1}. {obs}" for i, obs in enumerate(observations)]
             sections.append("### Observations\n" + "\n".join(obs_lines))
 
-        # Transcript highlights
-        if sanitized.transcripts:
-            sections.append("### Transcript Highlights\n" + "\n".join(sanitized.transcripts))
+        # Transcript highlights (cap at 20)
+        transcripts = sanitized.transcripts
+        if len(transcripts) > 20:
+            transcripts = transcripts[:10] + transcripts[-10:]
+        if transcripts:
+            sections.append("### Transcript Highlights\n" + "\n".join(transcripts))
 
         # Duration
         sections.append(f"### Duration\n{sanitized.demo_duration:.0f}s")
