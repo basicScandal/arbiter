@@ -12,7 +12,7 @@ import logging
 
 import pyaudio
 from cartesia import AsyncCartesia
-from websockets.exceptions import ConnectionClosedOK
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from src.capture.event_bus import EventBus
 from src.commentary.audio_processor import AudioProcessor
@@ -189,8 +189,8 @@ class TTSEngine:
                     raise ConnectionError("Cartesia not connected, skip to fallback")
 
                 await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)
-            except ConnectionClosedOK:
-                logger.warning("Cartesia WebSocket idle timeout, reconnecting...")
+            except (ConnectionClosedOK, ConnectionClosedError):
+                logger.warning("Cartesia WebSocket connection lost, reconnecting...")
                 if await self._reconnect():
                     try:
                         await self._send_to_cartesia(sentence, context_id, emotion, is_continuation)

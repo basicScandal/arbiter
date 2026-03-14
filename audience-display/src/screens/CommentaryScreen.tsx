@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplayStore } from "../store/displayStore";
 
@@ -41,6 +42,17 @@ const emotionGlow: Record<string, string> = {
 export function CommentaryScreen() {
   const teamName = useDisplayStore((s) => s.teamName);
   const sentences = useDisplayStore((s) => s.commentarySentences);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new sentences arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [sentences.length]);
 
   return (
     <div
@@ -63,7 +75,7 @@ export function CommentaryScreen() {
               {teamName}
             </motion.h2>
           )}
-          <div className="text-4xl leading-relaxed max-w-5xl font-medium space-y-1 overflow-y-auto min-h-0">
+          <div ref={scrollRef} className="text-2xl leading-relaxed max-w-5xl font-medium space-y-1 overflow-y-auto min-h-0">
             <AnimatePresence>
               {sentences.map((s, i) => {
                 const colorClass =

@@ -33,14 +33,15 @@ logger = logging.getLogger(__name__)
 
 # Max seconds to wait for streaming commentary before giving up.
 # Partial sentences delivered before timeout are still kept.
-_COMMENTARY_TIMEOUT = 30
+# Includes TTS playback time (~7s per sentence), so 90s allows ~10 sentences.
+_COMMENTARY_TIMEOUT = 90
 
 # Outer safety net wrapping the entire commentary handler.
 # Catches edge cases the inner _COMMENTARY_TIMEOUT misses (e.g.
 # _deliver_sentence hangs on display push, generator close() blocks).
 # Must be > _COMMENTARY_TIMEOUT to let the inner timeout fire first
 # under normal conditions.
-_PIPELINE_TIMEOUT = 45
+_PIPELINE_TIMEOUT = 120
 
 # Pre-written injection quips for zero-latency real-time reactions.
 # {type} is replaced with the injection type (e.g. "prompt_injection").

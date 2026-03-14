@@ -222,8 +222,10 @@ class CommentaryGenerator:
 
         sentences = self._split_sentences(full_text.strip())
         for i, sentence in enumerate(sentences):
-            emotion = self._detect_sentence_emotion(sentence)
-            yield sentence, emotion, i
+            clean, emotion = self._parse_emotion_tag(sentence)
+            if not emotion:
+                emotion = self._detect_sentence_emotion(clean)
+            yield clean, emotion, i
 
     @GEMINI_RETRY
     async def _open_gemini_stream(self, user_prompt: str, formatted_prompt: str, temp: float):
