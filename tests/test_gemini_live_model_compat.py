@@ -34,8 +34,9 @@ from src.config.models import GEMINI_LIVE_MODEL
 # Update this list when Google adds new Live-compatible models.
 # ---------------------------------------------------------------------------
 BIDI_COMPATIBLE_MODELS = {
-    "gemini-live-2.5-flash-native-audio",
+    "gemini-2.5-flash-native-audio-latest",
     "gemini-2.5-flash-native-audio-preview-12-2025",
+    "gemini-2.5-flash-native-audio-preview-09-2025",
 }
 
 # Models known to NOT support bidiGenerateContent
@@ -120,11 +121,14 @@ class TestModelConfigDefaults:
 class TestGeminiSessionConfig:
     """Verify GeminiSession._build_config() produces valid Live API configuration."""
 
-    def test_build_config_response_modality_is_text(self):
-        """Live session must request TEXT responses, not AUDIO."""
+    def test_build_config_response_modality_is_audio(self):
+        """Live session must request AUDIO responses (required by native-audio models).
+
+        Text observations come via output_audio_transcription, not response modality.
+        """
         session = _make_session()
         config = session._build_config()
-        assert config.response_modalities == ["TEXT"]
+        assert config.response_modalities == ["AUDIO"]
 
     def test_build_config_includes_audio_transcription(self):
         """Live session must enable input audio transcription for presenter speech."""

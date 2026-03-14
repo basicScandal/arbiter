@@ -144,17 +144,22 @@ async def _run_receive_loop(session: GeminiSession, responses: list) -> None:
 class TestBuildConfig:
     """Verify session configuration is correct."""
 
-    def test_response_modality_is_text(self):
-        """Response modality must be TEXT so observations arrive as text parts.
+    def test_response_modality_is_audio(self):
+        """Response modality must be AUDIO (required by native-audio models).
 
-        This was the root cause of empty observations in production: the native
-        audio model with AUDIO modality generated audio responses that were never
-        consumed, so output_transcription never fired.
+        Text observations come via output_audio_transcription and model_turn
+        text parts, not via the response modality. Native-audio models reject
+        TEXT-only requests with "Cannot extract voices from a non-audio request".
         """
         session = _make_session()
         config = session._build_config()
-        assert "TEXT" in config.response_modalities
-        assert "AUDIO" not in config.response_modalities
+        assert "AUDIO" in config.response_modalities
+
+    def test_output_audio_transcription_enabled(self):
+        """Output audio transcription must be enabled to get text from audio responses."""
+        session = _make_session()
+        config = session._build_config()
+        assert config.output_audio_transcription is not None
 
     def test_input_audio_transcription_enabled(self):
         """Input audio transcription must be enabled to capture presenter speech."""

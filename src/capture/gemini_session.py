@@ -91,11 +91,13 @@ class GeminiSession:
         """Build the LiveConnectConfig with compression, resumption, and transcription.
 
         Returns:
-            A LiveConnectConfig configured for TEXT response with input audio
-            transcription to capture presenter speech as text.
+            A LiveConnectConfig configured for the Gemini Live API. Uses AUDIO
+            response modality (required by native-audio models) with output
+            transcription enabled to capture the model's text observations.
+            Input audio transcription captures presenter speech as text.
         """
         return types.LiveConnectConfig(
-            response_modalities=["TEXT"],
+            response_modalities=["AUDIO"],
             system_instruction=(
                 "You are observing a live hackathon demo. Describe what you see "
                 "on screen (slides, code, demos, terminal output) and what the "
@@ -103,6 +105,7 @@ class GeminiSession:
                 "Do not speculate or editorialize."
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
+            output_audio_transcription=types.AudioTranscriptionConfig(),
             context_window_compression=types.ContextWindowCompressionConfig(
                 trigger_tokens=self._config.compression_trigger_tokens,
                 sliding_window=types.SlidingWindow(
