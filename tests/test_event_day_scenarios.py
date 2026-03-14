@@ -207,8 +207,8 @@ class TestComprehensiveCommentaryLength:
     def test_prompt_requires_minimum_sentences(self):
         """Commentary prompt must specify minimum sentence count."""
         from src.commentary.prompts import PERSONA_PROMPT
-        assert "5 sentences" in PERSONA_PROMPT.lower() or "minimum 5" in PERSONA_PROMPT.lower() or "MINIMUM 5" in PERSONA_PROMPT, (
-            "PERSONA_PROMPT must specify minimum 5 sentences for any demo"
+        assert "6 sentences" in PERSONA_PROMPT.lower() or "minimum 6" in PERSONA_PROMPT.lower() or "at least 6" in PERSONA_PROMPT.lower(), (
+            "PERSONA_PROMPT must specify minimum 6 sentences for any demo"
         )
 
     def test_length_calibration_does_not_allow_short_minimums(self):
