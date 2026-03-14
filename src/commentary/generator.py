@@ -239,7 +239,7 @@ class CommentaryGenerator:
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=formatted_prompt,
-                max_output_tokens=500,
+                max_output_tokens=1000,
                 temperature=temp,
             ),
         )
@@ -315,7 +315,7 @@ class CommentaryGenerator:
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=formatted_prompt,
-                    max_output_tokens=500,
+                    max_output_tokens=1000,
                     temperature=temp,
                 ),
             ):
@@ -336,7 +336,7 @@ class CommentaryGenerator:
                 {"role": "system", "content": formatted_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=500,
+            max_tokens=1000,
             temperature=temp,
         )
         if response.choices:
