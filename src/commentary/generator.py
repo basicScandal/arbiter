@@ -193,22 +193,11 @@ class CommentaryGenerator:
         user_prompt = self._build_user_prompt(sanitized, demo_number=self._demo_count)
         self._record_demo(sanitized)
 
-        # Primary: Gemini streaming (yields sentences as they complete)
-        try:
-            gemini_sentence_count = 0
-            async for item in self._stream_gemini_sentences(user_prompt):
-                gemini_sentence_count += 1
-                yield item
-            logger.info("Gemini streaming produced %d sentences", gemini_sentence_count)
-            return
-        except DailyQuotaExhausted:
-            if self._circuit_breaker:
-                self._circuit_breaker.trip_permanent()
-            logger.warning("Gemini streaming failed (daily quota) for team %s", sanitized.team_name)
-        except Exception:
-            if self._circuit_breaker:
-                self._circuit_breaker.trip()
-            logger.exception("Gemini streaming failed for team %s", sanitized.team_name)
+        # Primary: Groq batch (produces longer, more comprehensive commentary)
+        # Gemini streaming was producing only 1-2 sentences despite prompt
+        # instructions for 6+. Groq with llama-3.3-70b at 1000 tokens
+        # consistently delivers 6-8 sentence reviews.
+        # Gemini is still used for scoring and Live API (different model).
 
         # Fallback: Groq batch
         full_text = ""
