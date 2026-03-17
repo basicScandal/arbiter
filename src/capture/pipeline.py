@@ -144,7 +144,8 @@ class CapturePipeline:
             self._capture_tasks.clear()
 
         self._capture_tasks = [
-            asyncio.create_task(self.camera.run(), name="camera-capture"),
+            # Camera disabled to prevent OOM crashes — audio is primary input
+            # asyncio.create_task(self.camera.run(), name="camera-capture"),
             asyncio.create_task(self.audio.run(), name="audio-capture"),
             asyncio.create_task(self.gemini.run(), name="gemini-session"),
         ]
