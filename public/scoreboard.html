@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEBULA:FOG 2026 — Scoreboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a14; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+    h1 { text-align: center; color: #00e5ff; font-size: 1.5rem; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .subtitle { text-align: center; color: #666; font-size: 0.8rem; margin-bottom: 2rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; color: #00e5ff; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(0,229,255,0.2); }
+    th.score { text-align: center; }
+    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
+    td.rank { color: #666; font-weight: bold; width: 3rem; }
+    td.team { font-weight: 600; }
+    td.track { color: #888; font-size: 0.75rem; }
+    td.score { text-align: center; font-weight: bold; font-size: 1rem; }
+    .gold td.team, .gold td.rank { color: #ffd700; }
+    .silver td.team, .silver td.rank { color: #c0c0c0; }
+    .bronze td.team, .bronze td.rank { color: #cd7f32; }
+    .bar { height: 6px; border-radius: 3px; margin-top: 4px; background: rgba(255,255,255,0.05); }
+    .bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #00e5ff, #00ff88); }
+    .loading { text-align: center; color: #666; padding: 3rem; }
+    .high { color: #00ff88; }
+    .mid { color: #ffd700; }
+    .low { color: #ff4444; }
+    @media print {
+      body { background: white; color: #1a1a1a; }
+      h1 { color: #000; }
+      th { color: #000; border-bottom-color: #333; }
+      td { border-bottom-color: #ddd; }
+      .bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>NEBULA:FOG 2026</h1>
+    <p class="subtitle">Final Scoreboard — AI Judge Rankings</p>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Team</th><th>Track</th>
+        <th class="score">AI</th><th class="score">Human</th><th class="score">Final</th>
+      </tr></thead>
+      <tbody id="scoreboard"></tbody>
+    </table>
+  </div>
+  <script>
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.textContent;
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/api/blended-scores');
+        const data = await res.json();
+        const sorted = data.sort((a, b) => b.blended_score - a.blended_score);
+        const tbody = document.getElementById('scoreboard');
+        tbody.replaceChildren();
+
+        sorted.forEach((t, i) => {
+          const tr = document.createElement('tr');
+          if (i === 0) tr.className = 'gold';
+          else if (i === 1) tr.className = 'silver';
+          else if (i === 2) tr.className = 'bronze';
+
+          const rankTd = document.createElement('td');
+          rankTd.className = 'rank';
+          rankTd.textContent = String(i + 1);
+
+          const teamTd = document.createElement('td');
+          teamTd.className = 'team';
+          const teamName = document.createTextNode(escapeHtml(t.team_name));
+          teamTd.appendChild(teamName);
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+          const barFill = document.createElement('div');
+          barFill.className = 'bar-fill';
+          barFill.style.width = (t.blended_score / 10 * 100).toFixed(0) + '%';
+          bar.appendChild(barFill);
+          teamTd.appendChild(bar);
+
+          const trackTd = document.createElement('td');
+          trackTd.className = 'track';
+          trackTd.textContent = t.track;
+
+          const aiTd = document.createElement('td');
+          aiTd.className = 'score';
+          aiTd.textContent = t.ai_score.toFixed(1);
+
+          const humanTd = document.createElement('td');
+          humanTd.className = 'score';
+          humanTd.textContent = t.human_score > 0 ? t.human_score.toFixed(1) : '\u2014';
+
+          const finalTd = document.createElement('td');
+          finalTd.className = 'score ' + (t.blended_score >= 7 ? 'high' : t.blended_score >= 5 ? 'mid' : 'low');
+          finalTd.textContent = t.blended_score.toFixed(1);
+
+          tr.append(rankTd, teamTd, trackTd, aiTd, humanTd, finalTd);
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('Failed to load scores', e);
+      }
+    }
+    load();
+    setInterval(load, 10000);
+  </script>
+</body>
+</html>

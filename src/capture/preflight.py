@@ -56,8 +56,9 @@ def _check_camera(config: CaptureConfig) -> tuple[bool, str]:
     """
     import numpy as np
 
-    if config.camera_device_index == -1:
+    if config.camera_device_index <= 0:
         # Auto-detect: find first real camera (non-black frames)
+        # Always re-scan (even if previously detected) in case devices changed
         for i in range(5):
             cap = cv2.VideoCapture(i)
             if not cap.isOpened():
@@ -67,7 +68,9 @@ def _check_camera(config: CaptureConfig) -> tuple[bool, str]:
             if ret and frame is not None and np.std(frame) > 10:
                 config.camera_device_index = i
                 return True, f"Auto-detected camera device {i} ({frame.shape[1]}x{frame.shape[0]})"
-        return False, "No real camera found (all devices returned black frames)"
+        # No real camera found — allow demo to proceed without video
+        config.camera_device_index = 0
+        return True, "No real camera found — proceeding without video"
 
     cap = cv2.VideoCapture(config.camera_device_index)
     if not cap.isOpened():
@@ -125,17 +128,9 @@ async def run_preflight(config: CaptureConfig) -> PreflightResult:
     """
     result = PreflightResult()
 
-    # Camera check (in thread — OpenCV blocks)
-    try:
-        cam_ok, cam_msg = await asyncio.to_thread(_check_camera, config)
-        if cam_ok:
-            logger.info("Pre-flight camera: %s", cam_msg)
-        else:
-            result.fail(cam_msg)
-            logger.error("Pre-flight camera: %s", cam_msg)
-    except Exception as e:
-        result.fail(f"Camera check crashed: {e}")
-        logger.exception("Pre-flight camera check exception")
+    # Camera check skipped — disabled to prevent OOM crashes
+    # Audio is the primary input for Zoom-based demos
+    logger.info("Pre-flight camera: skipped (camera disabled)")
 
     # Audio check (in thread — PyAudio blocks)
     try:

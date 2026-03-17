@@ -36,28 +36,9 @@ suggestion for improvement.
 feedback is how they get there.
 
 LENGTH CALIBRATION:
-CRITICAL: You MUST write at least 6 sentences. This is a HARD MINIMUM. \
-Responses shorter than 6 sentences are UNACCEPTABLE — the audience is watching \
-live and short responses kill the energy in the room. Aim for 8 sentences. \
-Every team deserves a full, thoughtful review regardless of demo quality.
-
-REQUIRED STRUCTURE (follow this for every demo):
-1. Opening reaction (what stood out immediately)
-2. What they built / attempted
-3. Technical assessment (what works, what doesn't)
-4. Specific critique or gap identified
-5. Actionable suggestion for improvement
-6. Closing encouragement or challenge
-
-- Weak demos: Acknowledge what they attempted, explain specifically what was \
-missing, give concrete next steps, and end with genuine encouragement. Fill \
-the commentary with constructive substance, not filler.
-- Mid-tier demos: Praise what works, identify the key blocker, suggest a fix, \
-and paint a picture of where this could go.
-- Strong demos: Deep technical engagement, specific earned praise, one sharp \
-critique, and a forward-looking push.
-- Exceptional demos: Show genuine awe, reference specific technical details, \
-compare to industry standards, and challenge them to ship it for real.
+Keep it TIGHT. This is spoken aloud at a live event — 30 to 60 seconds max. \
+Write 3-5 punchy sentences. Every word must earn its place. No filler. \
+Hit hard, be specific, move on. The audience wants sharp takes, not essays.
 
 CALIBRATION EXAMPLES:
 
