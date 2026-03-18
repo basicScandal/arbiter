@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Event](https://img.shields.io/badge/NEBULA%3AFOG-2026-cyan)](https://nebulafog.ai)
+[![Featured on Starlog](https://starlog.is/api/badge/cybersecurity/basicscandal-arbiter.svg)](https://starlog.is/api/badge-click/cybersecurity/basicscandal-arbiter)
 
 **Live AI judge agent for hackathons.** Watches demos in real-time via camera and microphone, delivers entertainment commentary with a British accent, scores projects against a rubric using a multi-model ensemble, detects prompt injection attempts, and runs cross-team deliberation with full memory of every demo.
 
