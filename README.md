@@ -1,7 +1,7 @@
 # Arbiter
 
 [![CI](https://github.com/basicScandal/arbiter/actions/workflows/ci.yml/badge.svg)](https://github.com/basicScandal/arbiter/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-1393%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-1451%20passed-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.11+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Event](https://img.shields.io/badge/NEBULA%3AFOG-2026-cyan)](https://nebulafog.ai)
@@ -16,7 +16,7 @@ Built for the [NEBULA:FOG 2026](https://nebulafog.ai) security hackathon, where 
 ## What It Does
 
 - **Real-time observation** — Connects to Gemini Live API, streams audio/video, generates observations as presenters speak
-- **Injection detection** — Catches prompt injection attempts in real-time and roasts the attacker on stage
+- **Multi-layer injection defense** — Regex denylist, semantic classifier (rubric echo, self-eval, fabricated evidence), multi-language detection (7 languages), XML boundary tags, dual-LLM privilege separation
 - **AI commentary** — Generates sharp, persona-driven reviews delivered via Cartesia TTS (British voice)
 - **Multi-model scoring** — Gemini, Claude, and Groq independently score each demo, aggregated with outlier detection
 - **Theatrical score reveal** — Animated criterion-by-criterion reveal on the audience display
@@ -37,7 +37,7 @@ Capture Layer ──→ Defense Pipeline ──→ Commentary ──→ Scoring 
 | Module | Purpose |
 |--------|---------|
 | `src/capture/` | Audio capture, camera, key frame detection, Gemini Live API session |
-| `src/defense/` | OCR scanning, regex injection detection, roast generation, sanitization |
+| `src/defense/` | Regex + semantic injection detection, OCR scanning, roast generation, sanitization |
 | `src/commentary/` | Streaming LLM commentary, Cartesia TTS, Q&A generation, display server |
 | `src/scoring/` | Rubric-based scoring, MoE multi-model ensemble, theatrical score reveal |
 | `src/memory/` | Per-demo structured memory, deliberation engine, rankings |
@@ -117,15 +117,28 @@ All configuration is via environment variables (see `.env.example`):
 ## Testing
 
 ```bash
-# Full suite (1393 tests)
+# Full suite (1451 tests)
 uv run pytest
 
 # Smoke tests only (fast go/no-go gate)
 uv run pytest -m smoke
 
 # Specific module
-uv run pytest tests/test_commentary_full_delivery.py -v
+uv run pytest tests/test_semantic_detection.py -v
 ```
+
+## Security
+
+Arbiter is designed to operate in an adversarial environment where participants actively try to hack the judge. The defense stack has four layers:
+
+| Layer | What It Catches |
+|-------|----------------|
+| **Regex denylist** (11 patterns) | "ignore previous instructions", score manipulation, delimiter escapes |
+| **Semantic classifier** | Rubric language echoing, self-evaluation phrases, fabricated evidence markers |
+| **Multi-language detection** | Injection attempts in ES, FR, DE, ZH, JA, KO, RU |
+| **Structural defenses** | Dual-LLM privilege separation, XML boundary tags, Python-side score clamping, base64 decoding, Unicode normalization (18 invisible characters) |
+
+The system was [red-teamed post-event](docs/red-team-report.md) by three parallel AI agents that identified 11 findings (all fixed in v1.1.0). See the [full report](docs/red-team-report.md) and [slide deck](docs/red-team-slides.html).
 
 ## How Scoring Works
 
@@ -154,6 +167,8 @@ The `data/` directory contains all event outputs:
 ## Docs
 
 - [How We Built Arbiter](docs/how-we-built-arbiter.md) — full writeup with architecture, what broke, and lessons learned
+- [Red Team Report](docs/red-team-report.md) — 11 prompt injection findings from 3 parallel AI red team agents
+- [Red Team Slides](docs/red-team-slides.html) — 10-slide HTML deck summarizing findings
 - [Architecture](docs/architecture.md)
 - [Operator Guide](docs/operator-guide.md)
 - [Pre-Event Checklist](docs/pre-event-checklist.md)
