@@ -34,10 +34,11 @@ The entire codebase is open source. The red team report details every vulnerabil
 
 If your company builds prompt injection detection, adversarial ML testing, or LLM security tooling — point your tools at Arbiter and show us what we missed.
 
+Project site: https://basicscandal.github.io/arbiter/
 Red team report (11 findings, all fixed): https://basicscandal.github.io/arbiter/red-team-report.html
 Red team slides: https://basicscandal.github.io/arbiter/red-team-slides.html
-Full source code: https://github.com/basicScandal/arbiter
 How we built it (and what broke live): https://basicscandal.github.io/arbiter/how-we-built-arbiter.html
+Full source code: https://github.com/basicScandal/arbiter
 Event results (25 teams scored): https://nebulafog.ai/singularity-results.html
 
 1,451 tests. MIT licensed. We'd love to see what your tools find that ours didn't.
