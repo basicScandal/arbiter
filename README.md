@@ -1,80 +1,90 @@
 # Arbiter
 
-Live AI judge agent for the **NEBULA:FOG 2026** security hackathon.
+**Live AI judge agent for hackathons.** Watches demos in real-time via camera and microphone, delivers entertainment commentary with a British accent, scores projects against a rubric using a multi-model ensemble, detects prompt injection attempts, and runs cross-team deliberation with full memory of every demo.
 
-Arbiter sits on the judging panel alongside human judges, watches live 3–5 minute demos via camera and microphone, delivers real-time entertainment commentary (Simon Cowell meets hacker), scores projects against official criteria, and participates in deliberation with full memory of every demo.
+Built for the [NEBULA:FOG 2026](https://nebulafog.ai) security hackathon, where it judged 25 live demos on March 14, 2026.
 
-Built to be entertaining, fair, and — critically — resistant to prompt injection from a security-savvy audience.
+## What It Does
+
+- **Real-time observation** — Connects to Gemini Live API, streams audio/video, generates observations as presenters speak
+- **Injection detection** — Catches prompt injection attempts in real-time and roasts the attacker on stage
+- **AI commentary** — Generates sharp, persona-driven reviews delivered via Cartesia TTS (British voice)
+- **Multi-model scoring** — Gemini, Claude, and Groq independently score each demo, aggregated with outlier detection
+- **Theatrical score reveal** — Animated criterion-by-criterion reveal on the audience display
+- **Q&A generation** — Generates pointed follow-up questions based on what was actually said in the demo
+- **Cross-team deliberation** — After all demos, compares every team against every other team for final rankings
+- **Operator dashboard** — React WebSocket control panel for managing demo lifecycle
+- **Audience display** — React real-time display for commentary, scores, and leaderboard
 
 ## Architecture
 
 ```
 Capture Layer ──→ Defense Pipeline ──→ Commentary ──→ Scoring ──→ Deliberation
-  (camera+mic)     (injection guard)    (persona TTS)   (rubric)    (memory)
+  (audio+video)    (injection guard)    (persona TTS)   (MoE rubric)  (memory)
 ```
 
-**Dual-LLM privilege separation:** A quarantined Gemini session processes raw input. The privileged judging LLM only sees sanitized observations — never raw camera frames or audio.
+**Dual-LLM privilege separation:** A quarantined Gemini Live session processes raw input. The privileged judging LLM only sees sanitized observations — never raw camera frames or audio.
 
 | Module | Purpose |
 |--------|---------|
-| `src/capture/` | Camera, audio, key frame detection, Gemini Live API session |
+| `src/capture/` | Audio capture, camera, key frame detection, Gemini Live API session |
 | `src/defense/` | OCR scanning, regex injection detection, roast generation, sanitization |
 | `src/commentary/` | Streaming LLM commentary, Cartesia TTS, Q&A generation, display server |
-| `src/scoring/` | Rubric-based scoring, MoE multi-model voting, theatrical score reveal |
+| `src/scoring/` | Rubric-based scoring, MoE multi-model ensemble, theatrical score reveal |
 | `src/memory/` | Per-demo structured memory, deliberation engine, rankings |
-| `src/operator/` | Interactive CLI and React WebSocket dashboard for demo lifecycle |
-| `src/resilience/` | Health checks, rate limiting, TTS failover, graceful degradation |
+| `src/operator/` | WebSocket operator dashboard for demo lifecycle management |
+| `src/resilience/` | Circuit breakers, rate limiting, TTS failover, graceful degradation |
 | `src/rehearsal/` | Full pipeline rehearsal with synthetic events and canned responses |
 | `src/replay/` | Video analysis pipeline for scoring recorded demos offline |
 | `operator-dashboard/` | React operator control panel (Vite + TypeScript) |
 | `audience-display/` | React audience-facing display for commentary and scores (Vite + TypeScript) |
+| `public/` | Static pages — judge criteria, audience criteria, live scoreboard |
 
-## Prerequisites
+## Quick Start
+
+### Prerequisites
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (package manager)
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [bun](https://bun.sh/) (JS package manager, for frontend builds)
 - A [Gemini API key](https://aistudio.google.com/apikey)
 
-### System dependencies
+### Setup
 
 ```bash
-# macOS
-brew install tesseract
-
-# Ubuntu/Debian
-sudo apt install tesseract-ocr
-```
-
-## Setup
-
-```bash
-git clone git@github.com:basicScandal/arbiter.git
+git clone https://github.com/basicScandal/arbiter.git
 cd arbiter
 uv sync
 cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY
+# Edit .env — at minimum set GEMINI_API_KEY
 ```
 
-## Usage
+### Build frontends
 
 ```bash
-uv run arbiter
+cd operator-dashboard && bun install && bun run build && cd ..
+cd audience-display && bun install && bun run build && cd ..
 ```
 
-### Operator commands
+### Run
 
-| Command | Description |
-|---------|-------------|
-| `start <team>` | Begin capturing a team's demo |
-| `stop` | End the current demo |
-| `pause` / `resume` | Temporarily halt and resume capture |
-| `reset` | Clear session, prepare for next demo |
-| `qa` | Trigger Q&A questions for the current team |
-| `deliberate` | Run cross-demo deliberation and rankings |
-| `status` | Show current state and duration |
-| `help` | List available commands |
-| `quit` | Shutdown |
+```bash
+# Live mode (requires camera + microphone)
+uv run python -m src.main
+
+# Rehearsal mode (no hardware or API keys needed)
+uv run python -m src.main --rehearsal
+```
+
+### URLs
+
+| Page | URL |
+|------|-----|
+| Operator Dashboard | http://localhost:8080/operator/ |
+| Audience Display | http://localhost:8080/app/ |
+| Live Scoreboard | http://localhost:8080/public/scoreboard.html |
+| Judge Criteria | http://localhost:8080/public/judge-criteria.html |
+| Health Check | http://localhost:8080/api/health |
 
 ## Configuration
 
@@ -83,38 +93,64 @@ All configuration is via environment variables (see `.env.example`):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GEMINI_API_KEY` | *required* | Google AI Studio API key |
-| `CAMERA_DEVICE_INDEX` | `0` | OpenCV camera device index |
+| `CAMERA_DEVICE_INDEX` | `-1` | OpenCV camera device index (-1 for auto-detect) |
 | `AUDIO_DEVICE_INDEX` | system default | PyAudio input device index |
 | `FRAME_RATE` | `1.0` | Frames per second to capture |
-| `KEY_FRAME_THRESHOLD` | `0.4` | Scene change sensitivity (lower = more sensitive) |
-| `CARTESIA_API_KEY` | — | Cartesia TTS API key (optional, degrades to text-only) |
+| `CARTESIA_API_KEY` | — | Cartesia TTS API key (degrades to macOS `say` without it) |
 | `CARTESIA_VOICE_ID` | — | Cartesia voice ID for the Arbiter persona |
-| `DISPLAY_HOST` | `0.0.0.0` | Display server bind address |
-| `DISPLAY_PORT` | `8080` | Display server port |
-| `ANTHROPIC_API_KEY` | — | Claude API key (MoE scoring, video analysis) |
-| `OPENAI_API_KEY` | — | OpenAI API key (MoE scoring, TTS fallback) |
-| `GROQ_API_KEY` | — | Groq API key (fast commentary and Q&A) |
+| `ANTHROPIC_API_KEY` | — | Claude API key (MoE scoring) |
+| `OPENAI_API_KEY` | — | OpenAI API key (TTS fallback) |
+| `GROQ_API_KEY` | — | Groq API key (commentary and Q&A generation) |
 | `MOE_SCORING_ENABLED` | `false` | Enable multi-model scoring ensemble |
-| `COMMENTARY_ENRICHMENT_ENABLED` | `false` | Enable second-pass commentary polish |
+| `OPERATOR_TOKEN` | — | WebSocket auth token for operator dashboard |
+| `DISPLAY_TOKEN` | — | WebSocket auth token for audience display |
 
-## Roadmap
+## Testing
 
-### v1.0 — Core Pipeline (Phases 1–6)
+```bash
+# Full suite (1393 tests)
+uv run pytest
 
-- [x] **Phase 1** — Capture layer (camera, audio, key frames, Gemini Live API session)
-- [x] **Phase 2** — Defense pipeline (OCR, injection detection, roasting, sanitization)
-- [x] **Phase 3** — Commentary and output (streaming persona TTS, Q&A, audience display)
-- [x] **Phase 4** — Scoring system (rubric engine, MoE multi-model voting, theatrical reveal)
-- [x] **Phase 5** — Memory and deliberation (per-demo recall, cross-demo rankings)
-- [x] **Phase 6** — Venue hardening (health checks, rate limiting, TTS failover, degraded modes)
+# Smoke tests only (fast go/no-go gate)
+uv run pytest -m smoke
 
-### v1.1 — Production Polish (Phases 7–10)
+# Specific module
+uv run pytest tests/test_commentary_full_delivery.py -v
+```
 
-- [x] **Phase 7** — Operator dashboard (React WebSocket control panel)
-- [x] **Phase 8** — Audience display (React real-time commentary and score reveal)
-- [x] **Phase 9** — Rehearsal mode (synthetic capture, canned responses, full pipeline exercise)
-- [x] **Phase 10** — Dashboard hardening (reconnection, state sync, audio feedback)
+## How Scoring Works
+
+Each demo is scored across three criteria:
+
+| Criterion | Weight | What's Evaluated |
+|-----------|--------|-----------------|
+| Technical Execution | 40% | Implementation quality, functionality, edge case handling |
+| Innovation | 30% | AI x Security novelty, creative approaches |
+| Demo Quality | 30% | Clarity of explanation, working live demo, compelling narrative |
+
+Plus a **track-specific bonus** (+10%) based on the team's chosen challenge track.
+
+Scoring uses a **Mixture of Experts (MoE)** approach: Gemini, Claude, and Groq independently evaluate each demo. Scores are aggregated with outlier detection — if one model disagrees wildly, it's flagged and its influence is reduced.
+
+## Event Day Results
+
+The `data/` directory contains all event outputs:
+
+- `data/scores/` — Per-team scorecards with criterion breakdowns
+- `data/observations/` — Raw observations and transcripts from each demo
+- `data/deliberation/` — Cross-team comparative analysis
+- `data/events.jsonl` — Complete event log
+- `data/audit.jsonl` — Full audit trail
+
+## Docs
+
+- [Architecture](docs/architecture.md)
+- [Operator Guide](docs/operator-guide.md)
+- [Pre-Event Checklist](docs/pre-event-checklist.md)
+- [Judge Instructions](docs/judge-instructions.md)
+- [Prize Breakdown](docs/prize-breakdown.md)
+- [Zoom Capture Setup](docs/zoom-capture-setup.md)
 
 ## License
 
-Private. All rights reserved.
+MIT
