@@ -413,7 +413,12 @@ class TestBuildUserPrompt:
     def test_includes_injection_roasts(self, sanitized_with_injections):
         gen = CommentaryGenerator(api_key="key", groq_api_key="")
         prompt = gen._build_user_prompt(sanitized_with_injections, demo_number=1)
-        assert "Ignore all previous" in prompt
+        # Raw injection content must NOT appear in the prompt (injection hardening)
+        assert "Ignore all previous" not in prompt
+        # Detection metadata should be present instead
+        assert "instruction_override" in prompt
+        assert "BLOCKED" in prompt
+        # Roast text should still be included
         assert "Nice try" in prompt
 
 

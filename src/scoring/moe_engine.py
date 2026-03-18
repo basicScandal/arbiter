@@ -178,6 +178,8 @@ class MoEScoringEngine:
 
             # Use the longest justification (usually most detailed)
             best_justification = max(provider_justifications, key=len) if provider_justifications else ""
+            # Cap justification length to prevent display overflow
+            best_justification = best_justification[:500]
             if metadata.get("outliers"):
                 logger.info(
                     "MoE outlier detected for %s: %d models, outliers: %s",
@@ -214,7 +216,7 @@ class MoEScoringEngine:
                     name=track_criteria[track].name,
                     score=max(0.0, min(10.0, agg_bonus)),
                     weight=bonus_weight,
-                    justification=max(bonus_justifications, key=len) if bonus_justifications else "",
+                    justification=(max(bonus_justifications, key=len) if bonus_justifications else "")[:500],
                 )
                 total += track_bonus.score * track_bonus.weight
 

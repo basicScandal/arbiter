@@ -25,6 +25,7 @@ from src.commentary.models import Commentary
 from src.commentary.prompts import PERSONA_PROMPT
 from src.defense.models import SanitizedOutput
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
+from src.scoring.engine import ScoringEngine
 from src.resilience.rate_limiter import GeminiRateLimiter
 from src.providers.groq_provider import GROQ_BASE_URL
 from src.resilience.retry import GEMINI_RETRY, DailyQuotaExhausted
@@ -362,7 +363,8 @@ class CommentaryGenerator:
         Structures observations, transcripts, and injection attempts
         into a clear format for the persona to react to.
         """
-        sections: list[str] = [f"## Demo: {sanitized.team_name}", f"Demo #{demo_number} of the day"]
+        safe_team = ScoringEngine._sanitize_team_name(sanitized.team_name)
+        sections: list[str] = [f"## Demo: {safe_team}", f"Demo #{demo_number} of the day"]
 
         # Observations (cap at 30 to keep prompt manageable)
         observations = sanitized.observations
@@ -370,14 +372,22 @@ class CommentaryGenerator:
             observations = observations[:15] + observations[-15:]
         if observations:
             obs_lines = [f"{i + 1}. {obs}" for i, obs in enumerate(observations)]
-            sections.append("### Observations\n" + "\n".join(obs_lines))
+            sections.append(
+                "<demo_observations>\n### Observations\n"
+                + "\n".join(obs_lines)
+                + "\n</demo_observations>"
+            )
 
         # Transcript highlights (cap at 20)
         transcripts = sanitized.transcripts
         if len(transcripts) > 20:
             transcripts = transcripts[:10] + transcripts[-10:]
         if transcripts:
-            sections.append("### Transcript Highlights\n" + "\n".join(transcripts))
+            sections.append(
+                "<presenter_transcripts>\n### Transcript Highlights\n"
+                + "\n".join(transcripts)
+                + "\n</presenter_transcripts>"
+            )
 
         # Duration
         sections.append(f"### Duration\n{sanitized.demo_duration:.0f}s")
@@ -388,11 +398,14 @@ class CommentaryGenerator:
             history_lines = [f"- {h['team']}: {h['summary']}" for h in recent]
             sections.append("### Earlier Demos Today\n" + "\n".join(history_lines))
 
-        # Injection attempts (with roasts if available)
+        # Injection attempts (with roasts if available) -- raw content excluded
         if sanitized.injection_attempts:
             attempt_lines: list[str] = []
             for i, attempt in enumerate(sanitized.injection_attempts):
-                line = f"{i + 1}. [{attempt.injection_type}] \"{attempt.content[:200]}\""
+                line = (
+                    f"{i + 1}. [{attempt.injection_type}] "
+                    f"[BLOCKED: {attempt.pattern} detected, confidence: {attempt.confidence}]"
+                )
                 if i < len(sanitized.roasts) and sanitized.roasts[i]:
                     line += f" (roast: {sanitized.roasts[i]})"
                 attempt_lines.append(line)

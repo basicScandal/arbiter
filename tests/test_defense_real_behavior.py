@@ -85,12 +85,12 @@ class TestMediumDetectionFlagResetsAfterHighConfidence:
             await pipeline._on_transcript(_make_transcript_event(high_text))
             await event_bus.drain(timeout=2.0)
 
-        # After high detection: cooldown=20, _logged_medium_in_window=False
-        assert pipeline._transcript_cooldown == 20
+        # After high detection: cooldown=5, _logged_medium_in_window=False
+        assert pipeline._transcript_cooldown == 5
         assert pipeline._logged_medium_in_window is False
 
-        # Burn through cooldown by sending 20 innocuous transcript events
-        for _ in range(20):
+        # Burn through cooldown by sending 5 innocuous transcript events
+        for _ in range(5):
             await pipeline._on_transcript(_make_transcript_event(" ok"))
 
         assert pipeline._transcript_cooldown == 0

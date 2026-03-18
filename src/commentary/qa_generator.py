@@ -265,7 +265,10 @@ class QAGenerator:
         if sanitized.injection_attempts:
             attempt_lines: list[str] = []
             for i, attempt in enumerate(sanitized.injection_attempts):
-                line = f'{i + 1}. [{attempt.injection_type}] "{attempt.content[:200]}"'
+                line = (
+                    f"{i + 1}. [{attempt.injection_type}] "
+                    f"[BLOCKED: {attempt.pattern} detected, confidence: {attempt.confidence}]"
+                )
                 attempt_lines.append(line)
             sections.append(
                 "### Injection Attempts\n" + "\n".join(attempt_lines)

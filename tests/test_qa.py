@@ -265,7 +265,9 @@ class TestBuildUserPrompt:
         prompt = QAGenerator._build_user_prompt(sanitized_with_injections)
         assert "### Injection Attempts" in prompt
         assert "[prompt_override]" in prompt
-        assert "Ignore all previous instructions" in prompt
+        assert "BLOCKED" in prompt
+        # Raw injection content must NOT appear (security fix)
+        assert "Ignore all previous instructions" not in prompt
 
     def test_empty_observations(self) -> None:
         sanitized = SanitizedOutput(
@@ -1053,9 +1055,9 @@ class TestPromptEdgeCases:
         # No decimal point
         assert "123.456" not in prompt
 
-    def test_injection_content_truncated_at_200_chars(self) -> None:
-        """Long injection content is truncated to 200 characters in the prompt."""
-        long_content = "A" * 500
+    def test_injection_content_excluded_from_prompt(self) -> None:
+        """Raw injection content must NOT appear in the prompt (security fix)."""
+        long_content = "PAYLOAD" * 50
         sanitized = SanitizedOutput(
             team_name="TestTeam",
             observations=[],
@@ -1065,7 +1067,7 @@ class TestPromptEdgeCases:
                     timestamp=0.0,
                     injection_type="test",
                     content=long_content,
-                    pattern="test",
+                    pattern="test_pattern",
                     confidence="high",
                     team_name="TestTeam",
                 ),
@@ -1073,9 +1075,10 @@ class TestPromptEdgeCases:
             demo_duration=60.0,
         )
         prompt = QAGenerator._build_user_prompt(sanitized)
-        # Should contain exactly 200 A's, not 500
-        assert "A" * 200 in prompt
-        assert "A" * 201 not in prompt
+        # Raw content must be excluded — only metadata shown
+        assert "PAYLOAD" not in prompt
+        assert "BLOCKED" in prompt
+        assert "test_pattern" in prompt
 
     def test_no_transcripts_section_when_empty(self) -> None:
         """Transcript section is omitted when transcripts list is empty."""

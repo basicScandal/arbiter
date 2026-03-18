@@ -8,6 +8,7 @@ legitimately discuss injection and security topics.
 
 from __future__ import annotations
 
+import base64
 import logging
 import re
 import unicodedata
@@ -101,6 +102,22 @@ INJECTION_PATTERNS: list[InjectionPattern] = [
 ]
 
 
+def _try_decode_base64(text: str) -> str:
+    """Find and decode base64 strings > 20 chars, append decoded text for scanning."""
+    decoded_parts = []
+    for match in re.finditer(r'[A-Za-z0-9+/=]{20,}', text):
+        candidate = match.group()
+        try:
+            decoded = base64.b64decode(candidate, validate=True).decode('utf-8', errors='ignore')
+            if decoded.strip():
+                decoded_parts.append(decoded)
+        except Exception:
+            pass
+    if decoded_parts:
+        return text + " " + " ".join(decoded_parts)
+    return text
+
+
 class InjectionDetector:
     """Scans text for injection patterns with confidence scoring.
 
@@ -126,11 +143,21 @@ class InjectionDetector:
         if not text or not text.strip():
             return DetectionResult(is_injection=False, source=source)
 
-        # Replace zero-width and invisible characters with spaces so word
-        # boundaries survive (attackers insert these to break regex patterns)
-        text = re.sub(r"[\u200b\u200c\u200d\u00ad\u034f\ufeff\u2060]", " ", text)
+        # Replace zero-width, invisible, and bidirectional override characters
+        # with spaces so word boundaries survive (attackers insert these to
+        # break regex patterns or hide injections via RTL/LTR text tricks)
+        text = re.sub(
+            r"[\u200b\u200c\u200d\u00ad\u034f\ufeff\u2060"
+            r"\u200e\u200f\u202a\u202b\u202c\u202d\u202e"
+            r"\u2066\u2067\u2068\u2069]",
+            " ",
+            text,
+        )
         # Normalize unicode to catch homoglyph evasion (e.g., fullwidth chars)
-        text = unicodedata.normalize("NFKC", text)
+        normalized = unicodedata.normalize("NFKC", text)
+        # Decode potential base64 strings and scan those too
+        normalized = _try_decode_base64(normalized)
+        text = normalized
 
         matched_patterns: list[str] = []
         first_matched_text: str = ""

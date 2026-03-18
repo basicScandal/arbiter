@@ -192,8 +192,11 @@ class DefensePipeline:
                     confidence=result.confidence,
                     team_name=self._current_team,
                 )
-                # Cooldown after high confidence — we got the roast-worthy detection
-                self._transcript_cooldown = 20
+                # Cooldown after high confidence — we got the roast-worthy detection.
+                # Only 5 events: enough to avoid immediate duplicate roasts while
+                # keeping scanning responsive. This cooldown only affects real-time
+                # roasting; sanitization at demo stop always rescans all transcripts.
+                self._transcript_cooldown = 5
                 # Reset medium flag so new medium detections after cooldown are logged
                 self._logged_medium_in_window = False
                 self._logger.log(attempt)
