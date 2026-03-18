@@ -1,5 +1,6 @@
 # Arbiter
 
+[![CI](https://github.com/basicScandal/arbiter/actions/workflows/ci.yml/badge.svg)](https://github.com/basicScandal/arbiter/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-1393%20passed-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.11+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -151,12 +152,19 @@ The `data/` directory contains all event outputs:
 
 ## Docs
 
+- [How We Built Arbiter](docs/how-we-built-arbiter.md) — full writeup with architecture, what broke, and lessons learned
 - [Architecture](docs/architecture.md)
 - [Operator Guide](docs/operator-guide.md)
 - [Pre-Event Checklist](docs/pre-event-checklist.md)
 - [Judge Instructions](docs/judge-instructions.md)
 - [Prize Breakdown](docs/prize-breakdown.md)
 - [Zoom Capture Setup](docs/zoom-capture-setup.md)
+
+## See It In Action
+
+- [SINGULARITY 2026 Results](https://nebulafog.ai/singularity-results.html) — full scoreboard with 25 teams
+- [PRIME 2025 Results](https://nebulafog.ai/prime-results.html) — retroactive scoring of 15 demos from video
+- [YouTube: NEBULA:FOG](https://www.youtube.com/@nebulafog) — demo recordings
 
 ## License
 

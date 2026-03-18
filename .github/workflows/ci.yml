@@ -8,6 +8,9 @@ on:
 jobs:
   python-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -16,17 +19,19 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - name: Install Python 3.13
-        run: uv python install 3.13
+      - name: Install Python
+        env:
+          PY_VERSION: ${{ matrix.python-version }}
+        run: uv python install "$PY_VERSION"
 
       - name: Install dependencies
         run: uv sync --frozen
 
       - name: Run test suite
-        run: uv run pytest --tb=short -m "not chaos"
+        run: uv run pytest --tb=short -m "not chaos" --timeout=60
 
       - name: Run chaos tests
-        run: uv run pytest --tb=short -m chaos
+        run: uv run pytest --tb=short -m chaos --timeout=60
 
   frontend-tests:
     runs-on: ubuntu-latest
@@ -46,3 +51,18 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run test
+
+  build-frontends:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build operator dashboard
+        working-directory: operator-dashboard
+        run: bun install --frozen-lockfile && bun run build
+
+      - name: Build audience display
+        working-directory: audience-display
+        run: bun install --frozen-lockfile && bun run build
