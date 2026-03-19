@@ -1,0 +1,30 @@
+<svg width="1280" height="640" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="640" fill="#0a0a14"/>
+  <rect x="0" y="0" width="1280" height="3" fill="#00ff9f" opacity="0.6"/>
+  <rect x="0" y="637" width="1280" height="3" fill="#00ff9f" opacity="0.6"/>
+  <!-- Arbiter eye icon -->
+  <g transform="translate(640,220) scale(2.5)">
+    <polygon points="0,-52 38,-30 38,22 0,44 -38,22 -38,-30" fill="none" stroke="#00ff9f" stroke-width="1.5" stroke-linejoin="round" opacity="0.3"/>
+    <path d="M-32,0 Q0,-28 32,0 Q0,28 -32,0 Z" fill="none" stroke="#00ff9f" stroke-width="2"/>
+    <circle cx="0" cy="0" r="14" fill="none" stroke="#00ff9f" stroke-width="1"/>
+    <circle cx="0" cy="0" r="4" fill="#00ff9f"/>
+  </g>
+  <!-- Title -->
+  <text x="640" y="340" text-anchor="middle" font-family="monospace" font-size="64" font-weight="bold" fill="#00ff9f" letter-spacing="12">ARBITER</text>
+  <!-- Subtitle -->
+  <text x="640" y="390" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#888">Live AI Judge for Hackathons</text>
+  <!-- Features -->
+  <text x="640" y="450" text-anchor="middle" font-family="monospace" font-size="16" fill="#555">Real-time observation · Multi-model scoring · Prompt injection defense</text>
+  <text x="640" y="480" text-anchor="middle" font-family="monospace" font-size="16" fill="#555">British-accented commentary · Cross-team deliberation</text>
+  <!-- Stats -->
+  <text x="320" y="560" text-anchor="middle" font-family="monospace" font-size="20" fill="#00ff9f">25 demos</text>
+  <text x="320" y="585" text-anchor="middle" font-family="monospace" font-size="12" fill="#555">JUDGED LIVE</text>
+  <text x="540" y="560" text-anchor="middle" font-family="monospace" font-size="20" fill="#00ff9f">3 LLMs</text>
+  <text x="540" y="585" text-anchor="middle" font-family="monospace" font-size="12" fill="#555">SCORING ENSEMBLE</text>
+  <text x="740" y="560" text-anchor="middle" font-family="monospace" font-size="20" fill="#00ff9f">1,493 tests</text>
+  <text x="740" y="585" text-anchor="middle" font-family="monospace" font-size="12" fill="#555">ALL GREEN</text>
+  <text x="960" y="560" text-anchor="middle" font-family="monospace" font-size="20" fill="#00ff9f">4 layers</text>
+  <text x="960" y="585" text-anchor="middle" font-family="monospace" font-size="12" fill="#555">INJECTION DEFENSE</text>
+  <!-- Event badge -->
+  <text x="640" y="620" text-anchor="middle" font-family="monospace" font-size="14" fill="#444">NEBULA:FOG 2026 · nebulafog.ai</text>
+</svg>
