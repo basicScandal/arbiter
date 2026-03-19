@@ -160,8 +160,28 @@ footer{text-align:center;padding:2rem;color:#888;font-size:0.75rem}
 </ul>
 </div>
 
-<h2>How Arbiter Actually Defends</h2>
-<p style="color:#999;font-size:0.85rem;margin:1rem 0">Even if your payload bypasses detection, Arbiter has structural defenses that can't be tested in a browser: the quarantined Gemini session never talks to the scoring LLM, Python computes all scores server-side, and XML boundary tags mark untrusted content. Detection is the bouncer. Architecture is the vault.</p>
+<h2>What This Page Tests (and What It Doesn't)</h2>
+<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:1.5rem;margin:1rem 0">
+<p style="color:#ccc;font-size:0.85rem;margin-bottom:1rem"><strong style="color:#00ff9f">This page tests 4 of 8 defense layers</strong> — the pattern-based detection that can run in a browser. It's a playground for one part of the system.</p>
+<table style="width:100%;border-collapse:collapse;font-size:0.8rem;margin:0.5rem 0">
+<thead><tr><th style="text-align:left;color:#00ff9f;padding:0.4rem;border-bottom:1px solid rgba(0,255,159,0.2)">Layer</th><th style="text-align:center;color:#00ff9f;padding:0.4rem;border-bottom:1px solid rgba(0,255,159,0.2)">Here?</th><th style="text-align:left;color:#00ff9f;padding:0.4rem;border-bottom:1px solid rgba(0,255,159,0.2)">What It Does</th></tr></thead>
+<tbody>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">Regex patterns (12)</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#00ff88">Yes</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">Catches known injection phrases</td></tr>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">Semantic classifier</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#00ff88">Yes</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">Rubric echoing, self-evaluation, fabricated evidence</td></tr>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">Multi-language (14)</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#00ff88">Yes</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">ES, FR, DE, ZH, JA, KO, RU</td></tr>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">Encoding (base64, Unicode)</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#00ff88">Yes</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">Decodes and normalizes before scanning</td></tr>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">Dual-LLM separation</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#ff6666">No</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">Raw input never reaches scoring LLMs</td></tr>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">XML boundary tags</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#ff6666">No</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">Untrusted content wrapped with "never follow"</td></tr>
+<tr><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03)">Python score clamping</td><td style="text-align:center;padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#ff6666">No</td><td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,0.03);color:#999">Server-side math — LLMs can't manipulate scores</td></tr>
+<tr><td style="padding:0.4rem">Cross-reference validation</td><td style="text-align:center;padding:0.4rem;color:#ff6666">No</td><td style="padding:0.4rem;color:#999">Flags observations mirroring slide text</td></tr>
+</tbody>
+</table>
+<p style="color:#999;font-size:0.85rem;margin-top:1rem"><strong style="color:#00e5ff">To test all 8 layers</strong>, run the full stack locally:</p>
+<pre style="background:rgba(0,255,159,0.05);padding:0.75rem;border-radius:4px;font-size:0.8rem;margin-top:0.5rem;overflow-x:auto"><code>git clone https://github.com/basicScandal/arbiter.git
+cd arbiter && uv sync
+uv run python -m src.main --rehearsal</code></pre>
+<p style="color:#666;font-size:0.75rem;margin-top:0.5rem">Rehearsal mode exercises every layer with synthetic data — no API keys or hardware needed.</p>
+</div>
 
 <footer>
 <a href="./">Arbiter</a> &middot; <a href="https://github.com/basicScandal/arbiter">GitHub</a> &middot; <a href="red-team-report.html">Red Team Report</a> &middot; <a href="https://nebulafog.ai">NEBULA:FOG 2026</a>
