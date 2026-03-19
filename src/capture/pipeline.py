@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 
 from src.capture.audio import AudioCapture
 from src.capture.camera import CameraCapture
@@ -144,11 +145,15 @@ class CapturePipeline:
             self._capture_tasks.clear()
 
         self._capture_tasks = [
-            # Camera disabled to prevent OOM crashes — audio is primary input
-            # asyncio.create_task(self.camera.run(), name="camera-capture"),
             asyncio.create_task(self.audio.run(), name="audio-capture"),
             asyncio.create_task(self.gemini.run(), name="gemini-session"),
         ]
+
+        # Only start camera if not explicitly disabled via env var
+        if os.environ.get("DISABLE_CAMERA", "").lower() not in ("true", "1", "yes"):
+            self._capture_tasks.append(
+                asyncio.create_task(self.camera.run(), name="camera-capture")
+            )
 
         logger.info(
             "Capture tasks started: %s",

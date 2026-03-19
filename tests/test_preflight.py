@@ -68,16 +68,18 @@ class TestRunPreflight:
         assert result.errors == []
 
     @pytest.mark.asyncio
-    async def test_camera_skipped_does_not_block_start(self):
-        """Camera check is skipped — preflight should pass even without camera."""
+    async def test_camera_fail_is_warning_not_blocker(self):
+        """Camera failure is a warning, not a blocker — demo can proceed without video."""
         config = _make_config()
 
         with (
+            patch("src.capture.preflight._check_camera", return_value=(False, "Cannot open camera device 0")),
             patch("src.capture.preflight._check_audio", return_value=(True, "Audio OK")),
         ):
             result = await run_preflight(config)
 
         assert result.ok is True
+        assert any("camera" in w.lower() for w in result.warnings)
 
     @pytest.mark.asyncio
     async def test_audio_fail_is_warning_not_blocker(self):
@@ -108,17 +110,19 @@ class TestRunPreflight:
         assert any("gemini" in e.lower() for e in result.errors)
 
     @pytest.mark.asyncio
-    async def test_camera_skipped_exception_not_raised(self):
-        """Camera check is skipped so exceptions don't propagate."""
+    async def test_camera_exception_is_warning(self):
+        """Camera check that throws is a warning, not a failure."""
         config = _make_config()
 
         with (
+            patch("src.capture.preflight._check_camera", side_effect=OSError("device busy")),
             patch("src.capture.preflight._check_audio", return_value=(True, "Audio OK")),
         ):
             result = await run_preflight(config)
 
-        # Camera is skipped — no errors from camera
+        # Camera exception becomes a warning — demo is not blocked
         assert result.ok is True
+        assert any("crashed" in w.lower() for w in result.warnings)
 
     @pytest.mark.asyncio
     async def test_audio_exception_is_warning(self):
@@ -136,17 +140,18 @@ class TestRunPreflight:
 
     @pytest.mark.asyncio
     async def test_all_failures(self):
-        """Multiple failures all reported (camera skipped, audio + gemini key fail)."""
+        """Multiple failures all reported (camera + audio warn, gemini key fails)."""
         config = _make_config(gemini_api_key="")
 
         with (
+            patch("src.capture.preflight._check_camera", return_value=(False, "No camera")),
             patch("src.capture.preflight._check_audio", return_value=(False, "No audio")),
         ):
             result = await run_preflight(config)
 
         assert result.ok is False
-        assert len(result.errors) == 1  # gemini key only (camera skipped)
-        assert len(result.warnings) == 1  # audio
+        assert len(result.errors) == 1  # gemini key only
+        assert len(result.warnings) == 2  # camera + audio
 
 
 class TestPreflightInStartCommand:

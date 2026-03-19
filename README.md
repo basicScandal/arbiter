@@ -103,6 +103,7 @@ All configuration is via environment variables (see `.env.example`):
 |----------|---------|-------------|
 | `GEMINI_API_KEY` | *required* | Google AI Studio API key |
 | `CAMERA_DEVICE_INDEX` | `-1` | OpenCV camera device index (-1 for auto-detect) |
+| `DISABLE_CAMERA` | `false` | Set to `true`/`1`/`yes` to skip camera capture entirely (prevents OOM on memory-constrained hosts) |
 | `AUDIO_DEVICE_INDEX` | system default | PyAudio input device index |
 | `FRAME_RATE` | `1.0` | Frames per second to capture |
 | `CARTESIA_API_KEY` | — | Cartesia TTS API key (degrades to macOS `say` without it) |

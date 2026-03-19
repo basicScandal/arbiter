@@ -12,6 +12,7 @@ blocking the event loop.
 from __future__ import annotations
 
 import asyncio
+import gc
 import io
 import logging
 import time
@@ -174,6 +175,20 @@ class CameraCapture:
 
                 frame_data, raw_frame = result
 
+                # Memory safety: skip frames whose JPEG payload exceeds 2 MB
+                # (indicates an unexpectedly large resolution that could cause OOM)
+                _MAX_FRAME_BYTES = 2 * 1024 * 1024  # 2 MB
+                if len(frame_data.jpeg_data) > _MAX_FRAME_BYTES:
+                    logger.warning(
+                        "Frame too large (%d bytes > %d), skipping to prevent OOM",
+                        len(frame_data.jpeg_data),
+                        _MAX_FRAME_BYTES,
+                    )
+                    del raw_frame, frame_data
+                    gc.collect()
+                    await asyncio.sleep(1.0 / self._config.frame_rate)
+                    continue
+
                 # Check for key frame
                 is_kf = self.key_frame_detector.check(raw_frame)
                 frame_data.is_key_frame = is_kf
@@ -200,6 +215,7 @@ class CameraCapture:
                 await asyncio.sleep(1.0 / self._config.frame_rate)
         finally:
             await asyncio.to_thread(cap.release)
+            gc.collect()
             logger.info("Camera capture stopped, device released")
 
     def pause(self) -> None:

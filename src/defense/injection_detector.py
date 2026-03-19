@@ -269,6 +269,38 @@ _MULTILANG_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Cross-reference validation constants
+# ---------------------------------------------------------------------------
+
+# Common English stopwords to exclude from Jaccard overlap comparison.
+# These appear in both normal prose and slide text so provide no signal.
+_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "the", "a", "an", "is", "are", "was", "were", "and", "or", "but",
+        "in", "on", "at", "to", "for", "of", "with", "that", "this", "it",
+        "from", "by", "as", "be", "has", "have", "had", "not", "no", "do",
+        "does", "did", "will", "would", "can", "could", "should", "may",
+        "might",
+    }
+)
+
+# Minimum word count in an observation before cross-reference comparison
+# is meaningful. Short observations have too few content words to produce
+# a reliable Jaccard signal.
+_MIN_OBSERVATION_WORDS: int = 10
+
+# Jaccard overlap threshold above which an observation is considered to
+# suspiciously mirror a single OCR text extraction.
+_CROSS_REF_THRESHOLD: float = 0.60
+
+
+def _content_tokens(text: str) -> set[str]:
+    """Return the set of lowercased non-stopword word tokens from *text*."""
+    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    return {t for t in tokens if t not in _STOPWORDS}
+
+
 def _try_decode_base64(text: str) -> str:
     """Find and decode base64 strings > 20 chars, append decoded text for scanning."""
     decoded_parts = []
@@ -463,3 +495,75 @@ class InjectionDetector:
     def scan_observation(self, text: str) -> DetectionResult:
         """Scan Gemini observation text for injection residue."""
         return self.scan(text, source="observation")
+
+    def cross_reference_observation(
+        self,
+        observation: str,
+        ocr_texts: list[str],
+    ) -> tuple[bool, str]:
+        """Check if an observation suspiciously mirrors OCR slide text.
+
+        Compares the content words (non-stopwords) of *observation* against
+        each OCR extraction in *ocr_texts* using Jaccard-like overlap: if
+        more than 60 % of the observation's content tokens appear verbatim in
+        any single OCR text, the observation is flagged as potentially
+        "observation laundering" — the presenter displayed evaluative text on
+        a slide and Gemini parroted it rather than describing actual code
+        behaviour.
+
+        Short observations (fewer than ``_MIN_OBSERVATION_WORDS`` total words,
+        including stopwords) are skipped because the overlap metric is
+        unreliable on tiny samples. Empty *ocr_texts* lists are also skipped.
+
+        Args:
+            observation: A single Gemini observation string to evaluate.
+            ocr_texts: All OCR-extracted text strings accumulated from key
+                frames during the demo.
+
+        Returns:
+            A 2-tuple ``(is_suspicious, detail)`` where:
+            - *is_suspicious* is ``True`` when the observation mirrors a
+              slide text above the threshold.
+            - *detail* is a human-readable string describing which slide text
+              triggered the flag and what the overlap ratio was. Empty string
+              when not suspicious.
+        """
+        if not observation or not observation.strip():
+            return False, ""
+
+        if not ocr_texts:
+            return False, ""
+
+        # Guard: skip short observations (raw word count, not content tokens)
+        raw_words = observation.split()
+        if len(raw_words) < _MIN_OBSERVATION_WORDS:
+            return False, ""
+
+        obs_tokens = _content_tokens(observation)
+        if not obs_tokens:
+            return False, ""
+
+        for ocr_text in ocr_texts:
+            if not ocr_text or not ocr_text.strip():
+                continue
+
+            ocr_tokens = _content_tokens(ocr_text)
+            if not ocr_tokens:
+                continue
+
+            # Fraction of observation tokens that appear in the OCR text.
+            # We intentionally do NOT divide by the union (true Jaccard) because
+            # slides often contain a superset of words; what matters is how
+            # much of the *observation* is accounted for by the slide text.
+            overlap = obs_tokens & ocr_tokens
+            ratio = len(overlap) / len(obs_tokens)
+
+            if ratio > _CROSS_REF_THRESHOLD:
+                detail = (
+                    f"observation mirrors slide text ({ratio:.0%} overlap): "
+                    f"{ocr_text[:80]!r}"
+                )
+                logger.debug("cross_reference: %s", detail)
+                return True, detail
+
+        return False, ""

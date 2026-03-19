@@ -128,9 +128,19 @@ async def run_preflight(config: CaptureConfig) -> PreflightResult:
     """
     result = PreflightResult()
 
-    # Camera check skipped — disabled to prevent OOM crashes
-    # Audio is the primary input for Zoom-based demos
-    logger.info("Pre-flight camera: skipped (camera disabled)")
+    # Camera check (in thread — OpenCV blocks)
+    # A camera failure is a WARNING not a blocker: audio is the primary input
+    # and the demo can proceed without video.
+    try:
+        camera_ok, camera_msg = await asyncio.to_thread(_check_camera, config)
+        if camera_ok:
+            logger.info("Pre-flight camera: %s", camera_msg)
+        else:
+            result.warn(camera_msg)
+            logger.warning("Pre-flight camera: %s", camera_msg)
+    except Exception as e:
+        result.warn(f"Camera check crashed: {e}")
+        logger.exception("Pre-flight camera check exception")
 
     # Audio check (in thread — PyAudio blocks)
     try:

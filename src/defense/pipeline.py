@@ -103,6 +103,7 @@ class DefensePipeline:
         self._transcript_cooldown: int = 0
         self._logged_medium_in_window: bool = False
         self._pending_roast_tasks: list[asyncio.Task] = []
+        self._ocr_texts: list[str] = []
 
     async def setup(self, event_bus: EventBus) -> None:
         """Subscribe to capture events on the shared event bus.
@@ -125,6 +126,7 @@ class DefensePipeline:
         self._transcript_buffer = ""
         self._transcript_cooldown = 0
         self._logged_medium_in_window = False
+        self._ocr_texts.clear()
         for task in self._pending_roast_tasks:
             if not task.done():
                 task.cancel()
@@ -139,6 +141,9 @@ class DefensePipeline:
         )
         if not ocr_text:
             return
+
+        # Accumulate OCR text for cross-reference validation at demo stop
+        self._ocr_texts.append(ocr_text)
 
         result = self._detector.scan_visual(ocr_text)
         if result.is_injection:
@@ -293,6 +298,35 @@ class DefensePipeline:
                     team_name=self._current_team,
                 )
                 self._logger.log(attempt)
+
+        # Cross-reference each observation against accumulated OCR slide texts.
+        # If an observation closely mirrors slide text (>60% word overlap), it
+        # may be "observation laundering" — Gemini parroting evaluative text
+        # from a slide rather than describing actual code behaviour.
+        if self._ocr_texts:
+            for obs in reassembled:
+                is_suspicious, detail = self._detector.cross_reference_observation(
+                    obs, self._ocr_texts
+                )
+                if is_suspicious:
+                    attempt = InjectionAttempt(
+                        timestamp=event.timestamp,
+                        injection_type="observation",
+                        content=obs[:200],
+                        pattern="cross_reference",
+                        confidence="medium",
+                        team_name=self._current_team,
+                    )
+                    self._logger.log(attempt)
+                    logger.info(
+                        "Cross-reference flag [%s]: %s",
+                        self._current_team,
+                        detail,
+                    )
+                    if self._event_bus is not None:
+                        self._event_bus.publish(
+                            InjectionDetected(attempt=attempt)
+                        )
 
         # Reassemble transcripts from token fragments for sanitization
         reassembled_transcripts = _reassemble_tokens(self._transcripts)
