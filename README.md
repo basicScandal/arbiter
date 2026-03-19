@@ -13,6 +13,8 @@ Built for the [NEBULA:FOG 2026](https://nebulafog.ai) security hackathon, where 
 
 > *"Twenty-five teams walked in with 24 hours of code and a live demo slot. What they didn't expect: an AI judge watching every second."*
 
+![Arbiter Demo — Idle → Analyzing → Score Reveal](docs/demo.gif)
+
 ## What It Does
 
 - **Real-time observation** — Connects to Gemini Live API, streams audio/video, generates observations as presenters speak
