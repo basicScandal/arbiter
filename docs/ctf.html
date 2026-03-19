@@ -26,10 +26,20 @@ input[type=radio]{accent-color:#00ff9f}
 .matches{margin-top:0.5rem;font-size:0.75rem;color:#888}
 .rules{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:1.5rem;margin:1rem 0}
 .rules li{margin:0.5rem 0;font-size:0.85rem;color:#999}
-.layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin:1rem 0}
-.layer{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:1rem}
-.layer h3{color:#00e5ff;font-size:0.8rem;margin-bottom:0.5rem}
-.layer p{font-size:0.75rem;color:#888}
+.cube-wrapper{perspective:800px;display:flex;justify-content:center;margin:2rem 0}
+.cube{width:320px;height:320px;position:relative;transform-style:preserve-3d;animation:spin 20s linear infinite}
+@keyframes spin{from{transform:rotateX(-20deg) rotateY(0deg)}to{transform:rotateX(-20deg) rotateY(360deg)}}
+.cube:hover{animation-play-state:paused}
+.cube-face{position:absolute;width:320px;height:320px;border:1px solid rgba(0,255,159,0.2);border-radius:8px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:1.5rem;text-align:center;backface-visibility:visible;background:rgba(10,10,20,0.85)}
+.cube-face.front{transform:translateZ(160px)}
+.cube-face.back{transform:rotateY(180deg) translateZ(160px)}
+.cube-face.right{transform:rotateY(90deg) translateZ(160px)}
+.cube-face.left{transform:rotateY(-90deg) translateZ(160px)}
+.cube-face h3{color:#00ff9f;font-size:1rem;letter-spacing:0.1em;margin-bottom:0.75rem}
+.cube-face .face-num{font-size:3rem;font-weight:bold;color:rgba(0,255,159,0.15);position:absolute;top:0.5rem;right:1rem}
+.cube-face p{font-size:0.8rem;color:#999;line-height:1.5}
+.cube-face .face-icon{font-size:2rem;margin-bottom:0.75rem}
+.cube-label{text-align:center;margin-top:1rem;color:#555;font-size:0.7rem;letter-spacing:0.15em}
 .stats{display:flex;justify-content:center;gap:3rem;margin:2rem 0}
 .stat-val{font-size:1.5rem;font-weight:bold;color:#00ff9f;display:block;text-align:center}
 .stat-lbl{font-size:0.65rem;color:#555;text-align:center;display:block;letter-spacing:0.1em}
@@ -63,12 +73,35 @@ footer{text-align:center;padding:2rem;color:#444;font-size:0.75rem}
 </div>
 
 <h2>Detection Layers</h2>
-<div class="layers">
-<div class="layer"><h3>Layer 1: Regex</h3><p>12 patterns: ignore_previous, score_manipulation, role_override, delimiter_escape, xml_injection, and more</p></div>
-<div class="layer"><h3>Layer 2: Semantic</h3><p>Rubric echo detection (27 phrases), self-evaluation language, fabricated evidence markers</p></div>
-<div class="layer"><h3>Layer 3: Multilang</h3><p>7 languages: Spanish, French, German, Chinese, Japanese, Korean, Russian</p></div>
-<div class="layer"><h3>Layer 4: Encoding</h3><p>NFKC normalization, 18 invisible Unicode characters stripped, base64 decoding</p></div>
+<div class="cube-wrapper">
+<div class="cube">
+<div class="cube-face front">
+<span class="face-num">1</span>
+<span class="face-icon">&#x1F6E1;</span>
+<h3>REGEX</h3>
+<p>12 patterns: ignore_previous, score_manipulation, role_override, delimiter_escape, xml_injection, and more</p>
 </div>
+<div class="cube-face right">
+<span class="face-num">2</span>
+<span class="face-icon">&#x1F9E0;</span>
+<h3>SEMANTIC</h3>
+<p>Rubric echo detection (27 phrases), self-evaluation language, fabricated evidence markers</p>
+</div>
+<div class="cube-face back">
+<span class="face-num">3</span>
+<span class="face-icon">&#x1F30D;</span>
+<h3>MULTILANG</h3>
+<p>7 languages: Spanish, French, German, Chinese, Japanese, Korean, Russian</p>
+</div>
+<div class="cube-face left">
+<span class="face-num">4</span>
+<span class="face-icon">&#x1F510;</span>
+<h3>ENCODING</h3>
+<p>NFKC normalization, 18 invisible Unicode chars stripped, base64 decoding</p>
+</div>
+</div>
+</div>
+<p class="cube-label">HOVER TO PAUSE · EACH FACE = ONE DEFENSE LAYER</p>
 
 <h2>Rules</h2>
 <div class="rules">
