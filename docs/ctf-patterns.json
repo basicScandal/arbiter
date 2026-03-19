@@ -1,0 +1,199 @@
+{
+  "patterns": [
+    {
+      "name": "ignore_previous",
+      "pattern": "(?i)\\b(ignore|disregard|forget)\\b.{0,30}\\b(previous|above|prior|all)\\b.{0,30}\\b(instructions?|prompts?|rules?)\\b",
+      "severity": "high",
+      "category": "instruction_override"
+    },
+    {
+      "name": "new_instructions",
+      "pattern": "(?i)\\b(new|updated|real|actual|true)\\b.{0,20}\\b(instructions?|directives?|orders?|rules?)\\b",
+      "severity": "high",
+      "category": "instruction_override"
+    },
+    {
+      "name": "score_manipulation",
+      "pattern": "(?i)\\b(give|assign|score|rate|award)\\b.{0,30}\\b(10|perfect|full|maximum|highest)\\b",
+      "severity": "high",
+      "category": "scoring"
+    },
+    {
+      "name": "score_override",
+      "pattern": "(?i)\\b(score|rating|points?)\\b.{0,20}\\b(must be|should be|is now|set to)\\b.{0,10}\\b\\d",
+      "severity": "high",
+      "category": "scoring"
+    },
+    {
+      "name": "prize_manipulation",
+      "pattern": "(?i)\\b(give|award|grant)\\b.{0,30}\\b(prize|winner|first place|grand prize|winning)\\b",
+      "severity": "high",
+      "category": "scoring"
+    },
+    {
+      "name": "role_override",
+      "pattern": "(?i)\\b(you are|act as|pretend|behave as|your role is)\\b.{0,30}\\b(not a judge|helpful assistant|friendly|compliant)\\b",
+      "severity": "medium",
+      "category": "role_manipulation"
+    },
+    {
+      "name": "identity_reset",
+      "pattern": "(?i)\\b(you are now|from now on|henceforth|starting now)\\b",
+      "severity": "medium",
+      "category": "role_manipulation"
+    },
+    {
+      "name": "prompt_override",
+      "pattern": "(?i)\\b(override|overwrite|replace|bypass|reset)\\b.{0,20}\\b(system|initial|original|scoring)?\\s*(prompt|instructions?|rules?|config)\\b",
+      "severity": "high",
+      "category": "instruction_override"
+    },
+    {
+      "name": "prompt_extraction",
+      "pattern": "(?i)\\b(system prompt|initial prompt|reveal|show|display|repeat)\\b.{0,30}\\b(instructions?|prompt|rules?|configuration)\\b",
+      "severity": "medium",
+      "category": "extraction"
+    },
+    {
+      "name": "output_rules",
+      "pattern": "(?i)\\b(print|output|display|echo|return)\\b.{0,20}\\b(above|system|hidden|secret|internal)\\b",
+      "severity": "medium",
+      "category": "extraction"
+    },
+    {
+      "name": "delimiter_escape",
+      "pattern": "(?i)(```|</?system>|</?user>|</?assistant>|\\[INST\\]|\\[/INST\\]|<<SYS>>|<</SYS>>)",
+      "severity": "high",
+      "category": "context_escape"
+    },
+    {
+      "name": "xml_injection",
+      "pattern": "(?i)(<\\/?(?:tool|function|command|execute|admin|root)>)",
+      "severity": "high",
+      "category": "context_escape"
+    }
+  ],
+  "self_eval": [
+    "best we've seen",
+    "clearly the winner",
+    "definitively the winner",
+    "deserves top marks",
+    "exceptional",
+    "far superior",
+    "merits recognition",
+    "outstanding quality",
+    "should receive",
+    "should score highly",
+    "undoubtedly the best",
+    "worthy of first place"
+  ],
+  "fabricated": [
+    "100% functional",
+    "absolutely flawless",
+    "bug-free",
+    "comprehensive test coverage",
+    "enterprise-grade",
+    "handles all edge cases",
+    "no errors whatsoever",
+    "production-ready",
+    "works perfectly",
+    "zero bugs"
+  ],
+  "rubric_phrases": [
+    "addresses critical real-world need",
+    "barely functional",
+    "clearly innovative with unique angle",
+    "compelling narrative",
+    "confusing presentation",
+    "demo fails or no meaningful demonstration",
+    "demo partially works",
+    "demo works but explanation unclear",
+    "flawless implementation",
+    "flawless live demo",
+    "functional but rough",
+    "groundbreaking novel approach",
+    "handles edge cases",
+    "immediately deployable",
+    "incremental or derivative",
+    "masterful explanation",
+    "minor hiccups",
+    "needs significant work to deploy",
+    "no discernible innovation",
+    "no real-world relevance",
+    "obvious shortcuts",
+    "partially working",
+    "production-quality",
+    "significant bugs",
+    "solid demo with good explanation",
+    "solid implementation with minor gaps",
+    "some novelty but mostly established techniques",
+    "strong real-world potential with clear use case",
+    "theoretical only",
+    "unclear practical application"
+  ],
+  "multilang": [
+    {
+      "name": "multilang_ignore_es",
+      "pattern": "(?i)(ignora|ignore|olvida|descartar?).{0,30}(instrucciones?|reglas?|indicaciones?)\\s*(anteriores?|previas?)?"
+    },
+    {
+      "name": "multilang_you_are_es",
+      "pattern": "(?i)(ahora eres|a partir de ahora eres|eres ahora)"
+    },
+    {
+      "name": "multilang_ignore_fr",
+      "pattern": "(?i)(ignore[rz]?|oublie[rz]?).{0,30}(instructions?|règles?|directives?)\\s*(précédentes?|antérieures?)?"
+    },
+    {
+      "name": "multilang_you_are_fr",
+      "pattern": "(?i)(tu es maintenant|vous êtes maintenant|à partir de maintenant tu es)"
+    },
+    {
+      "name": "multilang_ignore_de",
+      "pattern": "(?i)(ignorier[e]?|vergiss).{0,30}(anweisungen?|regeln?|befehle?)\\s*(oben|vorherigen?|früheren?)?"
+    },
+    {
+      "name": "multilang_you_are_de",
+      "pattern": "(?i)(du bist jetzt|von jetzt an bist du|ab jetzt bist du)"
+    },
+    {
+      "name": "multilang_ignore_zh",
+      "pattern": "忽略.{0,15}(指令|说明|规则|提示)"
+    },
+    {
+      "name": "multilang_you_are_zh",
+      "pattern": "(你现在是|从现在起你是|你是一个新的)"
+    },
+    {
+      "name": "multilang_ignore_ja",
+      "pattern": "(無視して|無視する).{0,15}(指示|命令|ルール|プロンプト)|(指示|命令|ルール|プロンプト).{0,15}(無視して|無視する)"
+    },
+    {
+      "name": "multilang_you_are_ja",
+      "pattern": "(あなたは今|今からあなたは|これからあなたは)"
+    },
+    {
+      "name": "multilang_ignore_ko",
+      "pattern": "(무시.{0,10}(지시|명령|규칙|지침))"
+    },
+    {
+      "name": "multilang_you_are_ko",
+      "pattern": "(당신은 이제|지금부터 당신은|이제부터 당신은)"
+    },
+    {
+      "name": "multilang_ignore_ru",
+      "pattern": "(?i)(игнорир[уи]й|забудь|проигнорир[уи]й).{0,30}(инструкции|правила|указания)"
+    },
+    {
+      "name": "multilang_you_are_ru",
+      "pattern": "(?i)(теперь ты|отныне ты|с этого момента ты)"
+    }
+  ],
+  "stats": {
+    "regex_count": 12,
+    "multilang_count": 14,
+    "self_eval_count": 12,
+    "fabricated_count": 10,
+    "rubric_count": 30
+  }
+}
