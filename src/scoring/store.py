@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 
 from src.scoring.models import DemoScorecard
-from src.utils import sanitize_team_name
+from src.utils import sanitize_team_name, resolve_team_slug
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class ScoreStore:
         Returns:
             The Path of the saved JSON file.
         """
-        sanitized = sanitize_team_name(scorecard.team_name)
+        sanitized = resolve_team_slug(scorecard.team_name)
         path = self._scores_dir / f"{sanitized}.json"
         data = json.dumps(scorecard.model_dump(), indent=2, default=str)
         await asyncio.to_thread(path.write_text, data)
