@@ -609,3 +609,140 @@ class TestExportTeamData:
         assert result is not None
         assert result.team_name == "Cyber Falcons"
         assert result.ai_score == 7.5
+
+
+# ---------------------------------------------------------------------------
+# Tests: EventLogger.load_tail
+# ---------------------------------------------------------------------------
+
+
+class TestEventLoggerLoadTail:
+    """Tests for EventLogger.load_tail — O(1)-memory tail reading."""
+
+    def test_load_tail_returns_last_n(self, tmp_path: Path):
+        """load_tail with max_entries=10 returns the last 10 of 50 entries."""
+        from src.capture.event_logger import EventLogger
+
+        path = tmp_path / "events.jsonl"
+        lines = [json.dumps({"i": i}) for i in range(50)]
+        path.write_text("\n".join(lines) + "\n")
+
+        result = EventLogger.load_tail(path, max_entries=10)
+        assert len(result) == 10
+        assert result[0]["i"] == 40
+        assert result[-1]["i"] == 49
+
+    def test_load_tail_missing_file(self, tmp_path: Path):
+        """load_tail returns empty list when file does not exist."""
+        from src.capture.event_logger import EventLogger
+
+        path = tmp_path / "nope.jsonl"
+        result = EventLogger.load_tail(path, max_entries=10)
+        assert result == []
+
+    def test_load_tail_all_when_under_cap(self, tmp_path: Path):
+        """load_tail returns all entries when count is below max_entries."""
+        from src.capture.event_logger import EventLogger
+
+        path = tmp_path / "events.jsonl"
+        lines = [json.dumps({"i": i}) for i in range(3)]
+        path.write_text("\n".join(lines) + "\n")
+
+        result = EventLogger.load_tail(path, max_entries=100)
+        assert len(result) == 3
+
+    def test_load_tail_skips_malformed_lines(self, tmp_path: Path):
+        """load_tail skips lines that are not valid JSON."""
+        from src.capture.event_logger import EventLogger
+
+        path = tmp_path / "events.jsonl"
+        path.write_text('{"i": 0}\nnot json\n{"i": 1}\n')
+
+        result = EventLogger.load_tail(path, max_entries=100)
+        assert len(result) == 2
+        assert result[0]["i"] == 0
+        assert result[1]["i"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests: export_event_data — capped log loading (issue #78)
+# ---------------------------------------------------------------------------
+
+
+class TestExportCappedLogs:
+    """Tests for capped audit/event log loading (memory-safety fix for issue #78)."""
+
+    @pytest.fixture(autouse=True)
+    def setup_dirs(self, tmp_path: Path, monkeypatch):
+        """Set up temp directories for test isolation."""
+        import src.reports.export as export_mod
+
+        self.scores_dir = tmp_path / "scores"
+        self.scores_dir.mkdir()
+        self.audit_path = tmp_path / "audit.jsonl"
+        self.events_path = tmp_path / "events.jsonl"
+        self.obs_dir = tmp_path / "observations"
+        self.obs_dir.mkdir()
+        self.commentary_dir = tmp_path / "commentary"
+        self.commentary_dir.mkdir()
+        self.human_dir = tmp_path / "human_scores"
+        self.human_dir.mkdir()
+        self.delib_dir = tmp_path / "deliberation"
+        self.delib_dir.mkdir()
+
+        monkeypatch.setattr(export_mod, "SCORES_DIR", self.scores_dir)
+        monkeypatch.setattr(export_mod, "AUDIT_LOG", self.audit_path)
+        monkeypatch.setattr(export_mod, "EVENTS_LOG", self.events_path)
+        monkeypatch.setattr(export_mod, "OBSERVATIONS_DIR", self.obs_dir)
+        monkeypatch.setattr(export_mod, "COMMENTARY_DIR", self.commentary_dir)
+        monkeypatch.setattr(export_mod, "HUMAN_SCORES_DIR", self.human_dir)
+        monkeypatch.setattr(export_mod, "DELIBERATION_DIR", self.delib_dir)
+
+    @pytest.mark.asyncio
+    async def test_audit_log_capped_to_max_entries(self):
+        """When audit log has more entries than max, only last N are returned."""
+        lines = [json.dumps({"seq": i, "action": "test"}) for i in range(20)]
+        self.audit_path.write_text("\n".join(lines) + "\n")
+
+        result = await export_event_data(include_audit=True, max_audit_entries=5)
+        assert len(result.audit_log) == 5
+        # Should be the LAST 5 entries
+        assert result.audit_log[0]["seq"] == 15
+        assert result.audit_log[-1]["seq"] == 19
+
+    @pytest.mark.asyncio
+    async def test_event_log_capped_to_max_entries(self):
+        """When event log has more entries than max, only last N are returned."""
+        lines = [json.dumps({"seq": i, "type": "test"}) for i in range(20)]
+        self.events_path.write_text("\n".join(lines) + "\n")
+
+        result = await export_event_data(include_events=True, max_event_entries=5)
+        assert len(result.event_log) == 5
+        assert result.event_log[0]["seq"] == 15
+
+    @pytest.mark.asyncio
+    async def test_audit_under_cap_returns_all(self):
+        """When audit log has fewer entries than max, all are returned."""
+        lines = [json.dumps({"seq": i}) for i in range(3)]
+        self.audit_path.write_text("\n".join(lines) + "\n")
+
+        result = await export_event_data(include_audit=True, max_audit_entries=100)
+        assert len(result.audit_log) == 3
+
+    @pytest.mark.asyncio
+    async def test_malformed_lines_skipped(self):
+        """Malformed JSONL lines are skipped without error."""
+        self.audit_path.write_text('{"seq": 0}\nnot json\n{"seq": 1}\n')
+
+        result = await export_event_data(include_audit=True, max_audit_entries=100)
+        assert len(result.audit_log) == 2
+
+    @pytest.mark.asyncio
+    async def test_default_cap_is_ten_thousand(self):
+        """Default max_audit_entries=10_000 is accepted without error."""
+        lines = [json.dumps({"seq": i}) for i in range(5)]
+        self.audit_path.write_text("\n".join(lines) + "\n")
+
+        # No max_audit_entries kwarg — should use the default (10_000) fine
+        result = await export_event_data(include_audit=True)
+        assert len(result.audit_log) == 5

@@ -42,17 +42,39 @@ class EventExport(BaseModel):
     event_log: list[dict] = []
 
 
+def _read_audit_tail(path: Path, max_entries: int) -> list[dict]:
+    """Read the last max_entries from a JSONL audit log."""
+    from collections import deque
+    if not path.exists():
+        return []
+    buffer: deque[dict] = deque(maxlen=max_entries)
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    buffer.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    return list(buffer)
+
+
 async def export_event_data(
     *,
     include_audit: bool = False,
     include_observations: bool = True,
     include_events: bool = False,
+    max_audit_entries: int = 10_000,
+    max_event_entries: int = 10_000,
 ) -> EventExport:
     """Assemble comprehensive event data export.
 
     Args:
         include_audit: Whether to include the operator command audit log.
         include_observations: Whether to include raw observations per team.
+        include_events: Whether to include the full event bus log.
+        max_audit_entries: Cap on audit log entries returned (last N lines).
+        max_event_entries: Cap on event log entries returned (last N lines).
     """
     from src.scoring.store import ScoreStore
 
@@ -111,23 +133,24 @@ async def export_event_data(
         except Exception:
             logger.debug("Failed to load deliberation result")
 
-    # Load audit log
+    # Load audit log (capped to last max_audit_entries lines to avoid OOM)
     audit_entries: list[dict] = []
     if include_audit and AUDIT_LOG.exists():
         try:
-            raw = await asyncio.to_thread(AUDIT_LOG.read_text)
-            for line in raw.strip().splitlines():
-                if line.strip():
-                    audit_entries.append(json.loads(line))
+            audit_entries = await asyncio.to_thread(
+                _read_audit_tail, AUDIT_LOG, max_audit_entries
+            )
         except Exception:
             logger.debug("Failed to load audit log")
 
-    # Load event log
+    # Load event log (capped to last max_event_entries lines to avoid OOM)
     event_entries: list[dict] = []
     if include_events and EVENTS_LOG.exists():
         try:
             from src.capture.event_logger import EventLogger
-            event_entries = await asyncio.to_thread(EventLogger.load, EVENTS_LOG)
+            event_entries = await asyncio.to_thread(
+                EventLogger.load_tail, EVENTS_LOG, max_event_entries
+            )
         except Exception:
             logger.debug("Failed to load event log")
 

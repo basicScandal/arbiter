@@ -259,6 +259,8 @@ class WebOperator:
             include_audit: bool = Query(default=False),
             include_observations: bool = Query(default=True),
             include_events: bool = Query(default=False),
+            max_audit_entries: int = Query(default=10_000, ge=1, le=100_000),
+            max_event_entries: int = Query(default=10_000, ge=1, le=100_000),
         ):
             """Export all event data as JSON."""
             from src.reports.export import export_event_data
@@ -266,6 +268,8 @@ class WebOperator:
                 include_audit=include_audit,
                 include_observations=include_observations,
                 include_events=include_events,
+                max_audit_entries=max_audit_entries,
+                max_event_entries=max_event_entries,
             )
             return result.model_dump()
 
