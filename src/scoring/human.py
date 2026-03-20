@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from src.scoring.models import CriterionScore
 from src.scoring.store import ScoreStore
-from src.utils import sanitize_team_name
+from src.utils import sanitize_team_name, resolve_team_slug
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class HumanScoreStore:
 
     async def save(self, score: HumanScore) -> Path:
         """Save a human score. Multiple judges per team are stored in a list."""
-        sanitized = sanitize_team_name(score.team_name)
+        sanitized = resolve_team_slug(score.team_name)
         path = self._dir / f"{sanitized}.json"
 
         # Load existing scores for this team
