@@ -124,3 +124,25 @@ class EventLogger:
                     except json.JSONDecodeError:
                         continue
         return events
+
+    @staticmethod
+    def load_tail(path: Path = _DEFAULT_PATH, max_entries: int = 10_000) -> list[dict]:
+        """Load the last max_entries events from the JSONL log file.
+
+        Reads the file line-by-line but only keeps the last max_entries.
+        Uses a deque for O(1) append/eviction. Skips malformed lines.
+        """
+        if not path.exists():
+            return []
+
+        from collections import deque
+        buffer: deque[dict] = deque(maxlen=max_entries)
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        buffer.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        return list(buffer)
