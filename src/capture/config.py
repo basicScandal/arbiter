@@ -43,6 +43,13 @@ class CaptureConfig(BaseModel):
     openai_api_key: str = ""
     groq_api_key: str = ""
     moe_scoring_enabled: bool = False
+    # Runtime Alignment Control Plane. When enabled, every consequential
+    # effect (crossing the privileged-LLM boundary, scoring, speaking, writing
+    # a scorecard) must be authorized against a live behavior lease.
+    # racp_enforce=False runs the control plane in shadow mode: decisions are
+    # computed and logged, but nothing is ever blocked.
+    racp_enabled: bool = True
+    racp_enforce: bool = True
     # Shared secret for operator WebSocket authentication.
     # When set, clients must pass ?token=<value> on the WS upgrade URL.
     # When empty, all connections are allowed (dev mode).
@@ -82,8 +89,27 @@ def load_config() -> CaptureConfig:
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         groq_api_key=os.getenv("GROQ_API_KEY", ""),
         moe_scoring_enabled=os.getenv("MOE_SCORING_ENABLED", "").lower() in ("true", "1", "yes"),
+        racp_enabled=os.getenv("RACP_ENABLED", "true").lower() in ("true", "1", "yes"),
+        racp_enforce=os.getenv("RACP_ENFORCE", "true").lower() in ("true", "1", "yes"),
         operator_token=os.getenv("OPERATOR_TOKEN", ""),
     )
+
+    if config.racp_enabled and not os.getenv("ARBITER_RACP_SECRET", ""):
+        logger.warning(
+            "ARBITER_RACP_SECRET is not set — behavior leases are signed with an "
+            "ephemeral per-process key and will not verify across a restart. "
+            "Set ARBITER_RACP_SECRET in .env for production use."
+        )
+    if not config.racp_enabled:
+        logger.warning(
+            "RACP_ENABLED=false — consequential effects are not gated by a "
+            "behavior lease; injection defense falls back to detection only."
+        )
+    elif not config.racp_enforce:
+        logger.warning(
+            "RACP_ENFORCE=false — the control plane is in shadow mode. "
+            "Decisions are logged but nothing is blocked."
+        )
 
     if not config.operator_token:
         logger.warning(

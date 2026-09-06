@@ -58,6 +58,11 @@ class SanitizedOutput(BaseModel):
     injection_attempts: list[InjectionAttempt]
     demo_duration: float
     roasts: list[str] = []  # generated roast responses
+    # RACP provenance: which behavior lease authorized this bundle to cross the
+    # privileged-LLM boundary, and whether the gateway narrowed it on the way.
+    lease_id: str = ""
+    lease_revision: int = 0
+    degraded: bool = False
 
 
 # ---------------------------------------------------------------------------

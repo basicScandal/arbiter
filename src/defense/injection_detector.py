@@ -329,6 +329,15 @@ class InjectionDetector:
     def __init__(self, patterns: list[InjectionPattern] | None = None) -> None:
         self._patterns = patterns if patterns is not None else INJECTION_PATTERNS
 
+    @property
+    def patterns(self) -> list[InjectionPattern]:
+        """The pattern set currently in force.
+
+        Exposed so the runtime control plane can hash the live policy and
+        preflight it, rather than assuming the patterns declared in source.
+        """
+        return list(self._patterns)
+
     def scan(self, text: str, source: str) -> DetectionResult:
         """Scan text against all injection patterns.
 

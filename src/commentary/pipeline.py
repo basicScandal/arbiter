@@ -25,6 +25,9 @@ from src.commentary.qa_generator import QAGenerator
 from src.commentary.sounds import SoundEffects
 from src.commentary.tts_engine import TTSEngine
 from src.defense.models import InjectionDetected, ObservationVerified, SanitizedOutput
+from src.racp.gateway import ActionGateway, new_action
+from src.racp.models import ActionBlocked, ActionKind
+from src.racp.monitors import Evidence
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.health import default_health
 from src.resilience.metrics import default_metrics
@@ -72,7 +75,14 @@ class CommentaryPipeline:
         voice_id: Cartesia voice ID for TTS.
         display_host: Display server bind address.
         display_port: Display server port.
+        gateway: Optional RACP action gateway. Commentary is spoken aloud to a
+            room and cannot be taken back, so it is authorized before any
+            sentence is generated.
     """
+
+    # Class-level default so partially constructed instances (tests that build
+    # the pipeline via __new__) still take the ungated path rather than raising.
+    _gateway: ActionGateway | None = None
 
     def __init__(
         self,
@@ -82,6 +92,7 @@ class CommentaryPipeline:
         display_port: int = 8080,
         groq_api_key: str = "",
         circuit_breaker: GeminiCircuitBreaker | None = None,
+        gateway: ActionGateway | None = None,
     ) -> None:
         self._generator = CommentaryGenerator(
             api_key=api_key, groq_api_key=groq_api_key or None, circuit_breaker=circuit_breaker,
@@ -103,6 +114,7 @@ class CommentaryPipeline:
         self._last_quip_time: float = 0.0  # rate-limit injection reactions
         self._commentary_cancelled = asyncio.Event()
         self._sounds = SoundEffects()
+        self._gateway = gateway
 
     @property
     def display_server(self) -> DisplayServer:
@@ -223,6 +235,20 @@ class CommentaryPipeline:
         full_text = ""
         _commentary_start = time.monotonic()
 
+        # RACP: speaking to the room is irreversible, so it is authorized before
+        # a single sentence is generated. A refusal still publishes
+        # CommentaryDelivered — the score reveal waits on that event, and a
+        # silenced commentary must not also freeze the show.
+        if not self._authorize_commentary(event):
+            if self._event_bus is not None:
+                self._event_bus.publish(
+                    CommentaryDelivered(
+                        team_name=team_name,
+                        commentary_text="(commentary withheld by the control plane)",
+                    )
+                )
+            return
+
         # Clear cancellation flags from previous demo so new speaks work.
         # cancel() in _on_demo_started sets flags persistently — all
         # old queued speaks see them. We clear here because this is the
@@ -320,6 +346,39 @@ class CommentaryPipeline:
                     commentary_text=full_text or "(commentary unavailable)",
                 )
             )
+
+    def _authorize_commentary(self, event: ObservationVerified) -> bool:
+        """Authorize spoken commentary for this demo against its behavior lease.
+
+        Returns True when commentary may be generated and spoken. Without a
+        gateway wired in, commentary proceeds exactly as before.
+        """
+        if self._gateway is None:
+            return True
+
+        evidence = Evidence(
+            team_name=event.output.team_name,
+            injection_attempts=list(event.output.injection_attempts),
+            observations=list(event.output.observations),
+            transcripts=list(event.output.transcripts),
+        )
+        action = new_action(
+            ActionKind.SPEAK_COMMENTARY,
+            team_name=event.output.team_name,
+            summary="speak generated commentary to the room",
+            payload=sorted(event.output.observations),
+        )
+        decision = self._gateway.authorize(action, evidence)
+        if decision.should_surface and self._event_bus is not None:
+            self._event_bus.publish(ActionBlocked(decision=decision))
+        if not decision.blocked:
+            return True
+
+        logger.error(
+            "RACP blocked commentary for %s (%s): %s",
+            event.output.team_name, decision.outcome.value, decision.reason,
+        )
+        return False
 
     async def _on_qa_requested(self, event: QARequested) -> None:
         """Generate and deliver Q&A questions on operator command.

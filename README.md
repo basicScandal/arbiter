@@ -19,6 +19,7 @@ Built for the [NEBULA:FOG 2026](https://nebulafog.ai) security hackathon, where 
 
 - **Real-time observation** — Connects to Gemini Live API, streams audio/video, generates observations as presenters speak
 - **Multi-layer injection defense** — Regex denylist, semantic classifier (rubric echo, self-eval, fabricated evidence), multi-language detection (7 languages), XML boundary tags, dual-LLM privilege separation
+- **Runtime Alignment Control Plane** — Every consequential effect (crossing the privileged-LLM boundary, scoring, speaking, writing a scorecard) is gated by an expiring, signed **behavior lease**. Preflight proves the detection policy still works before each demo, an independent monitor re-checks what the sanitizer produced, and effects fail closed with a hash-chained audit trail — see [docs/racp.md](docs/racp.md)
 - **AI commentary** — Generates sharp, persona-driven reviews delivered via Cartesia TTS (British voice)
 - **Multi-model scoring** — Gemini, Claude, and Groq independently score each demo, aggregated with outlier detection
 - **Theatrical score reveal** — Animated criterion-by-criterion reveal on the audience display
@@ -32,6 +33,9 @@ Built for the [NEBULA:FOG 2026](https://nebulafog.ai) security hackathon, where 
 ```
 Capture Layer ──→ Defense Pipeline ──→ Commentary ──→ Scoring ──→ Deliberation
   (audio+video)    (injection guard)    (persona TTS)   (MoE rubric)  (memory)
+                          │                  │              │
+                          └────────── RACP action gateway ──┘
+                                (behavior lease required per effect)
 ```
 
 **Dual-LLM privilege separation:** A quarantined Gemini Live session processes raw input. The privileged judging LLM only sees sanitized observations — never raw camera frames or audio.
@@ -40,6 +44,7 @@ Capture Layer ──→ Defense Pipeline ──→ Commentary ──→ Scoring 
 |--------|---------|
 | `src/capture/` | Audio capture, camera, key frame detection, Gemini Live API session |
 | `src/defense/` | Regex + semantic injection detection, OCR scanning, roast generation, sanitization |
+| `src/racp/` | Runtime alignment control plane — behavior leases, preflight, monitors, action gateway, audit chain |
 | `src/commentary/` | Streaming LLM commentary, Cartesia TTS, Q&A generation, display server |
 | `src/scoring/` | Rubric-based scoring, MoE multi-model ensemble, theatrical score reveal |
 | `src/memory/` | Per-demo structured memory, deliberation engine, rankings |
