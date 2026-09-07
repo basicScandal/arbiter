@@ -208,10 +208,40 @@ class PolicyIntegrityMonitor(Monitor):
     The lease was preflighted against a specific pattern set. If a plugin
     reloads, a pattern is added, or the detector is swapped, the evidence
     behind the lease no longer describes the system in force.
+
+    The monitor reads the live detector directly when it has one. Asking each
+    enforcement point to self-report the policy it is running under is weaker
+    evidence and easy to forget: a call site that omits it would look identical
+    to a policy that vanished.
+
+    Args:
+        detector: The detector actually in force. Falls back to the policy the
+            caller reported in ``Evidence`` when absent.
     """
 
     monitor_id = "policy_integrity"
     claims = (CLAIM_POLICY_INTACT,)
+
+    def __init__(self, detector: InjectionDetector | None = None) -> None:
+        self._detector = detector
+
+    def _policy_hashes(self, evidence: Evidence) -> dict[str, str]:
+        """Every available view of the policy in force, by source.
+
+        Both sources are checked because they fail differently: reading the
+        detector catches its pattern set being mutated, while the enforcement
+        point's self-report catches the detector *reference* being swapped for a
+        different object. Either disagreeing with the lease is a finding.
+        """
+        hashes: dict[str, str] = {}
+        if self._detector is not None:
+            names = sorted(p.name for p in self._detector.patterns)
+            hashes["detector"] = hashlib.sha256(
+                "|".join(names).encode("utf-8")
+            ).hexdigest()[:16]
+        if evidence.policy_names:
+            hashes["enforcement point"] = evidence.policy_hash()
+        return hashes
 
     def evaluate(self, lease: BehaviorLease, evidence: Evidence) -> MonitorSignal:
         expected = ""
@@ -229,30 +259,34 @@ class PolicyIntegrityMonitor(Monitor):
                 weight=0.3,
                 invalidates=[CLAIM_POLICY_INTACT],
             )
-        if not evidence.policy_names:
-            # No policy reported at the enforcement point: we cannot confirm
-            # the lease still describes the running detector.
+        hashes = self._policy_hashes(evidence)
+        if not hashes:
+            # Neither a live detector nor a self-reported policy: we cannot
+            # confirm the lease still describes the running system.
             return MonitorSignal(
                 monitor_id=self.monitor_id,
                 triggered=True,
                 severity=Severity.MEDIUM,
-                detail="no live policy reported for comparison",
+                detail="no live policy available for comparison",
                 weight=0.15,
                 invalidates=[CLAIM_POLICY_INTACT],
             )
 
-        actual = evidence.policy_hash()
-        if actual != expected:
+        drift = {src: h for src, h in hashes.items() if h != expected}
+        if drift:
+            source, actual = next(iter(drift.items()))
             return MonitorSignal(
                 monitor_id=self.monitor_id,
                 triggered=True,
                 severity=Severity.CRITICAL,
-                detail=f"policy changed under lease: {expected} -> {actual}",
+                detail=f"policy changed under lease ({source}): {expected} -> {actual}",
                 weight=0.5,
                 invalidates=[CLAIM_POLICY_INTACT],
             )
         return MonitorSignal(
-            monitor_id=self.monitor_id, triggered=False, detail=f"policy {actual} intact"
+            monitor_id=self.monitor_id,
+            triggered=False,
+            detail=f"policy {expected} intact ({', '.join(sorted(hashes))})",
         )
 
 
@@ -362,7 +396,7 @@ def default_monitors(detector: InjectionDetector | None = None) -> list[Monitor]
         InjectionEvidenceMonitor(),
         SanitizerResidueMonitor(shared),
         ObservationProvenanceMonitor(shared),
-        PolicyIntegrityMonitor(),
+        PolicyIntegrityMonitor(shared),
         IdentityMonitor(),
         BudgetMonitor(),
     ]

@@ -17,7 +17,12 @@ from src.racp.audit import DecisionLog
 from src.racp.compiler import LeaseCompiler, TaskContext
 from src.racp.gateway import ActionGateway, new_action
 from src.racp.models import ActionKind, DecisionOutcome, LeaseState, PreflightReport
-from src.racp.monitors import Evidence, MonitorEnsemble, default_monitors
+from src.racp.monitors import (
+    Evidence,
+    MonitorEnsemble,
+    PolicyIntegrityMonitor,
+    default_monitors,
+)
 from src.racp.preflight import PreflightEvaluator
 from src.racp.signing import LeaseSigner
 
@@ -222,26 +227,51 @@ def test_sanitizer_residue_stops_downstream_effects(gateway, context, passing_re
     assert decision.outcome is DecisionOutcome.DENY
 
 
-def test_policy_change_under_a_live_lease_terminates(gateway, context, passing_report):
+def test_policy_change_under_a_live_lease_terminates(
+    gateway, context, passing_report, detector
+):
     """The lease was preflighted against a policy that is no longer running."""
     gateway.issue(context, passing_report)
 
-    decision = gateway.authorize(
-        publish_action(), clean_evidence(policy_names=POLICY[:3])
-    )
+    # A plugin reload or a late edit swaps the pattern set out from under the
+    # lease. The monitor reads the detector itself, so it sees this.
+    detector._patterns = INJECTION_PATTERNS[:3]
+
+    decision = gateway.authorize(publish_action(), clean_evidence())
 
     assert decision.outcome is DecisionOutcome.TERMINATE
     assert gateway.lease_for("Team Nebula").state is LeaseState.REVOKED
 
 
-def test_missing_policy_evidence_terminates_rather_than_assumes(
+def test_the_enforcement_point_need_not_self_report_the_policy(
     gateway, context, passing_report
 ):
+    """Call sites that omit policy_names must not look like a vanished policy.
+
+    Scoring and commentary authorize effects without holding a detector; the
+    monitor reads the live one instead of trusting the caller to remember.
+    """
     gateway.issue(context, passing_report)
 
     decision = gateway.authorize(publish_action(), clean_evidence(policy_names=[]))
 
-    assert decision.outcome is DecisionOutcome.TERMINATE
+    assert decision.outcome is DecisionOutcome.ALLOW
+
+
+def test_no_policy_source_at_all_withholds_rather_than_assumes(context, passing_report):
+    """With neither a live detector nor a self-report, nothing can be confirmed."""
+    signer = LeaseSigner(secret="s")
+    gateway = ActionGateway(
+        compiler=LeaseCompiler(signer),
+        signer=signer,
+        log=DecisionLog(),
+        monitors=MonitorEnsemble([PolicyIntegrityMonitor()]),
+    )
+    gateway.issue(context, passing_report)
+
+    decision = gateway.authorize(publish_action(), clean_evidence(policy_names=[]))
+
+    assert decision.blocked is True
 
 
 def test_cross_demo_bleed_is_denied(gateway, context, passing_report):
@@ -418,12 +448,14 @@ def test_a_quiet_reading_does_not_unattempt_an_injection(gateway, context, passi
 
 
 def test_restoring_the_policy_does_not_revive_a_revoked_lease(
-    gateway, context, passing_report
+    gateway, context, passing_report, detector
 ):
     """A policy that changed and changed back is still a policy nothing tested."""
     gateway.issue(context, passing_report)
-    gateway.authorize(publish_action(), clean_evidence(policy_names=POLICY[:3]))
+    detector._patterns = INJECTION_PATTERNS[:3]
+    gateway.authorize(publish_action(), clean_evidence())
 
+    detector._patterns = list(INJECTION_PATTERNS)
     decision = gateway.authorize(publish_action(), clean_evidence())
 
     assert decision.outcome is DecisionOutcome.DENY

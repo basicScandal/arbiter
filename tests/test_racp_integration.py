@@ -19,9 +19,10 @@ from src.capture.models import DemoStarted, DemoStopped
 from src.defense.injection_detector import INJECTION_PATTERNS, InjectionDetector
 from src.defense.models import InjectionAttempt, InjectionDetected, ObservationVerified
 from src.defense.pipeline import DefensePipeline
-from src.racp.compiler import CLAIM_NO_INJECTION
+from src.racp.compiler import CLAIM_NO_INJECTION, TaskContext
 from src.racp.models import DecisionOutcome, LeaseState
 from src.racp.pipeline import RACPPipeline
+from src.racp.preflight import PreflightEvaluator
 from tests.helpers.event_collector import EventCollector
 
 # Gemini Live streams observations as fragments that the pipeline concatenates
@@ -305,6 +306,64 @@ async def test_commentary_is_refused_without_a_lease(bus, collector):
     generator.assert_not_called()
     delivered = collector.of_type("commentary_delivered")
     assert delivered, "the score reveal must not hang when commentary is withheld"
+
+
+async def test_scoring_proceeds_under_a_live_lease(bus, collector):
+    """Regression: the scoring gate does not self-report the detection policy.
+
+    An earlier version treated a caller that omitted policy_names as a vanished
+    policy, so the first scoring authorization of every demo revoked the lease
+    and killed the score. The monitor reads the live detector instead.
+    """
+    from src.racp.gateway import ActionGateway
+    from src.racp.monitors import MonitorEnsemble, default_monitors
+    from src.scoring.pipeline import ScoringPipeline
+
+    detector = InjectionDetector()
+    gateway = ActionGateway(monitors=MonitorEnsemble(default_monitors(detector)))
+    gateway.issue(
+        TaskContext(team_name="Team Nebula", policy_names=[p.name for p in detector.patterns]),
+        PreflightEvaluator(detector).run("Team Nebula", ""),
+    )
+
+    scoring = ScoringPipeline(api_key="test-key", display=AsyncMock(), gateway=gateway)
+    scoring._store.save = AsyncMock()
+    await scoring.setup(bus)
+
+    with patch.object(scoring._engine, "score", new=AsyncMock()) as scorer:
+        bus.publish(
+            ObservationVerified(
+                output=_sanitized_output("Team Nebula", CLEAN_OBSERVATIONS)
+            )
+        )
+        await bus.drain()
+
+    scorer.assert_called_once()
+    assert not collector.of_type("racp_action_blocked")
+    assert gateway.lease_for("Team Nebula").state is LeaseState.ACTIVE
+
+
+async def test_commentary_proceeds_under_a_live_lease(bus, collector):
+    """Same regression, on the path that speaks to the room."""
+    from src.commentary.pipeline import CommentaryPipeline
+    from src.racp.gateway import ActionGateway
+    from src.racp.monitors import MonitorEnsemble, default_monitors
+
+    detector = InjectionDetector()
+    gateway = ActionGateway(monitors=MonitorEnsemble(default_monitors(detector)))
+    gateway.issue(
+        TaskContext(team_name="Team Nebula", policy_names=[p.name for p in detector.patterns]),
+        PreflightEvaluator(detector).run("Team Nebula", ""),
+    )
+
+    commentary = CommentaryPipeline(
+        api_key="test-key", voice_id="test-voice", gateway=gateway
+    )
+
+    assert commentary._authorize_commentary(
+        ObservationVerified(output=_sanitized_output("Team Nebula", CLEAN_OBSERVATIONS))
+    ) is True
+    assert gateway.lease_for("Team Nebula").state is LeaseState.ACTIVE
 
 
 def _sanitized_output(team: str, observations: list[str]):
