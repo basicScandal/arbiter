@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>How We Built Arbiter — Arbiter</title>
+<link rel="canonical" href="https://nebulafog.ai/blog/how-we-built-arbiter.html">
 <style>
   body { font-family: -apple-system, system-ui, sans-serif; background: #0a0a14; color: #e0e0e0; line-height: 1.7; max-width: 800px; margin: 0 auto; padding: 2rem; }
   h1, h2, h3 { color: #00ff9f; }
@@ -21,11 +22,13 @@
   blockquote { border-left: 3px solid #00ff9f; padding-left: 1rem; color: #999; margin: 1rem 0; }
   .nav { margin-bottom: 2rem; font-size: 0.85rem; }
   .nav a { color: #00ff9f; text-decoration: none; margin-right: 1rem; }
+  .canonical-note { font-size: 0.85rem; color: #999; margin-bottom: 1.5rem; }
 </style>
 </head>
 <body>
 <div class="nav"><a href="./">&larr; Arbiter</a> <a href="https://github.com/basicScandal/arbiter">GitHub</a></div>
 <h1>How We Built an AI Judge for a Live Hackathon</h1>
+<p class="canonical-note">Also published on the NEBULA:FOG site &mdash; <a href="https://nebulafog.ai/blog/how-we-built-arbiter.html">read it there</a>.</p>
 <p>On March 14, 2026, 25 teams demoed their AI x Security projects at NEBULA:FOG:SINGULARITY in San Francisco. Instead of relying solely on human judges, we built <strong>Arbiter</strong> — an autonomous AI judge that watched every demo in real-time, delivered sharp British-accented commentary to the audience, scored each team using a multi-model ensemble, and ran a cross-team deliberation at the end.</p>
 <p>This is the story of how we built it, what broke, and what we learned.</p>
 <h2>The Problem</h2>
