@@ -32,10 +32,14 @@ from src.defense.models import (
     InjectionDetected,
     ObservationVerified,
     RoastGenerated,
+    SanitizedOutput,
 )
 from src.defense.ocr_scanner import OCRScanner
 from src.defense.roast_generator import RoastGenerator
 from src.defense.sanitizer import ObservationSanitizer
+from src.racp.gateway import ActionGateway, new_action
+from src.racp.models import ActionBlocked, ActionKind, DecisionOutcome
+from src.racp.monitors import Evidence
 
 logger = logging.getLogger(__name__)
 
@@ -81,19 +85,31 @@ class DefensePipeline:
         api_key: Gemini API key for roast generation.
         gemini_session: Optional GeminiSession reference for accessing
             raw observations on demo stop.
+        gateway: Optional RACP action gateway. When supplied, sanitized output
+            only crosses the privileged-LLM boundary if a live behavior lease
+            authorizes it. When omitted the pipeline behaves exactly as before.
+        detector: Optional shared detector. Passing the same instance the
+            control plane preflights guarantees both test the policy in force.
     """
+
+    # Class-level default so partially constructed instances (tests that build
+    # the pipeline via __new__) still take the ungated path rather than raising.
+    _gateway: ActionGateway | None = None
 
     def __init__(
         self,
         api_key: str,
         gemini_session: GeminiSession | None = None,
+        gateway: ActionGateway | None = None,
+        detector: InjectionDetector | None = None,
     ) -> None:
         self._ocr = OCRScanner()
-        self._detector = InjectionDetector()
+        self._detector = detector or InjectionDetector()
         self._sanitizer = ObservationSanitizer(self._detector)
         self._roaster = RoastGenerator(api_key=api_key)
         self._logger = InjectionLogger()
         self._gemini = gemini_session
+        self._gateway = gateway
 
         self._event_bus: EventBus | None = None
         self._current_team: str = ""
@@ -104,6 +120,11 @@ class DefensePipeline:
         self._logged_medium_in_window: bool = False
         self._pending_roast_tasks: list[asyncio.Task] = []
         self._ocr_texts: list[str] = []
+
+    @property
+    def detector(self) -> InjectionDetector:
+        """The live detector instance, so RACP preflight tests the policy in force."""
+        return self._detector
 
     async def setup(self, event_bus: EventBus) -> None:
         """Subscribe to capture events on the shared event bus.
@@ -241,6 +262,82 @@ class DefensePipeline:
             )
         logger.info("ROAST: %s", roast)
 
+    def _authorize_publication(
+        self, sanitized: SanitizedOutput, observation_count: int
+    ) -> SanitizedOutput | None:
+        """Ask the RACP gateway whether this bundle may cross the P-LLM boundary.
+
+        The gateway re-scans the sanitized text independently rather than
+        trusting this pipeline's own report that it is clean, checks that the
+        detection policy still matches the one preflighted for this demo, and
+        confirms the bundle belongs to the team its lease covers.
+
+        Args:
+            sanitized: The bundle the sanitizer produced.
+            observation_count: How many observations existed before sanitization,
+                used for the lease's volume budget.
+
+        Returns:
+            The bundle to publish -- possibly narrowed -- or None when the
+            gateway refused, in which case nothing crosses the boundary.
+        """
+        if self._gateway is None:
+            return sanitized
+
+        evidence = Evidence(
+            team_name=sanitized.team_name,
+            injection_attempts=list(sanitized.injection_attempts),
+            observations=list(sanitized.observations),
+            transcripts=list(sanitized.transcripts),
+            ocr_texts=list(self._ocr_texts),
+            policy_names=[p.name for p in self._detector.patterns],
+            observation_count=observation_count,
+        )
+        action = new_action(
+            ActionKind.PUBLISH_OBSERVATIONS,
+            team_name=sanitized.team_name,
+            summary=f"{len(sanitized.observations)} observations to the privileged judge",
+            payload=sorted(sanitized.observations + sanitized.transcripts),
+        )
+        decision = self._gateway.authorize(action, evidence)
+
+        sanitized.lease_id = decision.lease_id
+        sanitized.lease_revision = decision.lease_revision
+
+        # Surface every refusal and narrowing to the operator dashboard,
+        # shadow-mode rulings included.
+        if decision.should_surface and self._event_bus is not None:
+            self._event_bus.publish(ActionBlocked(decision=decision))
+
+        if decision.outcome is DecisionOutcome.TRANSFORM:
+            # The gateway found residue the sanitizer missed. Drop the offending
+            # entries here rather than dropping the whole demo: the clean part of
+            # the presentation is still judged, and the scorecard is marked
+            # degraded so the operator knows the run was narrowed.
+            sanitized.observations = [
+                o for o in sanitized.observations
+                if not self._detector.scan_observation(o).is_injection
+            ]
+            sanitized.transcripts = [
+                t for t in sanitized.transcripts
+                if not self._detector.scan(t, source="verbal").is_injection
+            ]
+            sanitized.degraded = True
+            logger.warning(
+                "RACP narrowed publication for %s: %s",
+                sanitized.team_name, decision.reason,
+            )
+            return sanitized
+
+        if decision.blocked:
+            logger.error(
+                "RACP blocked publication for %s (%s): %s",
+                sanitized.team_name, decision.outcome.value, decision.reason,
+            )
+            return None
+
+        return sanitized
+
     async def _on_demo_stopped(self, event: DemoStopped) -> None:
         """Sanitize observations and publish verified output on demo stop."""
         try:
@@ -341,14 +438,21 @@ class DefensePipeline:
             roasts=list(self._roasts),
         )
 
+        # RACP: crossing into the privileged LLM is a consequential effect, so
+        # it needs a live lease. Without a gateway this is a no-op passthrough.
+        authorized = self._authorize_publication(sanitized, len(reassembled))
+
         # Publish for downstream consumers (Phase 3/4)
-        if self._event_bus is not None:
-            self._event_bus.publish(ObservationVerified(output=sanitized))
+        if authorized is not None:
+            sanitized = authorized
+            if self._event_bus is not None:
+                self._event_bus.publish(ObservationVerified(output=sanitized))
 
         attempts = self._logger.get_attempts()
         logger.info(
-            "Defense summary: %d injection attempts, %d observations sanitized, %d roasts generated",
+            "Defense summary: %d injection attempts, %d observations %s, %d roasts generated",
             len(attempts),
             len(sanitized.observations),
+            "published" if authorized is not None else "withheld by the control plane",
             len(self._roasts),
         )

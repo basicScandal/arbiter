@@ -411,6 +411,42 @@ class WebOperator:
                 "confidence": event.attempt.confidence,
             }
 
+        # RACP control-plane events: the operator needs to see which effects the
+        # gateway withheld, and on what evidence, while the demo is still live.
+        if hasattr(event, "decision"):
+            decision = event.decision
+            event_data["data"]["team_name"] = decision.team_name
+            event_data["data"]["decision"] = {
+                "kind": decision.kind.value,
+                "outcome": decision.outcome.value,
+                "shadow_outcome": (
+                    decision.shadow_outcome.value if decision.shadow_outcome else None
+                ),
+                "reason": decision.reason,
+                "risk": decision.risk,
+                "lease_id": decision.lease_id,
+                "lease_revision": decision.lease_revision,
+            }
+        if hasattr(event, "lease"):
+            event_data["data"]["lease"] = {
+                "lease_id": event.lease.lease_id,
+                "revision": event.lease.revision,
+                "state": event.lease.state.value,
+                "expires_at": event.lease.expires_at,
+                "stale_claims": [a.claim for a in event.lease.stale_assumptions()],
+            }
+        if hasattr(event, "report"):
+            event_data["data"]["preflight"] = {
+                "passed": event.report.passed,
+                "probes_run": event.report.probes_run,
+                "probes_missed": event.report.probes_missed,
+                "mutation_score": event.report.mutation_score,
+                "detail": event.report.detail,
+            }
+        if event.event_type == "racp_lease_invalidated":
+            event_data["data"]["claims"] = list(event.claims)
+            event_data["data"]["reason"] = event.reason
+
         # Extract full scorecard from scoring_complete events
         if event.event_type == "scoring_complete" and hasattr(event, "scorecard"):
             sc = event.scorecard

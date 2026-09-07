@@ -32,11 +32,13 @@ from src.capture.models import (
     TranscriptReceived,
 )
 from src.commentary.pipeline import CommentaryPipeline
+from src.defense.injection_detector import InjectionDetector
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
 from src.operator.web import WebOperator
 from src.providers import create_provider
 from src.providers.base import LLMProvider
+from src.racp.pipeline import RACPPipeline
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.metrics import default_metrics
 from src.scoring.moe_engine import MoEScoringEngine
@@ -69,8 +71,26 @@ class CapturePipeline:
         self.gemini = GeminiSession(
             config=config, event_bus=self.event_bus, in_queue=self.media_queue
         )
+        # Runtime Alignment Control Plane. The detector instance is shared with
+        # the defense pipeline so preflight exercises the policy actually in
+        # force rather than a fresh copy of the policy as written in source.
+        detector = InjectionDetector()
+        self.racp: RACPPipeline | None = None
+        if config.racp_enabled:
+            self.racp = RACPPipeline(
+                detector=detector,
+                model=config.gemini_model,
+                enforce=config.racp_enforce,
+                track_lookup=lambda team: self.scoring.get_track(team),
+            )
+
+        gateway = self.racp.gateway if self.racp is not None else None
+
         self.defense = DefensePipeline(
-            api_key=config.gemini_api_key, gemini_session=self.gemini
+            api_key=config.gemini_api_key,
+            gemini_session=self.gemini,
+            gateway=gateway,
+            detector=detector,
         )
 
         # Shared circuit breaker for Gemini availability across scoring + commentary
@@ -83,6 +103,7 @@ class CapturePipeline:
             display_port=config.display_port,
             groq_api_key=config.groq_api_key,
             circuit_breaker=self._gemini_breaker,
+            gateway=gateway,
         )
 
         # Build MoE scoring providers if configured
@@ -111,6 +132,7 @@ class CapturePipeline:
             display=self.commentary.display_server,
             moe_engine=moe_engine,
             circuit_breaker=self._gemini_breaker,
+            gateway=gateway,
         )
         # Deliberation pipeline shares the same DisplayServer (display isolation
         # is about LLM paths, not the broadcast channel).
@@ -322,6 +344,11 @@ class CapturePipeline:
 
         # Subscribe to Q&A events for listening during Q&A
         self.event_bus.subscribe("qa_requested", self._on_qa_requested)
+
+        # Wire the control plane in first so a behavior lease exists before the
+        # defense pipeline starts producing evidence against it
+        if self.racp is not None:
+            await self.racp.setup(self.event_bus)
 
         # Wire the defense pipeline into the event bus
         await self.defense.setup(self.event_bus)

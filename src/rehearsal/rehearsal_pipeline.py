@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from unittest.mock import AsyncMock, MagicMock
 
 from src.capture.event_bus import EventBus
 from src.commentary.display_server import DisplayServer
 from src.commentary.pipeline import CommentaryPipeline
+from src.defense.injection_detector import InjectionDetector
 from src.defense.pipeline import DefensePipeline
 from src.memory.pipeline import DeliberationPipeline
+from src.racp.pipeline import RACPPipeline
 from src.rehearsal.replay_provider import ReplayProvider
 from src.rehearsal.synthetic_capture import SyntheticCapture
 from src.scoring.moe_engine import MoEScoringEngine
@@ -72,12 +75,35 @@ class RehearsalPipeline:
         else:
             self._display = self._make_mock_display()
 
+        # Runtime alignment control plane, wired exactly as CapturePipeline does:
+        # one detector shared with the defense pipeline so preflight exercises the
+        # policy in force. Rehearsal is where an operator should watch the control
+        # plane work before an event, so RACP_ENABLED / RACP_ENFORCE are honoured
+        # here too — including shadow mode, which is the recommended first run.
+        detector = InjectionDetector()
+        self.racp: RACPPipeline | None = None
+        if os.getenv("RACP_ENABLED", "true").lower() in ("true", "1", "yes"):
+            self.racp = RACPPipeline(
+                detector=detector,
+                model="rehearsal",
+                decisions_path="data/rehearsal/racp/decisions.jsonl",
+                enforce=os.getenv("RACP_ENFORCE", "true").lower() in ("true", "1", "yes"),
+            )
+        gateway = self.racp.gateway if self.racp is not None else None
+
         # Defense pipeline with mock GeminiSession
         mock_gemini = self._make_mock_gemini()
-        self._defense = DefensePipeline(api_key="rehearsal", gemini_session=mock_gemini)
+        self._defense = DefensePipeline(
+            api_key="rehearsal",
+            gemini_session=mock_gemini,
+            gateway=gateway,
+            detector=detector,
+        )
 
         # Commentary pipeline with mocked TTS and generator
-        self._commentary = CommentaryPipeline(api_key="rehearsal", voice_id="rehearsal")
+        self._commentary = CommentaryPipeline(
+            api_key="rehearsal", voice_id="rehearsal", gateway=gateway
+        )
         self._commentary._tts = MagicMock()
         self._commentary._tts.connect = AsyncMock()
         self._commentary._tts.speak = AsyncMock()
@@ -92,6 +118,7 @@ class RehearsalPipeline:
             display=self._display,
             scores_dir="data/rehearsal/scores",
             moe_engine=MoEScoringEngine([ReplayProvider()]),
+            gateway=gateway,
         )
 
         # Deliberation pipeline with mock memory store
@@ -133,6 +160,8 @@ class RehearsalPipeline:
         Subscribes defense, commentary, scoring, and deliberation pipelines
         to the same event types as production CapturePipeline.run().
         """
+        if self.racp is not None:
+            await self.racp.setup(self._event_bus)
         await self._defense.setup(self._event_bus)
         await self._commentary.setup(self._event_bus)
         await self._scoring.setup(self._event_bus)

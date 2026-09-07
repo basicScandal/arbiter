@@ -18,6 +18,9 @@ from src.commentary.models import CommentaryDelivered
 from src.capture.models import DemoStarted
 from src.config.tracks import VALID_TRACKS
 from src.defense.models import ObservationVerified
+from src.racp.gateway import ActionGateway, new_action
+from src.racp.models import ActionBlocked, ActionKind
+from src.racp.monitors import Evidence
 from src.resilience.circuit_breaker import GeminiCircuitBreaker
 from src.resilience.metrics import default_metrics
 from src.scoring.engine import ScoringEngine
@@ -37,6 +40,10 @@ class ScoringPipeline:
     natural dramatic timing (Pitfall 5 avoidance).
     """
 
+    # Class-level default so partially constructed instances (tests that build
+    # the pipeline via __new__) still take the ungated path rather than raising.
+    _gateway: ActionGateway | None = None
+
     def __init__(
         self,
         api_key: str,
@@ -44,6 +51,7 @@ class ScoringPipeline:
         scores_dir: str = "data/scores",
         moe_engine: MoEScoringEngine | None = None,
         circuit_breaker: GeminiCircuitBreaker | None = None,
+        gateway: ActionGateway | None = None,
     ) -> None:
         self._engine = ScoringEngine(api_key=api_key, circuit_breaker=circuit_breaker)
         self._moe_engine = moe_engine
@@ -53,6 +61,7 @@ class ScoringPipeline:
         self._pending_tracks: dict[str, str] = {}
         self._event_bus: EventBus | None = None
         self._reveal_task: asyncio.Task | None = None
+        self._gateway = gateway
 
     async def setup(self, event_bus: EventBus) -> None:
         """Wire the scoring pipeline into the event bus.
@@ -97,10 +106,23 @@ class ScoringPipeline:
         track = self._pending_tracks.get(team_name, "ROGUE::AGENT")
         _scoring_start = time.monotonic()
 
+        # RACP: scoring feeds demo text to the privileged models, so it needs a
+        # live lease. A refusal publishes ScoringFailed rather than returning
+        # silently — the reveal path waits on that event.
+        if not self._authorize(team_name, event, ActionKind.SCORE_DEMO):
+            return
+
         try:
             # Use MoE engine if available, otherwise single-model engine
             engine = self._moe_engine if self._moe_engine is not None else self._engine
             scorecard = await engine.score(event.output, track)
+            # Writing the scorecard down is irreversible in the eyes of the
+            # room, so it is authorized separately from the scoring call. A
+            # refusal drops the scorecard entirely rather than revealing a
+            # score that was never recorded.
+            if not self._authorize(team_name, event, ActionKind.PERSIST_SCORE):
+                self._pending_scorecards.pop(team_name, None)
+                return
             self._pending_scorecards[team_name] = scorecard
             await self._store.save(scorecard)
             default_metrics.observe_seconds(
@@ -127,6 +149,49 @@ class ScoringPipeline:
         # Publish scoring complete event
         if self._event_bus is not None:
             self._event_bus.publish(ScoringComplete(scorecard=scorecard))
+
+    def _authorize(
+        self, team_name: str, event: ObservationVerified, kind: ActionKind
+    ) -> bool:
+        """Authorize a scoring effect against the team's behavior lease.
+
+        Returns True when the effect may proceed. On refusal, ScoringFailed is
+        published so the theatrical reveal does not wait forever on a scorecard
+        that will never arrive.
+        """
+        if self._gateway is None:
+            return True
+
+        evidence = Evidence(
+            team_name=team_name,
+            injection_attempts=list(event.output.injection_attempts),
+            observations=list(event.output.observations),
+            transcripts=list(event.output.transcripts),
+        )
+        action = new_action(
+            kind,
+            team_name=team_name,
+            summary=f"{kind.value} for {team_name}",
+            payload=sorted(event.output.observations),
+        )
+        decision = self._gateway.authorize(action, evidence)
+        if decision.should_surface and self._event_bus is not None:
+            self._event_bus.publish(ActionBlocked(decision=decision))
+        if not decision.blocked:
+            return True
+
+        logger.error(
+            "RACP blocked %s for %s (%s): %s",
+            kind.value, team_name, decision.outcome.value, decision.reason,
+        )
+        if self._event_bus is not None:
+            self._event_bus.publish(
+                ScoringFailed(
+                    team_name=team_name,
+                    error=f"RACP {decision.outcome.value}: {decision.reason}"[:200],
+                )
+            )
+        return False
 
     async def _on_commentary_delivered(self, event: CommentaryDelivered) -> None:
         """Trigger theatrical score reveal after commentary finishes.
