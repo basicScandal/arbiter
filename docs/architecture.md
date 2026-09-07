@@ -65,6 +65,17 @@ src/
     pipeline.py             Orchestrates detect -> sanitize flow
     roast_generator.py      Generates audience-facing roasts for blocked attacks
 
+  racp/              Runtime alignment control plane (see docs/racp.md)
+    models.py           BehaviorLease, Assumption, Decision, ActionKind
+    compiler.py         Compiles/renews/quarantines/revokes leases
+    preflight.py        Task-shaped probes + mutation tests on the live detector
+    monitors.py         Six independent evidence monitors
+    estimator.py        Folds monitor signals into a trajectory state
+    gateway.py          authorize(): the single enforcement point for effects
+    audit.py            Hash-chained decision log (data/racp/decisions.jsonl)
+    signing.py          HMAC-SHA256 lease signing
+    pipeline.py         Issues leases on demo_started, invalidates on detection
+
   commentary/        Real-time commentary + audience display
     generator.py        LLM commentary generation (Gemini -> Groq fallback)
     tts_engine.py       Text-to-speech (Cartesia -> OpenAI -> macOS say)

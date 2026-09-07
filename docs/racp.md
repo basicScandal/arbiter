@@ -13,6 +13,10 @@ claims that permission rests on, and which monitors must keep reporting for it
 to stay valid. Every consequential effect passes through a gateway that checks
 the lease first.
 
+For the mechanical walkthrough — the authorization path step by step, the lease
+state machine, the monitor contract, and how to gate a new effect — see
+[docs/racp-internals.md](racp-internals.md).
+
 ## What it adds over detection alone
 
 | Failure the detector cannot catch by itself | What RACP does |

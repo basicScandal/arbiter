@@ -19,7 +19,7 @@ Built for the [NEBULA:FOG 2026](https://nebulafog.ai) security hackathon, where 
 
 - **Real-time observation** — Connects to Gemini Live API, streams audio/video, generates observations as presenters speak
 - **Multi-layer injection defense** — Regex denylist, semantic classifier (rubric echo, self-eval, fabricated evidence), multi-language detection (7 languages), XML boundary tags, dual-LLM privilege separation
-- **Runtime Alignment Control Plane** — Every consequential effect (crossing the privileged-LLM boundary, scoring, speaking, writing a scorecard) is gated by an expiring, signed **behavior lease**. Preflight proves the detection policy still works before each demo, an independent monitor re-checks what the sanitizer produced, and effects fail closed with a hash-chained audit trail — see [docs/racp.md](docs/racp.md)
+- **Runtime Alignment Control Plane** — Every consequential effect (crossing the privileged-LLM boundary, scoring, speaking, writing a scorecard) is gated by an expiring, signed **behavior lease**. Preflight proves the detection policy still works before each demo, an independent monitor re-checks what the sanitizer produced, and effects fail closed with a hash-chained audit trail — see [docs/racp.md](docs/racp.md) and [how it works](docs/racp-internals.md)
 - **AI commentary** — Generates sharp, persona-driven reviews delivered via Cartesia TTS (British voice)
 - **Multi-model scoring** — Gemini, Claude, and Groq independently score each demo, aggregated with outlier detection
 - **Theatrical score reveal** — Animated criterion-by-criterion reveal on the audience display
