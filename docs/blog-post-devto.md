@@ -3,8 +3,8 @@ title: "We Built an AI Judge for a Live Hackathon — Then Red-Teamed It"
 published: false
 description: "How we built Arbiter: an autonomous AI judge that watched 25 live demos, scored with 3 LLMs, delivered British-accented commentary, and caught prompt injection attempts on stage. Open source."
 tags: ai, security, llm, opensource
-cover_image: https://basicscandal.github.io/arbiter/social-preview.png
-canonical_url: https://basicscandal.github.io/arbiter/how-we-built-arbiter.html
+cover_image: https://nebulafog.ai/images/blog/arbiter-og.png
+canonical_url: https://nebulafog.ai/blog/how-we-built-arbiter.html
 ---
 
 # How We Built an AI Judge for a Live Hackathon
@@ -122,4 +122,5 @@ The rehearsal mode runs the full pipeline with synthetic data — you can see ex
 
 - **GitHub**: https://github.com/basicScandal/arbiter
 - **Event**: https://nebulafog.ai
+- **Canonical post**: https://nebulafog.ai/blog/how-we-built-arbiter.html
 - **Results**: https://nebulafog.ai/singularity-results.html
